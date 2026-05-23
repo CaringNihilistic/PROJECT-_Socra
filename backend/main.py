@@ -46,5 +46,5 @@ async def health():
     return {
         "status": "ok",
         "stub_mode": settings.is_stub,
-        "version": "0.1.0",
+        "version": "0.2.0",
     }
