@@ -3,7 +3,6 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-react'
 import { useSessionStore } from './store/sessionStore'
 import { LandingPage } from './components/LandingPage'
 import { SessionPage } from './components/SessionPage'
-import { CLERK_ENABLED } from './lib/auth'
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 
