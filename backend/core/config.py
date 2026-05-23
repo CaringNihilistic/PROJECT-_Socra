@@ -20,4 +20,7 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
-settings = Settings()
+_s = Settings()
+_s.groq_api_key = _s.groq_api_key.strip()
+_s.anthropic_api_key = _s.anthropic_api_key.strip()
+settings = _s
