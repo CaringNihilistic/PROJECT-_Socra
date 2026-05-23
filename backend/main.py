@@ -30,11 +30,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://socra-production.up.railway.app",
-    ],
+    allow_origin_regex=r"https://.*\.up\.railway\.app|http://localhost:(3000|5173)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
