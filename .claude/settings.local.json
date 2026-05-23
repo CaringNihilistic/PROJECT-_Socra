@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(docker version 2>&1)",
+      "PowerShell(docker exec project_startup-frontend-1 npx tsc --noEmit 2>&1)"
+    ]
+  }
+}

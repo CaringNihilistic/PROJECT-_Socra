@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Socra — The AI Architect for Real Projects</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0A0A0B;--bg2:#111114;--bg3:#18181C;
+  --border:#222228;--border2:#2E2E38;
+  --text:#F0EFE8;--text2:#9998A0;--text3:#55545C;
+  --amber:#E8A030;--amber2:#F5C060;--amber-dim:#2A1E08;
+  --green:#3CBA82;--green-dim:#0A2419;
+  --red:#E05555;--red-dim:#2A0E0E;
+  --blue:#5590E8;--blue-dim:#0C1E3A;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:15px;line-height:1.6;overflow-x:hidden}
+.grid-bg{position:fixed;top:0;left:0;right:0;bottom:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 48px;background:rgba(10,10,11,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.nav-logo{font-family:'DM Serif Display',serif;font-size:22px;color:var(--text);display:flex;align-items:center;gap:8px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px var(--amber);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-links{display:flex;gap:28px;align-items:center}
+.nav-links a{color:var(--text2);font-size:13px;text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{background:var(--amber);color:#0A0A0B;padding:8px 18px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;border:none;transition:background .2s,transform .1s}
+.nav-cta:hover{background:var(--amber2);transform:translateY(-1px)}
+.hero{position:relative;z-index:1;min-height:90vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px 60px}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:var(--amber-dim);border:1px solid var(--amber);color:var(--amber);font-size:12px;font-weight:500;padding:5px 14px;border-radius:20px;margin-bottom:32px;font-family:'DM Mono',monospace;animation:fadeUp .6s ease both}
+.hero-badge::before{content:'◆';font-size:9px}
+.hero-h1{font-family:'DM Serif Display',serif;font-size:clamp(40px,6vw,78px);line-height:1.08;letter-spacing:-.5px;margin-bottom:12px;animation:fadeUp .7s .1s ease both}
+.hero-h1 em{font-style:italic;color:var(--amber)}
+.hero-h1 .strike{text-decoration:line-through;color:var(--text3);font-style:normal}
+.hero-sub{font-size:18px;color:var(--text2);max-width:560px;line-height:1.6;margin-bottom:44px;animation:fadeUp .7s .2s ease both}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;animation:fadeUp .7s .3s ease both}
+.btn-primary{background:var(--amber);color:#0A0A0B;padding:13px 28px;border-radius:8px;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;border:none;transition:all .2s;display:flex;align-items:center;gap:8px}
+.btn-primary:hover{background:var(--amber2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(232,160,48,.3)}
+.btn-secondary{background:transparent;color:var(--text);padding:13px 28px;border-radius:8px;font-size:15px;font-weight:500;border:1px solid var(--border2);text-decoration:none;cursor:pointer;transition:all .2s}
+.btn-secondary:hover{border-color:var(--text3);background:var(--bg3)}
+.social-proof{margin-top:56px;display:flex;align-items:center;gap:12px;color:var(--text3);font-size:13px;animation:fadeUp .7s .4s ease both}
+.avatars{display:flex}
+.av{width:28px;height:28px;border-radius:50%;background:var(--bg3);border:2px solid var(--bg);margin-left:-8px;font-size:11px;display:flex;align-items:center;justify-content:center}
+.av:first-child{margin-left:0}
+.stars{color:var(--amber);letter-spacing:-1px;font-size:12px}
+.demo-section{position:relative;z-index:1;padding:0 24px 100px;display:flex;flex-direction:column;align-items:center}
+.demo-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px}
+.demo-window{width:100%;max-width:780px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.6)}
+.demo-titlebar{background:var(--bg3);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:8px}
+.tb-dot{width:10px;height:10px;border-radius:50%}
+.demo-body{padding:24px}
+.eval-bar-wrap{margin-bottom:24px}
+.eval-title{font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:10px;letter-spacing:.05em}
+.eval-dims{display:flex;flex-direction:column;gap:7px}
+.dim{display:grid;grid-template-columns:140px 1fr 32px;align-items:center;gap:10px}
+.dim-name{font-size:12px;color:var(--text2)}
+.dim-track{background:var(--bg3);border-radius:4px;height:6px;overflow:hidden}
+.dim-fill{height:100%;border-radius:4px;width:0;transition:width 1.5s cubic-bezier(.4,0,.2,1)}
+.dim-pct{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;text-align:right}
+.total-row{margin-top:12px;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)}
+.total-label{font-size:12px;color:var(--text2)}
+.total-val{font-family:'DM Serif Display',serif;font-size:22px;color:var(--amber)}
+.total-status{font-size:11px;color:var(--amber);font-family:'DM Mono',monospace}
+.chat{display:flex;flex-direction:column;gap:10px}
+.msg{display:flex;gap:10px;align-items:flex-start}
+.msg-avatar{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;margin-top:1px}
+.msg-bubble{font-size:13px;line-height:1.55;padding:10px 13px;border-radius:8px;max-width:540px}
+.msg.user .msg-avatar{background:var(--blue-dim);color:var(--blue)}
+.msg.user .msg-bubble{background:var(--blue-dim);border:1px solid rgba(85,144,232,.2);color:var(--text)}
+.msg.ai .msg-avatar{background:var(--amber-dim);color:var(--amber)}
+.msg.ai .msg-bubble{background:var(--bg3);border:1px solid var(--border2);color:var(--text2)}
+.msg.ai .msg-bubble strong{color:var(--text)}
+.challenge-bubble{background:var(--red-dim);border:1px solid rgba(224,85,85,.25);color:var(--text2);padding:10px 13px;border-radius:8px;font-size:13px;line-height:1.55;margin-left:36px}
+.challenge-bubble::before{content:'⚡ CHALLENGE — ';font-family:'DM Mono',monospace;font-size:10px;color:var(--red);letter-spacing:.05em;font-weight:500}
+.input-row{margin-top:14px;display:flex;gap:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;align-items:center}
+.input-fake{flex:1;font-size:13px;color:var(--text3);font-family:'Instrument Sans',sans-serif}
+.input-send{background:var(--amber);color:#0A0A0B;border:none;border-radius:5px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer}
+.problem-section{position:relative;z-index:1;padding:80px 24px;max-width:1100px;margin:0 auto}
+.section-badge{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px}
+.section-h2{font-family:'DM Serif Display',serif;font-size:clamp(28px,4vw,48px);line-height:1.15;margin-bottom:48px}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.compare-card{border-radius:12px;padding:24px;border:1px solid var(--border)}
+.compare-card.bad{background:var(--red-dim);border-color:rgba(224,85,85,.2)}
+.compare-card.good{background:var(--green-dim);border-color:rgba(60,186,130,.2)}
+.compare-head{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:6px}
+.compare-card.bad .compare-head{color:var(--red)}
+.compare-card.good .compare-head{color:var(--green)}
+.compare-item{display:flex;gap:8px;font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5}
+.compare-item:last-child{margin-bottom:0}
+.features-section{position:relative;z-index:1;padding:80px 24px;max-width:1100px;margin:0 auto}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.feature-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:22px;transition:border-color .2s,transform .2s;cursor:default}
+.feature-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.feat-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:14px}
+.feat-title{font-size:14px;font-weight:600;margin-bottom:6px}
+.feat-desc{font-size:13px;color:var(--text2);line-height:1.55}
+.feat-tag{display:inline-block;font-size:10px;font-weight:500;font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;margin-top:10px;letter-spacing:.04em}
+.pricing-section{position:relative;z-index:1;padding:80px 24px;max-width:800px;margin:0 auto;text-align:center}
+.pricing-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:left;margin-top:40px}
+.plan{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:28px}
+.plan.featured{border-color:var(--amber);background:linear-gradient(135deg,var(--bg2) 0%,rgba(232,160,48,.05) 100%)}
+.plan-name{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em}
+.plan-price{font-family:'DM Serif Display',serif;font-size:38px;color:var(--text);margin-bottom:4px;display:flex;align-items:flex-start;gap:4px}
+.plan-price sup{font-size:18px;margin-top:8px;font-family:'Instrument Sans',sans-serif;font-weight:500}
+.plan-price span{font-size:14px;color:var(--text3);font-family:'Instrument Sans',sans-serif;font-weight:400;margin-top:auto;padding-bottom:4px}
+.plan-desc{font-size:13px;color:var(--text3);margin-bottom:20px}
+.plan-features{display:flex;flex-direction:column;gap:8px}
+.pf{display:flex;gap:8px;font-size:13px;color:var(--text2);align-items:flex-start}
+.pf-check{color:var(--green);flex-shrink:0;margin-top:1px}
+.plan-btn{margin-top:24px;width:100%;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.plan.featured .plan-btn{background:var(--amber);color:#0A0A0B}
+.plan.featured .plan-btn:hover{background:var(--amber2)}
+.plan:not(.featured) .plan-btn{background:var(--bg3);color:var(--text);border:1px solid var(--border2)}
+.plan:not(.featured) .plan-btn:hover{border-color:var(--text3)}
+.waitlist-section{position:relative;z-index:1;padding:80px 24px 120px;text-align:center}
+.waitlist-inner{max-width:560px;margin:0 auto}
+.waitlist-h2{font-family:'DM Serif Display',serif;font-size:clamp(32px,4vw,52px);line-height:1.1;margin-bottom:16px}
+.waitlist-sub{font-size:16px;color:var(--text2);margin-bottom:36px}
+.waitlist-form{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.waitlist-input{flex:1;min-width:220px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:13px 16px;color:var(--text);font-size:14px;font-family:'Instrument Sans',sans-serif;outline:none;transition:border .2s}
+.waitlist-input:focus{border-color:var(--amber)}
+.waitlist-input::placeholder{color:var(--text3)}
+.waitlist-btn{background:var(--amber);color:#0A0A0B;border:none;border-radius:8px;padding:13px 24px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s}
+.waitlist-btn:hover{background:var(--amber2);transform:translateY(-1px)}
+.waitlist-note{margin-top:14px;font-size:12px;color:var(--text3)}
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:28px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.footer-logo{font-family:'DM Serif Display',serif;font-size:18px;color:var(--text2)}
+.footer-note{font-size:12px;color:var(--text3)}
+.footer-links{display:flex;gap:20px}
+.footer-links a{font-size:12px;color:var(--text3);text-decoration:none;transition:color .2s}
+.footer-links a:hover{color:var(--text2)}
+.ticker{position:relative;z-index:1;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:12px 0;overflow:hidden;background:var(--bg2)}
+.ticker-inner{display:flex;gap:0;animation:ticker 18s linear infinite;white-space:nowrap}
+.ticker-item{padding:0 32px;font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;display:flex;align-items:center;gap:10px}
+.ticker-item::after{content:'◆';color:var(--amber);font-size:8px}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:640px){nav{padding:14px 20px}.nav-links{display:none}.compare-grid,.pricing-grid{grid-template-columns:1fr}footer{flex-direction:column;text-align:center;padding:24px}}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<nav>
+  <div class="nav-logo"><div class="logo-dot"></div>Socra</div>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#waitlist">Early access</a>
+  </div>
+  <a class="nav-cta" href="#waitlist">Get early access →</a>
+</nav>
+<section class="hero">
+  <div class="hero-badge">Now in private beta</div>
+  <h1 class="hero-h1">The AI that <em>argues back</em><br/>before you <span class="strike">waste</span> build.</h1>
+  <p class="hero-sub">Socra is an AI architect that interrogates your project idea, challenges your assumptions, and debates your approach — before a single token is sent to any expensive model.</p>
+  <div class="hero-actions">
+    <a class="btn-primary" href="#waitlist">Join the waitlist <span>→</span></a>
+    <a class="btn-secondary" href="#how">See how it works</a>
+  </div>
+  <div class="social-proof">
+    <div class="avatars">
+      <div class="av" style="background:#1E2A1E;color:#3CBA82">A</div>
+      <div class="av" style="background:#1E1E2A;color:#5590E8">R</div>
+      <div class="av" style="background:#2A1E1E;color:#E05555">K</div>
+      <div class="av" style="background:#2A2A1E;color:#E8A030">P</div>
+    </div>
+    <div class="stars">★★★★★</div>
+    <span>240+ developers on the waitlist</span>
+  </div>
+</section>
+<div class="ticker">
+  <div class="ticker-inner">
+    <span class="ticker-item">Saves API credits</span><span class="ticker-item">Debates your approach</span><span class="ticker-item">Stress-tests at scale</span><span class="ticker-item">Generates architecture diagrams</span><span class="ticker-item">Exports to PRD</span><span class="ticker-item">Team collaboration</span><span class="ticker-item">Saves API credits</span><span class="ticker-item">Debates your approach</span><span class="ticker-item">Stress-tests at scale</span><span class="ticker-item">Generates architecture diagrams</span><span class="ticker-item">Exports to PRD</span><span class="ticker-item">Team collaboration</span>
+  </div>
+</div>
+<section class="demo-section" id="how" style="padding-top:80px">
+  <div class="demo-label">Live demo — watch the eval bar fill</div>
+  <div class="demo-window">
+    <div class="demo-titlebar">
+      <div class="tb-dot" style="background:#E05555"></div>
+      <div class="tb-dot" style="background:#E8A030"></div>
+      <div class="tb-dot" style="background:#3CBA82"></div>
+      <span style="margin-left:8px;font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">socra — architect session</span>
+    </div>
+    <div class="demo-body">
+      <div class="eval-bar-wrap" id="evalBar">
+        <div class="eval-title">CONTEXT SCORE</div>
+        <div class="eval-dims">
+          <div class="dim"><div class="dim-name">Problem Clarity</div><div class="dim-track"><div class="dim-fill" id="f1" style="background:var(--amber)"></div></div><div class="dim-pct" id="d1">0%</div></div>
+          <div class="dim"><div class="dim-name">Scale & Constraints</div><div class="dim-track"><div class="dim-fill" id="f2" style="background:var(--blue)"></div></div><div class="dim-pct" id="d2">0%</div></div>
+          <div class="dim"><div class="dim-name">Tech Context</div><div class="dim-track"><div class="dim-fill" id="f3" style="background:var(--green)"></div></div><div class="dim-pct" id="d3">0%</div></div>
+          <div class="dim"><div class="dim-name">Success Definition</div><div class="dim-track"><div class="dim-fill" id="f4" style="background:#C478E8"></div></div><div class="dim-pct" id="d4">0%</div></div>
+          <div class="dim"><div class="dim-name">Risk Awareness</div><div class="dim-track"><div class="dim-fill" id="f5" style="background:var(--red)"></div></div><div class="dim-pct" id="d5">0%</div></div>
+        </div>
+        <div class="total-row">
+          <span class="total-label">Overall readiness</span>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="total-status" id="statusText">⟳ gathering context...</span>
+            <span class="total-val" id="totalPct">0%</span>
+          </div>
+        </div>
+      </div>
+      <div class="chat" id="chat">
+        <div class="msg user"><div class="msg-avatar">U</div><div class="msg-bubble">I want to build an app like Airbnb for co-working spaces</div></div>
+        <div class="msg ai"><div class="msg-avatar">S</div><div class="msg-bubble" id="msg1" style="display:none"><strong>Before I touch any model — a few things I need to understand.</strong><br/><br/>Who is the primary user here — the person looking for a desk, or the office owner listing their space? Your entire data model changes based on that answer.</div></div>
+      </div>
+      <div id="challenge1" class="challenge-bubble" style="display:none;margin-top:10px">You said "like Airbnb" — but Airbnb took 10 years and $6B to build trust in a two-sided marketplace. What's your plan for the chicken-and-egg problem on day one with zero supply and zero demand?</div>
+      <div class="input-row" style="margin-top:14px">
+        <div class="input-fake" id="inputFake">Both — owners list spaces, workers book them...</div>
+        <button class="input-send">↑</button>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="problem-section">
+  <div class="section-badge">The problem</div>
+  <h2 class="section-h2">Most teams start building<br/>before they understand<em style="font-style:italic;color:var(--amber)"> what</em> they're building.</h2>
+  <div class="compare-grid">
+    <div class="compare-card bad">
+      <div class="compare-head">✕ Without Socra</div>
+      <div class="compare-item"><span>→</span>Vague prompt → garbage output → retry 10 times</div>
+      <div class="compare-item"><span>→</span>Burn ₹40,000 in API credits on trial and error</div>
+      <div class="compare-item"><span>→</span>Architecture decided in 5 minutes, regretted in 5 months</div>
+      <div class="compare-item"><span>→</span>Nobody challenged the core assumption before building</div>
+      <div class="compare-item"><span>→</span>No documentation of why decisions were made</div>
+    </div>
+    <div class="compare-card good">
+      <div class="compare-head">✓ With Socra</div>
+      <div class="compare-item"><span>→</span>Structured debate → expert context → precise output first time</div>
+      <div class="compare-item"><span>→</span>One optimized call to the right model</div>
+      <div class="compare-item"><span>→</span>Architecture stress-tested against scale and failure</div>
+      <div class="compare-item"><span>→</span>Every assumption surfaced and confirmed before a line is written</div>
+      <div class="compare-item"><span>→</span>Full decision log exported as a PRD</div>
+    </div>
+  </div>
+</section>
+<section class="features-section" id="features">
+  <div class="section-badge">What Socra does</div>
+  <h2 class="section-h2">Everything a staff engineer does<br/>before saying <em style="font-style:italic;color:var(--amber)">"let's start coding."</em></h2>
+  <div class="features-grid">
+    <div class="feature-card"><div class="feat-icon" style="background:var(--amber-dim)">⚖️</div><div class="feat-title">Debate Engine</div><div class="feat-desc">Proposes an approach, then argues against its own proposal. Forces you to genuinely defend your choices.</div><span class="feat-tag" style="background:var(--amber-dim);color:var(--amber)">Core feature</span></div>
+    <div class="feature-card"><div class="feat-icon" style="background:var(--blue-dim)">📊</div><div class="feat-title">Evaluation Bar</div><div class="feat-desc">Real-time visual score across 5 dimensions. Refuses to generate output until context is sufficient.</div><span class="feat-tag" style="background:var(--blue-dim);color:var(--blue)">Core feature</span></div>
+    <div class="feature-card"><div class="feat-icon" style="background:var(--green-dim)">🧠</div><div class="feat-title">Cross-session Memory</div><div class="feat-desc">Remembers your stack, team size, and past decisions. References them in future projects automatically.</div><span class="feat-tag" style="background:var(--green-dim);color:var(--green)">Pro</span></div>
+    <div class="feature-card"><div class="feat-icon" style="background:var(--red-dim)">🔍</div><div class="feat-title">Assumption Tracker</div><div class="feat-desc">Every hidden assumption is surfaced explicitly. Correct one and the whole recommendation recalibrates.</div><span class="feat-tag" style="background:var(--red-dim);color:var(--red)">Core feature</span></div>
+    <div class="feature-card"><div class="feat-icon" style="background:var(--amber-dim)">🗺️</div><div class="feat-title">Architecture Diagram</div><div class="feat-desc">Auto-generates a system diagram from the masterplan — components, communication patterns, scaling risks.</div><span class="feat-tag" style="background:var(--amber-dim);color:var(--amber)">Pro</span></div>
+    <div class="feature-card"><div class="feat-icon" style="background:var(--blue-dim)">👥</div><div class="feat-title">Team Mode</div><div class="feat-desc">Multiple founders join one session. System detects contradictions and forces alignment before output.</div><span class="feat-tag" style="background:var(--blue-dim);color:var(--blue)">Team</span></div>
+    <div class="feature-card"><div class="feat-icon" style="background:var(--green-dim)">💰</div><div class="feat-title">Cost Estimator</div><div class="feat-desc">Shows monthly cloud cost of the naive approach vs the optimized one. Makes savings tangible in rupees.</div><span class="feat-tag" style="background:var(--green-dim);color:var(--green)">Pro</span></div>
+    <div class="feature-card"><div class="feat-icon" style="background:var(--red-dim)">⚠️</div><div class="feat-title">"What Could Go Wrong" Report</div><div class="feat-desc">Top 5 failure modes at scale, each with a specific mitigation. The final senior-engineer review.</div><span class="feat-tag" style="background:var(--red-dim);color:var(--red)">Pro</span></div>
+    <div class="feature-card"><div class="feat-icon" style="background:var(--amber-dim)">📋</div><div class="feat-title">Export to PRD</div><div class="feat-desc">One click exports the full session as a structured Product Requirements Document.</div><span class="feat-tag" style="background:var(--amber-dim);color:var(--amber)">Pro</span></div>
+  </div>
+</section>
+<section class="pricing-section" id="pricing">
+  <div class="section-badge">Pricing</div>
+  <h2 class="section-h2" style="margin-bottom:8px">Save more than you spend.</h2>
+  <p style="color:var(--text2);font-size:15px">One good session pays for itself in API credits saved.</p>
+  <div class="pricing-grid">
+    <div class="plan">
+      <div class="plan-name">Free</div>
+      <div class="plan-price"><sup>₹</sup>0<span>/month</span></div>
+      <div class="plan-desc">For exploring the idea</div>
+      <div class="plan-features">
+        <div class="pf"><span class="pf-check">✓</span>3 architect sessions/month</div>
+        <div class="pf"><span class="pf-check">✓</span>Evaluation bar + debate engine</div>
+        <div class="pf"><span class="pf-check">✓</span>Basic masterplan output</div>
+        <div class="pf" style="color:var(--text3)"><span>✗</span> Memory, diagrams, PRD export</div>
+      </div>
+      <button class="plan-btn">Start free</button>
+    </div>
+    <div class="plan featured">
+      <div class="plan-name" style="color:var(--amber)">Pro ✦ Most popular</div>
+      <div class="plan-price"><sup>₹</sup>999<span>/month</span></div>
+      <div class="plan-desc">For founders and solo devs</div>
+      <div class="plan-features">
+        <div class="pf"><span class="pf-check">✓</span>Unlimited architect sessions</div>
+        <div class="pf"><span class="pf-check">✓</span>Cross-session memory</div>
+        <div class="pf"><span class="pf-check">✓</span>Architecture diagrams</div>
+        <div class="pf"><span class="pf-check">✓</span>Cost estimator + risk report</div>
+        <div class="pf"><span class="pf-check">✓</span>Export to PRD</div>
+        <div class="pf"><span class="pf-check">✓</span>Devil's advocate mode</div>
+      </div>
+      <button class="plan-btn">Get Pro — ₹999/mo</button>
+    </div>
+  </div>
+  <p style="margin-top:16px;font-size:12px;color:var(--text3)">Team plan at ₹3,499/month for up to 5 seats. Enterprise? <a href="#waitlist" style="color:var(--amber);text-decoration:none">Talk to us.</a></p>
+</section>
+<section class="waitlist-section" id="waitlist">
+  <div class="waitlist-inner">
+    <h2 class="waitlist-h2">Stop building the<br/><em style="font-style:italic;color:var(--amber)">wrong thing.</em></h2>
+    <p class="waitlist-sub">Join 240+ developers getting early access. First 100 get 3 months of Pro free.</p>
+    <div class="waitlist-form">
+      <input class="waitlist-input" type="email" placeholder="your@email.com" id="emailInput"/>
+      <button class="waitlist-btn" onclick="handleWaitlist()">Get early access →</button>
+    </div>
+    <p class="waitlist-note" id="waitlist-msg">No spam. No pitch decks in your inbox. Just early access when we're ready.</p>
+  </div>
+</section>
+<footer>
+  <div class="footer-logo">Socra</div>
+  <div class="footer-note">© 2025 Socra. Built in India 🇮🇳</div>
+  <div class="footer-links"><a href="#">Twitter</a><a href="#">LinkedIn</a><a href="#">GitHub</a><a href="#">Privacy</a></div>
+</footer>
+<script>
+window.addEventListener('load',()=>{
+  setTimeout(()=>startDemo(),800);
+});
+function setDim(fid,did,pct,total){
+  const f=document.getElementById(fid);
+  f.style.transition='width 1.2s cubic-bezier(.4,0,.2,1)';
+  f.style.width=pct+'%';
+  document.getElementById(did).textContent=pct+'%';
+  document.getElementById('totalPct').textContent=total+'%';
+  const s=document.getElementById('statusText');
+  if(total<40)s.textContent='⟳ gathering context...';
+  else if(total<70)s.textContent='◑ building picture...';
+  else if(total<85)s.textContent='◕ almost there...';
+  else s.textContent='✓ ready to generate';
+}
+function startDemo(){
+  setTimeout(()=>setDim('f1','d1',20,8),0);
+  setTimeout(()=>{document.getElementById('msg1').style.display='block'},1200);
+  setTimeout(()=>{document.getElementById('challenge1').style.display='block'},2400);
+  setTimeout(()=>setDim('f1','d1',65,22),3500);
+  setTimeout(()=>setDim('f2','d2',40,28),4500);
+  setTimeout(()=>setDim('f3','d3',50,35),5500);
+  setTimeout(()=>setDim('f1','d1',80,48),6500);
+  setTimeout(()=>setDim('f4','d4',60,58),7500);
+  setTimeout(()=>setDim('f5','d5',50,66),8500);
+  setTimeout(()=>setDim('f2','d2',80,74),9500);
+  setTimeout(()=>setDim('f3','d3',85,82),10500);
+  setTimeout(()=>setDim('f4','d4',90,88),11500);
+  setTimeout(()=>setDim('f5','d5',80,90),12500);
+  setTimeout(()=>{
+    document.getElementById('inputFake').textContent='✓ Masterplan generated — 68% fewer tokens used';
+    document.getElementById('inputFake').style.color='#3CBA82';
+  },13500);
+  setTimeout(()=>resetDemo(),16000);
+}
+function resetDemo(){
+  ['f1','f2','f3','f4','f5'].forEach(id=>{const f=document.getElementById(id);f.style.transition='none';f.style.width='0'});
+  ['d1','d2','d3','d4','d5'].forEach(id=>document.getElementById(id).textContent='0%');
+  document.getElementById('totalPct').textContent='0%';
+  document.getElementById('statusText').textContent='⟳ gathering context...';
+  document.getElementById('inputFake').textContent='Both — owners list spaces, workers book them...';
+  document.getElementById('inputFake').style.color='var(--text3)';
+  document.getElementById('msg1').style.display='none';
+  document.getElementById('challenge1').style.display='none';
+  setTimeout(()=>startDemo(),1000);
+}
+function handleWaitlist(){
+  const email=document.getElementById('emailInput').value;
+  const msg=document.getElementById('waitlist-msg');
+  if(!email||!email.includes('@')){msg.textContent='Please enter a valid email address.';msg.style.color='#E05555';return}
+  msg.textContent="🎉 You're on the list! We'll reach out when early access opens.";
+  msg.style.color='#3CBA82';
+  document.getElementById('emailInput').value='';
+}
+</script>
+</body>
+</html>
