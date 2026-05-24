@@ -339,7 +339,7 @@ async def _call_groq(system: str, messages: list[dict], max_tokens: int, json_mo
     from openai import AsyncOpenAI
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
     kwargs: dict = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama-3.1-8b-instant",
         "max_tokens": max_tokens,
         "messages": [{"role": "system", "content": system}, *messages],
     }
@@ -427,7 +427,7 @@ async def _stream_llm_tokens(system: str, messages: list[dict]):
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
         stream = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             max_tokens=2500,
             messages=[{"role": "system", "content": system}, *messages],
             stream=True,
@@ -799,6 +799,36 @@ Using ALL of the above findings AND the full conversation history, write a compr
 Format as clean Markdown with clear section headers. Be specific and actionable. No generic advice."""
 
 
+async def _stream_synthesis_tokens(system: str, messages: list[dict]):
+    """Stream synthesis using the larger/better model regardless of the main model setting."""
+    if settings.anthropic_api_key:
+        import anthropic
+        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        async with client.messages.stream(
+            model="claude-sonnet-4-6",
+            max_tokens=3000,
+            system=system,
+            messages=messages,
+        ) as stream:
+            async for text in stream.text_stream:
+                yield text
+    else:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
+        stream = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            max_tokens=3000,
+            messages=[{"role": "system", "content": system}, *messages],
+            stream=True,
+        )
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+
+
 async def stream_multi_agent_masterplan(conversation_history: list[dict]):
     """
     Async generator for the multi-agent masterplan pipeline.
@@ -844,13 +874,13 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
             agent_reports.append(report)
             yield {"type": "agent_report", "report": report}
 
-    # Phase 2: stream synthesis using all reports + conversation
+    # Phase 2: stream synthesis — use the larger model for better masterplan quality
     synthesis_system = _build_synthesis_prompt(agent_reports)
     msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
     synthesis_text = ""
 
     try:
-        async for token in _stream_llm_tokens(synthesis_system, msgs):
+        async for token in _stream_synthesis_tokens(synthesis_system, msgs):
             synthesis_text += token
             yield {"type": "synthesis_token", "delta": token}
     except Exception:
