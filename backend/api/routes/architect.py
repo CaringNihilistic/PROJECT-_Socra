@@ -120,12 +120,13 @@ async def send_message_stream(
                 session.assumptions = list(session.assumptions or []) + llm_response.get("new_assumptions", [])
                 session.masterplan = masterplan
 
-                await db.commit()
-                await db.refresh(session)
-
+                # Serialize before commit — all fields are set in memory; refresh
+                # inside a streaming generator causes SQLAlchemy session issues.
                 choices = llm_response.get("choices", [])
                 refusal = get_refusal_message(total)
                 serialized = _serialize(session)
+
+                await db.commit()
 
                 if choices:
                     yield f"data: {json.dumps({'type': 'choices', 'choices': choices})}\n\n"
