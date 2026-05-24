@@ -375,6 +375,50 @@ async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, jso
 SEPARATOR = "###JSON###"
 
 
+def _build_groq_conversation_prompt(current_scores: dict) -> str:
+    total = sum(current_scores.values()) / 5
+    return f"""You are Socra — an expert AI architect who refuses to generate solutions until you fully understand the problem.
+
+Your job is to interrogate, debate, and stress-test project ideas through Socratic dialogue.
+
+CURRENT EVALUATION SCORES (0.0 to 1.0):
+- Problem Clarity: {current_scores['problem_clarity']}
+- Scale & Constraints: {current_scores['scale_constraints']}
+- Tech Context: {current_scores['tech_context']}
+- Success Definition: {current_scores['success_definition']}
+- Risk Awareness: {current_scores['risk_awareness']}
+
+TOTAL SCORE: {total:.0%}
+
+RULES:
+1. Ask maximum 2-3 targeted questions per turn. Never more.
+2. If score < 0.4: Stay in intake phase, ask clarifying questions.
+3. If score 0.4-0.7: Enter debate phase — propose approaches and argue against them.
+4. If score 0.7-0.85: Enter stress-test phase — challenge with failure scenarios.
+5. If score > 0.85: Write ONE SHORT SENTENCE confirming analysis is ready (e.g. "Context is sufficient — activating specialist analysis."). Do NOT write the masterplan yourself.
+
+Respond in markdown. Do NOT include any JSON, separators, or structured data in your response — only your conversational reply."""
+
+
+def _build_groq_eval_prompt(current_scores: dict) -> str:
+    return f"""You are an evaluator for a Socratic startup dialogue.
+
+CURRENT SCORES (0.0 to 1.0):
+- problem_clarity: {current_scores['problem_clarity']}
+- scale_constraints: {current_scores['scale_constraints']}
+- tech_context: {current_scores['tech_context']}
+- success_definition: {current_scores['success_definition']}
+- risk_awareness: {current_scores['risk_awareness']}
+
+Based on what the user clarified in their latest message, output a JSON object with exactly these keys:
+- "eval_delta": object with score increments (0.05-0.25 each) for dimensions clarified this turn
+- "new_assumptions": array of key assumptions extracted from the user's latest message
+- "phase": one of "intake" | "debate" | "stress_test" | "masterplan" — use the current phase rule (intake<0.4, debate 0.4-0.7, stress_test 0.7-0.85, masterplan>0.85)
+- "choices": array of 3-4 concise response options (max 12 words each) for what the user might reply; empty array [] if phase is "masterplan"
+
+Output only valid JSON, nothing else."""
+
+
 def _build_streaming_system_prompt(current_scores: dict) -> str:
     total = sum(current_scores.values()) / 5
     return f"""You are Socra — an expert AI architect who refuses to generate solutions until you fully understand the problem.
@@ -481,49 +525,78 @@ async def stream_architect_llm(
         yield {"type": "result", "data": response}
         return
 
-    system_prompt = _build_streaming_system_prompt(current_scores)
     msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
 
-    full_text = ""
-    yielded_chars = 0
-    message_complete = False
+    if settings.anthropic_api_key:
+        # Anthropic: stream text + embedded ###JSON### separator (reliable)
+        system_prompt = _build_streaming_system_prompt(current_scores)
+        full_text = ""
+        yielded_chars = 0
+        message_complete = False
 
-    try:
-        async for token in _stream_llm_tokens(system_prompt, msgs):
-            full_text += token
-            if not message_complete:
-                sep_idx = full_text.find(SEPARATOR)
-                if sep_idx >= 0:
-                    message_complete = True
-                    remaining = full_text[yielded_chars:sep_idx]
-                    if remaining:
-                        yield {"type": "token", "delta": remaining}
-                else:
-                    safe_end = max(yielded_chars, len(full_text) - len(SEPARATOR) + 1)
-                    if safe_end > yielded_chars:
-                        yield {"type": "token", "delta": full_text[yielded_chars:safe_end]}
-                        yielded_chars = safe_end
-    except Exception:
-        pass  # Use whatever was accumulated before the error
-
-    if not message_complete:
-        remaining = full_text[yielded_chars:]
-        if remaining:
-            yield {"type": "token", "delta": remaining}
         try:
-            result = json.loads(full_text)
-        except json.JSONDecodeError:
-            result = _default_result
+            async for token in _stream_llm_tokens(system_prompt, msgs):
+                full_text += token
+                if not message_complete:
+                    sep_idx = full_text.find(SEPARATOR)
+                    if sep_idx >= 0:
+                        message_complete = True
+                        remaining = full_text[yielded_chars:sep_idx]
+                        if remaining:
+                            yield {"type": "token", "delta": remaining}
+                    else:
+                        safe_end = max(yielded_chars, len(full_text) - len(SEPARATOR) + 1)
+                        if safe_end > yielded_chars:
+                            yield {"type": "token", "delta": full_text[yielded_chars:safe_end]}
+                            yielded_chars = safe_end
+        except Exception:
+            pass
+
+        if not message_complete:
+            remaining = full_text[yielded_chars:]
+            if remaining:
+                yield {"type": "token", "delta": remaining}
+            try:
+                result = json.loads(full_text)
+            except json.JSONDecodeError:
+                result = _default_result
+        else:
+            json_str = full_text.split(SEPARATOR, 1)[1].strip()
+            try:
+                result = json.loads(json_str)
+            except json.JSONDecodeError:
+                import re as _re
+                m = _re.search(r'\{.*\}', json_str, _re.DOTALL)
+                result = json.loads(m.group()) if m else _default_result
+
+        yield {"type": "result", "data": result}
+
     else:
-        json_str = full_text.split(SEPARATOR, 1)[1].strip()
+        # Groq llama-3.1-8b-instant: two-call approach
+        # Call 1: stream plain text (no separator/JSON format required)
+        conversation_prompt = _build_groq_conversation_prompt(current_scores)
+        message_text = ""
         try:
-            result = json.loads(json_str)
-        except json.JSONDecodeError:
-            import re as _re
-            m = _re.search(r'\{.*\}', json_str, _re.DOTALL)
-            result = json.loads(m.group()) if m else _default_result
+            async for token in _stream_llm_tokens(conversation_prompt, msgs):
+                message_text += token
+                yield {"type": "token", "delta": token}
+        except Exception:
+            pass
 
-    yield {"type": "result", "data": result}
+        # Call 2: separate JSON-mode call to get structured eval
+        eval_prompt = _build_groq_eval_prompt(current_scores)
+        eval_msgs = msgs + [{"role": "assistant", "content": message_text}]
+        try:
+            eval_raw = await _call_groq(eval_prompt, eval_msgs, max_tokens=600, json_mode=True)
+            result = json.loads(eval_raw)
+            result.setdefault("eval_delta", {k: 0.05 for k in current_scores})
+            result.setdefault("new_assumptions", [])
+            result.setdefault("phase", "intake")
+            result.setdefault("choices", [])
+        except Exception:
+            result = _default_result
+
+        yield {"type": "result", "data": result}
 
 
 # ---------------------------------------------------------------------------
