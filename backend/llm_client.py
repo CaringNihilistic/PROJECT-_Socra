@@ -433,6 +433,8 @@ async def _stream_llm_tokens(system: str, messages: list[dict]):
             stream=True,
         )
         async for chunk in stream:
+            if not chunk.choices:
+                continue
             delta = chunk.choices[0].delta.content
             if delta:
                 yield delta
@@ -486,20 +488,23 @@ async def stream_architect_llm(
     yielded_chars = 0
     message_complete = False
 
-    async for token in _stream_llm_tokens(system_prompt, msgs):
-        full_text += token
-        if not message_complete:
-            sep_idx = full_text.find(SEPARATOR)
-            if sep_idx >= 0:
-                message_complete = True
-                remaining = full_text[yielded_chars:sep_idx]
-                if remaining:
-                    yield {"type": "token", "delta": remaining}
-            else:
-                safe_end = max(yielded_chars, len(full_text) - len(SEPARATOR) + 1)
-                if safe_end > yielded_chars:
-                    yield {"type": "token", "delta": full_text[yielded_chars:safe_end]}
-                    yielded_chars = safe_end
+    try:
+        async for token in _stream_llm_tokens(system_prompt, msgs):
+            full_text += token
+            if not message_complete:
+                sep_idx = full_text.find(SEPARATOR)
+                if sep_idx >= 0:
+                    message_complete = True
+                    remaining = full_text[yielded_chars:sep_idx]
+                    if remaining:
+                        yield {"type": "token", "delta": remaining}
+                else:
+                    safe_end = max(yielded_chars, len(full_text) - len(SEPARATOR) + 1)
+                    if safe_end > yielded_chars:
+                        yield {"type": "token", "delta": full_text[yielded_chars:safe_end]}
+                        yielded_chars = safe_end
+    except Exception:
+        pass  # Use whatever was accumulated before the error
 
     if not message_complete:
         remaining = full_text[yielded_chars:]
