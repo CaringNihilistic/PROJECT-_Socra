@@ -22,6 +22,14 @@ export interface Message {
   content: string
 }
 
+export interface AgentReport {
+  key: string
+  title: string
+  icon: string
+  color: string
+  content: string
+}
+
 export interface SessionData {
   id: string
   initial_idea: string
@@ -32,6 +40,7 @@ export interface SessionData {
   conversation_history: Message[]
   assumptions: string[]
   masterplan: string | null
+  agent_reports: AgentReport[]
   explanations: ScoreExplanation[]
   latest_response?: string
   refusal?: string | null
@@ -73,6 +82,8 @@ interface SessionStore {
   isSending: boolean
   streamingMessage: string
   currentChoices: string[]
+  currentAgentReports: AgentReport[]
+  isAnalyzing: boolean
   sessionError: string | null
   authToken: string | null
   setAuthToken: (token: string | null) => void
@@ -98,6 +109,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   isSending: false,
   streamingMessage: '',
   currentChoices: [],
+  currentAgentReports: [],
+  isAnalyzing: false,
   sessionError: null,
   authToken: null,
 
@@ -106,7 +119,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   loadSessionHistory: async () => {
     const { authToken } = get()
     if (authToken) {
-      // Signed-in: load from backend
       try {
         const { data } = await axios.get<SessionSummary[]>(`${API_URL}/sessions/`, {
           headers: authHeaders(authToken),
@@ -114,7 +126,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         set({ sessionHistory: data })
       } catch { /* ignore — fall through to localStorage */ }
     } else {
-      // Anonymous: load from localStorage
       set({ sessionHistory: loadFromLocalStorage() })
     }
   },
@@ -129,7 +140,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         { headers: authHeaders(authToken) },
       )
       set({ session: data, currentChoices: data.choices ?? [], sessionError: null })
-      // Persist summary for history
       const summary: SessionSummary = {
         id: data.id,
         initial_idea: data.initial_idea,
@@ -161,7 +171,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   sendMessage: async (content: string) => {
     const { session, authToken } = get()
     if (!session) return
-    set({ isSending: true, streamingMessage: '', currentChoices: [] })
+    set({ isSending: true, streamingMessage: '', currentChoices: [], currentAgentReports: [], isAnalyzing: false })
 
     try {
       const response = await fetch(`${API_URL}/sessions/${session.id}/message/stream`, {
@@ -185,14 +195,28 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
           const payload = JSON.parse(line.slice(6))
+
           if (payload.type === 'token') {
             set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
+
           } else if (payload.type === 'choices') {
             set({ currentChoices: payload.choices })
+
+          } else if (payload.type === 'agent_report') {
+            // First report signals we've entered the analysis phase
+            set((s) => ({
+              isAnalyzing: true,
+              streamingMessage: '',
+              currentAgentReports: [...s.currentAgentReports, payload.report],
+            }))
+
+          } else if (payload.type === 'synthesis_token') {
+            // Synthesis streams like a normal message
+            set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
+
           } else if (payload.type === 'done') {
             const updated: SessionData = payload.session
-            set({ session: updated, streamingMessage: '' })
-            // Keep localStorage summary current
+            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false })
             saveToLocalStorage({
               id: updated.id,
               initial_idea: updated.initial_idea,
@@ -205,9 +229,15 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
       }
     } finally {
-      set({ isSending: false, streamingMessage: '' })
+      set({ isSending: false, streamingMessage: '', isAnalyzing: false })
     }
   },
 
-  clearSession: () => set({ session: null, streamingMessage: '', currentChoices: [] }),
+  clearSession: () => set({
+    session: null,
+    streamingMessage: '',
+    currentChoices: [],
+    currentAgentReports: [],
+    isAnalyzing: false,
+  }),
 }))

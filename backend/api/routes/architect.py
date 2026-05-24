@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
-from llm_client import call_architect_llm, generate_masterplan, stream_architect_llm
+from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan
 from api.routes.sessions import _serialize
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
@@ -39,8 +39,9 @@ async def _process_message(session, req_content: str, db: AsyncSession):
     new_phase = get_phase(total)
 
     masterplan = session.masterplan
+    agent_reports = list(session.agent_reports or [])
     if new_phase == "masterplan" and not masterplan:
-        masterplan = await generate_masterplan(history)
+        masterplan = await _generate_masterplan_sync(history)
 
     session.conversation_history = history
     session.problem_clarity = updated_scores["problem_clarity"]
@@ -52,11 +53,23 @@ async def _process_message(session, req_content: str, db: AsyncSession):
     session.turn_number = session.turn_number + 1
     session.assumptions = list(session.assumptions or []) + llm_response.get("new_assumptions", [])
     session.masterplan = masterplan
+    session.agent_reports = agent_reports
 
     await db.commit()
     await db.refresh(session)
 
     return _serialize(session), llm_response["message"], get_refusal_message(total), llm_response.get("choices", [])
+
+
+async def _generate_masterplan_sync(conversation_history: list) -> str:
+    """Fallback for the non-streaming route: collect all agent reports then synthesize."""
+    from llm_client import run_specialist_agent, SPECIALIST_AGENTS, _build_synthesis_prompt, _call_real_llm
+    import asyncio
+    tasks = [run_specialist_agent(a, conversation_history) for a in SPECIALIST_AGENTS]
+    reports = await asyncio.gather(*tasks)
+    system = _build_synthesis_prompt(list(reports))
+    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
+    return await _call_real_llm(system, msgs, max_tokens=3000)
 
 
 @router.post("/{session_id}/message")
@@ -81,12 +94,12 @@ async def send_message_stream(
     if not session:
         raise HTTPException(404, "Session not found")
 
-    # Capture all session state now — ORM objects inside async generators
-    # are unreliable for mutation tracking on JSON columns.
+    # Capture all session state before entering the async generator
     initial_idea = session.initial_idea
     turn_number = session.turn_number
     original_assumptions = list(session.assumptions or [])
     original_masterplan = session.masterplan
+    original_agent_reports = list(session.agent_reports or [])
 
     history = list(session.conversation_history or [])
     history.append({"role": "user", "content": req.content})
@@ -105,6 +118,7 @@ async def send_message_stream(
             if event["type"] == "token":
                 message_text += event["delta"]
                 yield f"data: {json.dumps({'type': 'token', 'delta': event['delta']})}\n\n"
+
             elif event["type"] == "result":
                 llm_response = event["data"]
                 full_history = history + [{"role": "assistant", "content": message_text}]
@@ -115,12 +129,20 @@ async def send_message_stream(
                 new_turn_number = turn_number + 1
 
                 masterplan = original_masterplan
-                if new_phase == "masterplan" and not masterplan:
-                    masterplan = await generate_masterplan(full_history)
+                new_agent_reports = list(original_agent_reports)
 
-                # Direct SQL UPDATE — bypasses ORM mutation tracking entirely.
-                # ORM assignment on JSON columns inside async generators is not
-                # reliably detected by SQLAlchemy's change tracking.
+                if new_phase == "masterplan" and not masterplan:
+                    # Multi-agent pipeline: stream each specialist report as it arrives,
+                    # then stream the synthesis tokens
+                    async for ma_event in stream_multi_agent_masterplan(full_history):
+                        if ma_event["type"] == "agent_report":
+                            new_agent_reports.append(ma_event["report"])
+                            yield f"data: {json.dumps({'type': 'agent_report', 'report': ma_event['report']})}\n\n"
+                        elif ma_event["type"] == "synthesis_token":
+                            yield f"data: {json.dumps({'type': 'synthesis_token', 'delta': ma_event['delta']})}\n\n"
+                        elif ma_event["type"] == "synthesis_done":
+                            masterplan = ma_event["text"]
+
                 await db.execute(
                     update(Session)
                     .where(Session.id == session_id)
@@ -135,6 +157,7 @@ async def send_message_stream(
                         turn_number=new_turn_number,
                         assumptions=new_assumptions,
                         masterplan=masterplan,
+                        agent_reports=new_agent_reports,
                     )
                 )
                 await db.commit()
@@ -151,6 +174,7 @@ async def send_message_stream(
                     "conversation_history": full_history,
                     "assumptions": new_assumptions,
                     "masterplan": masterplan,
+                    "agent_reports": new_agent_reports,
                     "explanations": get_score_explanation(updated_scores),
                 }
 

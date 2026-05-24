@@ -41,6 +41,7 @@ def _serialize(session: Session) -> dict:
         "conversation_history": session.conversation_history or [],
         "assumptions": session.assumptions or [],
         "masterplan": session.masterplan,
+        "agent_reports": session.agent_reports or [],
         "explanations": get_score_explanation(scores),
     }
 

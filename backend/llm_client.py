@@ -395,7 +395,7 @@ RULES:
 2. If score < 0.4: Stay in intake phase, ask clarifying questions.
 3. If score 0.4-0.7: Enter debate phase — propose approaches and argue against them.
 4. If score 0.7-0.85: Enter stress-test phase — challenge with failure scenarios.
-5. If score > 0.85: Generate the full masterplan.
+5. If score > 0.85: Write a single brief sentence confirming analysis is ready (e.g. "Context is sufficient — activating specialist analysis."). Do NOT write the masterplan yourself. Specialist agents will handle it.
 
 OUTPUT FORMAT — write exactly two parts separated by {SEPARATOR}:
 
@@ -407,7 +407,7 @@ JSON rules:
 - eval_delta: small positive increments (0.05-0.25) per dimension based on what this turn clarified.
 - phase: "intake" | "debate" | "stress_test" | "masterplan"
 - choices: 3-4 concise options (max 12 words each) as the most archetypal user responses to your questions. Empty [] for masterplan phase.
-- If phase is "masterplan", Part 1 must be the complete architecture masterplan in markdown."""
+- If phase is "masterplan", Part 1 must be ONE SHORT SENTENCE only. The specialist agents generate the actual plan."""
 
 
 async def _stream_llm_tokens(system: str, messages: list[dict]):
@@ -651,3 +651,209 @@ Be specific, opinionated, and actionable. No generic advice."""
 
     msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
     return await _call_real_llm(system, msgs, max_tokens=3000)
+
+
+# ---------------------------------------------------------------------------
+# Multi-agent masterplan pipeline
+# ---------------------------------------------------------------------------
+
+SPECIALIST_AGENTS = [
+    {
+        "key": "finance",
+        "title": "Financial Analysis",
+        "icon": "💰",
+        "color": "#34d399",
+        "prompt": """You are a venture capitalist and financial analyst reviewing a startup idea.
+
+Identify 4-5 specific financial gaps or risks in the conversation:
+- Revenue model clarity and viability
+- Unit economics (CAC, LTV, payback period)
+- Funding requirements and runway concerns
+- Cost structure and burn rate
+- Path to profitability
+
+Format as 4-5 bullet points. Be direct and specific. Under 180 words.""",
+    },
+    {
+        "key": "market",
+        "title": "Market Analysis",
+        "icon": "📈",
+        "color": "#5590e8",
+        "prompt": """You are a market research expert reviewing a startup idea.
+
+Identify 4-5 specific market gaps or risks:
+- TAM/SAM/SOM realism
+- Market timing and readiness
+- Customer segment clarity
+- Go-to-market strategy weaknesses
+- Distribution challenges
+
+Format as 4-5 bullet points. Be direct and specific. Under 180 words.""",
+    },
+    {
+        "key": "competition",
+        "title": "Competitive Landscape",
+        "icon": "⚔️",
+        "color": "#f59e0b",
+        "prompt": """You are a competitive intelligence analyst reviewing a startup idea.
+
+Identify 4-5 specific competitive risks:
+- Name the real competitors (be specific, use real company names)
+- Differentiation weaknesses
+- Why incumbents have structural advantages
+- Moat viability
+- How the market could respond to this entry
+
+Format as 4-5 bullet points. Name real companies. Under 180 words.""",
+    },
+    {
+        "key": "tech",
+        "title": "Technical Assessment",
+        "icon": "⚙️",
+        "color": "#22d3ee",
+        "prompt": """You are a principal software architect reviewing a startup idea.
+
+Identify 4-5 specific technical risks or unknowns:
+- Technical feasibility concerns
+- Architecture risks and hidden complexity
+- Build vs buy decisions needed
+- Key technical unknowns that could derail
+- What breaks first at scale
+
+Be specific about technology choices. Format as 4-5 bullet points. Under 180 words.""",
+    },
+    {
+        "key": "risk",
+        "title": "Risk & Scalability",
+        "icon": "⚠️",
+        "color": "#e85d26",
+        "prompt": """You are a startup risk analyst reviewing a startup idea.
+
+Identify 4-5 critical risks:
+- Top failure modes specific to this type of idea
+- Regulatory or legal exposure
+- Platform or dependency risks
+- What breaks first at 10x scale
+- The single assumption that, if wrong, kills everything
+
+Be direct. Format as 4-5 bullet points. Under 180 words.""",
+    },
+]
+
+
+async def _call_fast_llm(system: str, messages: list[dict]) -> str:
+    """Cheaper/faster model for specialist agents."""
+    if settings.anthropic_api_key:
+        import anthropic
+        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        response = await client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=400,
+            system=system,
+            messages=messages,
+        )
+        return response.content[0].text
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
+    response = await client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        max_tokens=400,
+        messages=[{"role": "system", "content": system}, *messages],
+    )
+    return response.choices[0].message.content or ""
+
+
+async def run_specialist_agent(agent_cfg: dict, conversation_history: list[dict]) -> dict:
+    """Run a single specialist agent and return its analysis report."""
+    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
+    try:
+        content = await _call_fast_llm(agent_cfg["prompt"], msgs)
+    except Exception as e:
+        content = f"_Analysis unavailable ({str(e)[:60]})_"
+    return {
+        "key": agent_cfg["key"],
+        "title": agent_cfg["title"],
+        "icon": agent_cfg["icon"],
+        "color": agent_cfg["color"],
+        "content": content,
+    }
+
+
+def _build_synthesis_prompt(agent_reports: list[dict]) -> str:
+    reports_text = "\n\n".join(
+        f"### {r['title']}\n{r['content']}" for r in agent_reports
+    )
+    return f"""You are a senior startup advisor synthesizing domain expert analyses into a final masterplan.
+
+Five specialist agents have analyzed this startup idea:
+
+{reports_text}
+
+Using ALL of the above findings AND the full conversation history, write a comprehensive masterplan that:
+1. Directly addresses the key risks each specialist identified
+2. Proposes specific, concrete solutions — not just observations
+3. Defines a 3-phase roadmap (Phase 1: MVP, Phase 2: Growth, Phase 3: Scale/Moat)
+4. Gives opinionated, specific technology and GTM recommendations
+5. Includes a risk register that synthesizes the agents' top findings
+
+Format as clean Markdown with clear section headers. Be specific and actionable. No generic advice."""
+
+
+async def stream_multi_agent_masterplan(conversation_history: list[dict]):
+    """
+    Async generator for the multi-agent masterplan pipeline.
+    Yields:
+      {"type": "agent_report", "report": {...}}   — as each specialist completes
+      {"type": "synthesis_token", "delta": str}   — synthesis streaming tokens
+      {"type": "synthesis_done", "text": str}     — final full synthesis text
+    """
+    if settings.is_stub:
+        scenario_key = _detect_scenario(conversation_history)
+        for agent_cfg in SPECIALIST_AGENTS:
+            await asyncio.sleep(0.4)
+            yield {
+                "type": "agent_report",
+                "report": {
+                    "key": agent_cfg["key"],
+                    "title": agent_cfg["title"],
+                    "icon": agent_cfg["icon"],
+                    "color": agent_cfg["color"],
+                    "content": f"_Demo mode — {agent_cfg['title'].lower()} would appear here with real API keys._",
+                },
+            }
+        text = (
+            _DEMO_SCENARIOS[scenario_key]["masterplan"]
+            if scenario_key
+            else "# Masterplan\n\nSet API keys for a real multi-agent analysis."
+        )
+        yield {"type": "synthesis_done", "text": text}
+        return
+
+    # Phase 1: run all specialist agents in parallel, yield as each completes
+    tasks = [
+        asyncio.create_task(run_specialist_agent(agent_cfg, conversation_history))
+        for agent_cfg in SPECIALIST_AGENTS
+    ]
+    agent_reports: list[dict] = []
+    pending = set(tasks)
+
+    while pending:
+        done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            report = await task
+            agent_reports.append(report)
+            yield {"type": "agent_report", "report": report}
+
+    # Phase 2: stream synthesis using all reports + conversation
+    synthesis_system = _build_synthesis_prompt(agent_reports)
+    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
+    synthesis_text = ""
+
+    try:
+        async for token in _stream_llm_tokens(synthesis_system, msgs):
+            synthesis_text += token
+            yield {"type": "synthesis_token", "delta": token}
+    except Exception:
+        pass
+
+    yield {"type": "synthesis_done", "text": synthesis_text}

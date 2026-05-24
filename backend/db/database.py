@@ -24,6 +24,9 @@ async def init_db():
         await conn.execute(text(
             "CREATE INDEX IF NOT EXISTS ix_sessions_user_id ON sessions (user_id)"
         ))
+        await conn.execute(text(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS agent_reports JSONB"
+        ))
 
 
 async def get_db():

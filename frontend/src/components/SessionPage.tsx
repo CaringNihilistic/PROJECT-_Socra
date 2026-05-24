@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useSessionStore } from '../store/sessionStore'
+import type { AgentReport } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
 
 const PHASE_STEPS = [
@@ -13,6 +14,8 @@ const PHASE_STEPS = [
 const PHASE_COLOR: Record<string, string> = {
   intake: '#8a8578', debate: '#f59e0b', stress_test: '#e85d26', masterplan: '#34d399',
 }
+
+const TOTAL_AGENTS = 5
 
 function AssumptionsList({ assumptions }: { assumptions: string[] }) {
   const [expanded, setExpanded] = useState(true)
@@ -53,22 +56,76 @@ function AssumptionsList({ assumptions }: { assumptions: string[] }) {
   )
 }
 
+function AgentReportCard({ report, isNew }: { report: AgentReport; isNew?: boolean }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div
+      className={`rounded-xl border overflow-hidden transition-all duration-300 ${isNew ? 'fade-up' : ''}`}
+      style={{ borderColor: `${report.color}25`, background: `${report.color}06` }}
+    >
+      <button
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/[0.02] transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span className="text-lg flex-shrink-0">{report.icon}</span>
+        <span className="text-[11px] font-mono font-semibold uppercase tracking-wider flex-1 text-left"
+          style={{ color: report.color }}>
+          {report.title}
+        </span>
+        <svg className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          style={{ color: `${report.color}60` }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: `${report.color}15` }}>
+          <div className="prose prose-invert prose-sm max-w-none
+            prose-p:text-ink-400 prose-p:leading-relaxed prose-p:my-1.5
+            prose-li:text-ink-400 prose-li:my-0.5
+            prose-strong:text-ink-200 prose-ul:my-1">
+            <ReactMarkdown>{report.content}</ReactMarkdown>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AgentReportSkeleton() {
+  return (
+    <div className="rounded-xl border border-ink-800/40 px-4 py-3 flex items-center gap-3">
+      <div className="w-4 h-4 rounded-full border-2 border-ink-700/60 border-t-transparent animate-spin flex-shrink-0" />
+      <span className="text-[11px] font-mono text-ink-800">Analyzing...</span>
+    </div>
+  )
+}
+
 export function SessionPage() {
   const [input, setInput] = useState('')
-  const { session, isSending, streamingMessage, currentChoices, sendMessage, clearSession } = useSessionStore()
+  const {
+    session, isSending, streamingMessage, currentChoices,
+    currentAgentReports, isAnalyzing,
+    sendMessage, clearSession,
+  } = useSessionStore()
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [session?.conversation_history.length, isSending])
+  }, [session?.conversation_history.length, isSending, currentAgentReports.length])
 
   if (!session) return null
 
-  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions } = session
+  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports } = session
 
   const phaseColor = PHASE_COLOR[phase] || '#8a8578'
   const phaseIdx = PHASE_STEPS.findIndex(p => p.key === phase)
+
+  // Prefer stored agent_reports (from DB) over in-progress streaming ones
+  const displayReports = agent_reports?.length ? agent_reports : currentAgentReports
+  const pendingAgentCount = isAnalyzing ? Math.max(0, TOTAL_AGENTS - currentAgentReports.length) : 0
 
   const handleSend = async () => {
     const trimmed = input.trim()
@@ -93,12 +150,10 @@ export function SessionPage() {
       <div className="sticky top-0 z-20 border-b border-ink-800/50 px-6 relative overflow-hidden"
         style={{ background: 'rgba(8,8,9,0.92)', backdropFilter: 'blur(16px)' }}>
 
-        {/* Phase accent line */}
         <div className="absolute top-0 left-0 right-0 h-[2px] transition-all duration-1000"
           style={{ background: `linear-gradient(90deg, transparent 0%, ${phaseColor}80 30%, ${phaseColor}80 70%, transparent 100%)` }} />
 
         <div className="max-w-3xl mx-auto">
-          {/* Main row */}
           <div className="flex items-center gap-4 pt-3 pb-2.5">
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-400" style={{ boxShadow: '0 0 6px #f59e0b' }} />
@@ -152,6 +207,33 @@ export function SessionPage() {
 
         {/* Assumptions */}
         {assumptions.length > 0 && <AssumptionsList assumptions={assumptions} />}
+
+        {/* Multi-agent analysis section */}
+        {(displayReports.length > 0 || isAnalyzing) && (
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">
+                Specialist analysis
+              </span>
+              <div className="flex-1 h-px bg-ink-800/60" />
+              <span className="text-[10px] font-mono text-ink-800 tabular-nums">
+                {displayReports.length} / {TOTAL_AGENTS}
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {displayReports.map((report) => (
+                <AgentReportCard
+                  key={report.key}
+                  report={report}
+                  isNew={!agent_reports?.length}
+                />
+              ))}
+              {Array.from({ length: pendingAgentCount }).map((_, i) => (
+                <AgentReportSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Masterplan */}
         {masterplan && (
@@ -238,7 +320,7 @@ export function SessionPage() {
             </div>
           ))}
 
-          {/* Streaming message */}
+          {/* Streaming — conversation or synthesis */}
           {isSending && (
             <div className="flex gap-4">
               <div className="flex-shrink-0 mt-1">
@@ -260,6 +342,14 @@ export function SessionPage() {
                     <ReactMarkdown>{streamingMessage}</ReactMarkdown>
                   </div>
                   <span className="inline-block w-[3px] h-4 bg-amber-400/60 animate-pulse rounded-sm ml-0.5 align-middle" />
+                </div>
+              ) : isAnalyzing ? (
+                <div className="flex items-center gap-2 pt-2">
+                  <span className="text-[12px] text-ink-600 font-mono">Synthesizing masterplan</span>
+                  {[0, 120, 240].map((delay) => (
+                    <div key={delay} className="w-1 h-1 rounded-full bg-emerald-500/60 animate-bounce"
+                      style={{ animationDelay: `${delay}ms` }} />
+                  ))}
                 </div>
               ) : (
                 <div className="flex items-center gap-1 pt-2">
