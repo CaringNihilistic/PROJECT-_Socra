@@ -11,6 +11,11 @@ from eval_bar import apply_delta, compute_total_score, get_phase, get_score_expl
 from llm_client import call_architect_llm
 from core.auth import get_user_id
 
+try:
+    from openai import RateLimitError as _OpenAIRateLimitError
+except ImportError:
+    _OpenAIRateLimitError = None
+
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
@@ -86,7 +91,12 @@ async def create_session(
     initial_history = [{"role": "user", "content": req.idea}]
     initial_scores = {k: 0.0 for k in ("problem_clarity", "scale_constraints", "tech_context", "success_definition", "risk_awareness")}
 
-    llm_response = await call_architect_llm(initial_history, initial_scores, 0)
+    try:
+        llm_response = await call_architect_llm(initial_history, initial_scores, 0)
+    except Exception as e:
+        if _OpenAIRateLimitError and isinstance(e, _OpenAIRateLimitError):
+            raise HTTPException(status_code=429, detail="AI rate limit reached. Please wait a few minutes and try again.")
+        raise HTTPException(status_code=503, detail="AI service unavailable. Please try again shortly.")
     initial_history.append({"role": "assistant", "content": llm_response["message"]})
 
     updated_scores = apply_delta(initial_scores, llm_response.get("eval_delta", {}))

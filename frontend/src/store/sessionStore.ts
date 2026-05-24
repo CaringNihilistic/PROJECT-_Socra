@@ -73,6 +73,7 @@ interface SessionStore {
   isSending: boolean
   streamingMessage: string
   currentChoices: string[]
+  sessionError: string | null
   authToken: string | null
   setAuthToken: (token: string | null) => void
   loadSessionHistory: () => Promise<void>
@@ -97,6 +98,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   isSending: false,
   streamingMessage: '',
   currentChoices: [],
+  sessionError: null,
   authToken: null,
 
   setAuthToken: (token) => set({ authToken: token }),
@@ -119,14 +121,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   createSession: async (idea: string) => {
     const { authToken } = get()
-    set({ isLoading: true })
+    set({ isLoading: true, sessionError: null })
     try {
       const { data } = await axios.post<SessionData>(
         `${API_URL}/sessions/`,
         { idea },
         { headers: authHeaders(authToken) },
       )
-      set({ session: data, currentChoices: data.choices ?? [] })
+      set({ session: data, currentChoices: data.choices ?? [], sessionError: null })
       // Persist summary for history
       const summary: SessionSummary = {
         id: data.id,
@@ -138,6 +140,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       }
       saveToLocalStorage(summary)
       set((s) => ({ sessionHistory: [summary, ...s.sessionHistory.filter((x) => x.id !== data.id)] }))
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      set({ sessionError: detail || 'Failed to start session. Please try again.' })
     } finally {
       set({ isLoading: false })
     }

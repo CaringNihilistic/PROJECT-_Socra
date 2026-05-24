@@ -202,7 +202,7 @@ export function LandingPage() {
   const [waitlistLoading, setWaitlistLoading] = useState(false)
   const [waitlistError, setWaitlistError] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const { createSession, isLoading, sessionHistory, resumeSession } = useSessionStore()
+  const { createSession, isLoading, sessionError, sessionHistory, resumeSession } = useSessionStore()
 
   const handleSubmit = async () => {
     const trimmed = idea.trim()
@@ -340,6 +340,9 @@ export function LandingPage() {
               </button>
             </div>
           </div>
+          {sessionError && (
+            <p className="text-[12px] text-red-400/80 font-mono mt-3 text-center">{sessionError}</p>
+          )}
         </div>
 
         {/* Proof row */}
