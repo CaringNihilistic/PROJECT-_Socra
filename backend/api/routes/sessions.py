@@ -108,7 +108,7 @@ async def create_session(
     db.add(session)
     await db.commit()
     await db.refresh(session)
-    return _serialize(session)
+    return {**_serialize(session), "choices": llm_response.get("choices", [])}
 
 
 @router.get("/{session_id}")

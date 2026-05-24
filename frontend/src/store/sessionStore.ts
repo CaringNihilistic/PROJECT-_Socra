@@ -35,6 +35,7 @@ export interface SessionData {
   explanations: ScoreExplanation[]
   latest_response?: string
   refusal?: string | null
+  choices?: string[]
 }
 
 export interface SessionSummary {
@@ -125,7 +126,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         { idea },
         { headers: authHeaders(authToken) },
       )
-      set({ session: data })
+      set({ session: data, currentChoices: data.choices ?? [] })
       // Persist summary for history
       const summary: SessionSummary = {
         id: data.id,

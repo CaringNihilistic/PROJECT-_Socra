@@ -369,6 +369,159 @@ async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, jso
 
 
 # ---------------------------------------------------------------------------
+# Streaming LLM support
+# ---------------------------------------------------------------------------
+
+SEPARATOR = "###JSON###"
+
+
+def _build_streaming_system_prompt(current_scores: dict) -> str:
+    total = sum(current_scores.values()) / 5
+    return f"""You are Socra — an expert AI architect who refuses to generate solutions until you fully understand the problem.
+
+Your job is to interrogate, debate, and stress-test project ideas through Socratic dialogue.
+
+CURRENT EVALUATION SCORES (0.0 to 1.0):
+- Problem Clarity: {current_scores['problem_clarity']}
+- Scale & Constraints: {current_scores['scale_constraints']}
+- Tech Context: {current_scores['tech_context']}
+- Success Definition: {current_scores['success_definition']}
+- Risk Awareness: {current_scores['risk_awareness']}
+
+TOTAL SCORE: {total:.0%}
+
+RULES:
+1. Ask maximum 2-3 targeted questions per turn. Never more.
+2. If score < 0.4: Stay in intake phase, ask clarifying questions.
+3. If score 0.4-0.7: Enter debate phase — propose approaches and argue against them.
+4. If score 0.7-0.85: Enter stress-test phase — challenge with failure scenarios.
+5. If score > 0.85: Generate the full masterplan.
+
+OUTPUT FORMAT — write exactly two parts separated by {SEPARATOR}:
+
+[Part 1 — your conversational response in markdown — goes before {SEPARATOR}]
+{SEPARATOR}
+{{"eval_delta": {{"problem_clarity": 0.0, "scale_constraints": 0.0, "tech_context": 0.0, "success_definition": 0.0, "risk_awareness": 0.0}}, "new_assumptions": [], "phase": "intake", "choices": []}}
+
+JSON rules:
+- eval_delta: small positive increments (0.05-0.25) per dimension based on what this turn clarified.
+- phase: "intake" | "debate" | "stress_test" | "masterplan"
+- choices: 3-4 concise options (max 12 words each) as the most archetypal user responses to your questions. Empty [] for masterplan phase.
+- If phase is "masterplan", Part 1 must be the complete architecture masterplan in markdown."""
+
+
+async def _stream_llm_tokens(system: str, messages: list[dict]):
+    """Async generator yielding raw text tokens from the configured LLM."""
+    if settings.anthropic_api_key:
+        import anthropic
+        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        async with client.messages.stream(
+            model="claude-sonnet-4-6",
+            max_tokens=2500,
+            system=system,
+            messages=messages,
+        ) as stream:
+            async for text in stream.text_stream:
+                yield text
+    else:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
+        stream = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            max_tokens=2500,
+            messages=[{"role": "system", "content": system}, *messages],
+            stream=True,
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+
+
+async def stream_architect_llm(
+    conversation_history: list[dict],
+    current_scores: dict,
+    turn_number: int,
+):
+    """
+    Async generator yielding:
+      {"type": "token", "delta": str}   — message tokens to stream to user
+      {"type": "result", "data": dict}  — final structured LLM response
+    """
+    _default_result = {
+        "eval_delta": {k: 0.05 for k in current_scores},
+        "new_assumptions": [],
+        "phase": "intake",
+        "choices": [],
+    }
+
+    if settings.is_stub:
+        await asyncio.sleep(random.uniform(0.3, 0.7))
+        scenario_key = _detect_scenario(conversation_history)
+        if scenario_key is None:
+            response = _NO_API_KEY_RESPONSE
+        else:
+            responses = _DEMO_SCENARIOS[scenario_key]["responses"]
+            if turn_number < len(responses):
+                response = responses[turn_number]
+            else:
+                response = {
+                    "message": "I have enough context now. Generating your masterplan...",
+                    "eval_delta": {k: max(0.0, 0.9 - current_scores.get(k, 0.0)) for k in current_scores},
+                    "new_assumptions": [],
+                    "phase": "masterplan",
+                    "choices": [],
+                }
+        words = response["message"].split(" ")
+        for i, word in enumerate(words):
+            yield {"type": "token", "delta": word + (" " if i < len(words) - 1 else "")}
+            await asyncio.sleep(0.04)
+        yield {"type": "result", "data": response}
+        return
+
+    system_prompt = _build_streaming_system_prompt(current_scores)
+    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
+
+    full_text = ""
+    yielded_chars = 0
+    message_complete = False
+
+    async for token in _stream_llm_tokens(system_prompt, msgs):
+        full_text += token
+        if not message_complete:
+            sep_idx = full_text.find(SEPARATOR)
+            if sep_idx >= 0:
+                message_complete = True
+                remaining = full_text[yielded_chars:sep_idx]
+                if remaining:
+                    yield {"type": "token", "delta": remaining}
+            else:
+                safe_end = max(yielded_chars, len(full_text) - len(SEPARATOR) + 1)
+                if safe_end > yielded_chars:
+                    yield {"type": "token", "delta": full_text[yielded_chars:safe_end]}
+                    yielded_chars = safe_end
+
+    if not message_complete:
+        remaining = full_text[yielded_chars:]
+        if remaining:
+            yield {"type": "token", "delta": remaining}
+        try:
+            result = json.loads(full_text)
+        except json.JSONDecodeError:
+            result = _default_result
+    else:
+        json_str = full_text.split(SEPARATOR, 1)[1].strip()
+        try:
+            result = json.loads(json_str)
+        except json.JSONDecodeError:
+            import re as _re
+            m = _re.search(r'\{.*\}', json_str, _re.DOTALL)
+            result = json.loads(m.group()) if m else _default_result
+
+    yield {"type": "result", "data": result}
+
+
+# ---------------------------------------------------------------------------
 # Public LLM functions
 # ---------------------------------------------------------------------------
 

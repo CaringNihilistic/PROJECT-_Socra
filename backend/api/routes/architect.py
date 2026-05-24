@@ -1,4 +1,3 @@
-import asyncio
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -9,7 +8,7 @@ from pydantic import BaseModel
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message
-from llm_client import call_architect_llm, generate_masterplan
+from llm_client import call_architect_llm, generate_masterplan, stream_architect_llm
 from api.routes.sessions import _serialize
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
@@ -82,19 +81,56 @@ async def send_message_stream(
     if not session:
         raise HTTPException(404, "Session not found")
 
-    # Process synchronously first (LLM call + DB update), then stream the text
-    serialized, message_text, refusal, choices = await _process_message(session, req.content, db)
+    history = list(session.conversation_history or [])
+    history.append({"role": "user", "content": req.content})
+    current_scores = {
+        "problem_clarity": session.problem_clarity,
+        "scale_constraints": session.scale_constraints,
+        "tech_context": session.tech_context,
+        "success_definition": session.success_definition,
+        "risk_awareness": session.risk_awareness,
+    }
 
     async def event_stream():
-        words = message_text.split(" ")
-        for i, word in enumerate(words):
-            chunk = word + (" " if i < len(words) - 1 else "")
-            yield f"data: {json.dumps({'type': 'token', 'delta': chunk})}\n\n"
-            await asyncio.sleep(0.04)
-        if choices:
-            yield f"data: {json.dumps({'type': 'choices', 'choices': choices})}\n\n"
-        done_payload = {**serialized, "refusal": refusal}
-        yield f"data: {json.dumps({'type': 'done', 'session': done_payload})}\n\n"
+        message_text = ""
+
+        async for event in stream_architect_llm(history, current_scores, session.turn_number):
+            if event["type"] == "token":
+                message_text += event["delta"]
+                yield f"data: {json.dumps({'type': 'token', 'delta': event['delta']})}\n\n"
+            elif event["type"] == "result":
+                llm_response = event["data"]
+                full_history = history + [{"role": "assistant", "content": message_text}]
+                updated_scores = apply_delta(current_scores, llm_response.get("eval_delta", {}))
+                total = compute_total_score(updated_scores)
+                new_phase = get_phase(total)
+
+                masterplan = session.masterplan
+                if new_phase == "masterplan" and not masterplan:
+                    masterplan = await generate_masterplan(full_history)
+
+                session.conversation_history = full_history
+                session.problem_clarity = updated_scores["problem_clarity"]
+                session.scale_constraints = updated_scores["scale_constraints"]
+                session.tech_context = updated_scores["tech_context"]
+                session.success_definition = updated_scores["success_definition"]
+                session.risk_awareness = updated_scores["risk_awareness"]
+                session.phase = new_phase
+                session.turn_number = session.turn_number + 1
+                session.assumptions = list(session.assumptions or []) + llm_response.get("new_assumptions", [])
+                session.masterplan = masterplan
+
+                await db.commit()
+                await db.refresh(session)
+
+                choices = llm_response.get("choices", [])
+                refusal = get_refusal_message(total)
+                serialized = _serialize(session)
+
+                if choices:
+                    yield f"data: {json.dumps({'type': 'choices', 'choices': choices})}\n\n"
+                done_payload = {**serialized, "refusal": refusal}
+                yield f"data: {json.dumps({'type': 'done', 'session': done_payload})}\n\n"
 
     return StreamingResponse(
         event_stream(),
