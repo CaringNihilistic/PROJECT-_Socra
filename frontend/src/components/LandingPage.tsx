@@ -299,7 +299,7 @@ export function LandingPage() {
         <h1 className="font-display font-bold leading-[1.04] tracking-[-1px] mb-6 max-w-3xl"
           style={{ fontSize: 'clamp(40px, 6vw, 70px)' }}>
           <span className="text-ink-100">The AI that </span>
-          <span className="italic text-amber-400">argues back</span>
+          <span className="italic text-amber-400" style={{ textShadow: '0 0 60px rgba(245,158,11,0.35)' }}>argues back</span>
           <br />
           <span className="text-ink-100">before you </span>
           <span className="text-ink-400">waste the build.</span>
@@ -481,15 +481,20 @@ export function LandingPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {features.map((f) => (
               <div key={f.title}
-                className="group rounded-2xl p-5 border border-ink-800/50 hover:border-ink-700/70 transition-all hover:-translate-y-0.5"
-                style={{ background: 'rgba(255,255,255,0.015)' }}>
-                <div className="text-2xl mb-4">{f.icon}</div>
-                <h3 className="text-[14px] font-semibold text-ink-200 mb-2">{f.title}</h3>
-                <p className="text-[13px] text-ink-600 leading-relaxed mb-3">{f.desc}</p>
-                <span className="inline-block text-[10px] font-mono font-medium px-2 py-0.5 rounded-full"
-                  style={{ color: f.tc, background: `${f.tc}12`, border: `1px solid ${f.tc}25` }}>
-                  {f.tag}
-                </span>
+                className="group rounded-2xl overflow-hidden border border-ink-800/50 hover:border-ink-700/70 transition-all duration-300 hover:-translate-y-1"
+                style={{ background: 'rgba(255,255,255,0.015)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 8px 32px ${f.tc}14` }}
+                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none' }}>
+                <div className="h-[2px]" style={{ background: `linear-gradient(90deg, ${f.tc}90, ${f.tc}15)` }} />
+                <div className="p-5">
+                  <div className="text-2xl mb-4">{f.icon}</div>
+                  <h3 className="text-[14px] font-semibold text-ink-200 mb-2">{f.title}</h3>
+                  <p className="text-[13px] text-ink-600 leading-relaxed mb-3">{f.desc}</p>
+                  <span className="inline-block text-[10px] font-mono font-medium px-2 py-0.5 rounded-full"
+                    style={{ color: f.tc, background: `${f.tc}12`, border: `1px solid ${f.tc}25` }}>
+                    {f.tag}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

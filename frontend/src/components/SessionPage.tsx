@@ -1,7 +1,18 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useSessionStore } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
+
+const PHASE_STEPS = [
+  { key: 'intake',      label: 'Intake',      color: '#8a8578' },
+  { key: 'debate',      label: 'Debate',      color: '#f59e0b' },
+  { key: 'stress_test', label: 'Stress Test', color: '#e85d26' },
+  { key: 'masterplan',  label: 'Masterplan',  color: '#34d399' },
+]
+
+const PHASE_COLOR: Record<string, string> = {
+  intake: '#8a8578', debate: '#f59e0b', stress_test: '#e85d26', masterplan: '#34d399',
+}
 
 function AssumptionsList({ assumptions }: { assumptions: string[] }) {
   const [expanded, setExpanded] = useState(true)
@@ -56,6 +67,9 @@ export function SessionPage() {
 
   const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions } = session
 
+  const phaseColor = PHASE_COLOR[phase] || '#8a8578'
+  const phaseIdx = PHASE_STEPS.findIndex(p => p.key === phase)
+
   const handleSend = async () => {
     const trimmed = input.trim()
     if (!trimmed || isSending) return
@@ -69,24 +83,65 @@ export function SessionPage() {
     : session.initial_idea
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#080809' }}>
+    <div className="min-h-screen flex flex-col transition-colors duration-1000"
+      style={{
+        background: '#080809',
+        backgroundImage: `radial-gradient(ellipse at 50% 0%, ${phaseColor}08 0%, transparent 55%)`,
+      }}>
 
       {/* Header */}
-      <div className="sticky top-0 z-20 border-b border-ink-800/50 px-6 py-3"
+      <div className="sticky top-0 z-20 border-b border-ink-800/50 px-6 relative overflow-hidden"
         style={{ background: 'rgba(8,8,9,0.92)', backdropFilter: 'blur(16px)' }}>
-        <div className="max-w-3xl mx-auto flex items-center gap-4">
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-400" style={{ boxShadow: '0 0 6px #f59e0b' }} />
-            <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-ink-600">Socra</span>
+
+        {/* Phase accent line */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] transition-all duration-1000"
+          style={{ background: `linear-gradient(90deg, transparent 0%, ${phaseColor}80 30%, ${phaseColor}80 70%, transparent 100%)` }} />
+
+        <div className="max-w-3xl mx-auto">
+          {/* Main row */}
+          <div className="flex items-center gap-4 pt-3 pb-2.5">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400" style={{ boxShadow: '0 0 6px #f59e0b' }} />
+              <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-ink-600">Socra</span>
+            </div>
+            <div className="w-px h-3.5 bg-ink-800 flex-shrink-0" />
+            <p className="text-[12px] text-ink-600 truncate flex-1 leading-none">{ideaSlug}</p>
+            <button
+              onClick={clearSession}
+              className="flex-shrink-0 text-[11px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/60 hover:border-ink-700 px-2.5 py-1 rounded-lg transition-all"
+            >
+              ← new
+            </button>
           </div>
-          <div className="w-px h-3.5 bg-ink-800 flex-shrink-0" />
-          <p className="text-[12px] text-ink-600 truncate flex-1 leading-none">{ideaSlug}</p>
-          <button
-            onClick={clearSession}
-            className="flex-shrink-0 text-[11px] font-mono text-ink-700 hover:text-ink-400 transition-colors ml-auto"
-          >
-            ← new
-          </button>
+
+          {/* Phase stepper */}
+          <div className="flex items-center pb-3">
+            {PHASE_STEPS.map((p, i) => {
+              const isActive = i === phaseIdx
+              const isDone = i < phaseIdx
+              return (
+                <Fragment key={p.key}>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-all duration-700"
+                      style={{
+                        background: isActive ? p.color : isDone ? `${p.color}50` : 'rgba(255,255,255,0.08)',
+                        boxShadow: isActive ? `0 0 8px ${p.color}` : 'none',
+                      }} />
+                    <span className="text-[10px] font-mono tracking-wider transition-colors duration-500"
+                      style={{
+                        color: isActive ? p.color : isDone ? `${p.color}55` : 'rgba(255,255,255,0.15)',
+                      }}>
+                      {p.label}
+                    </span>
+                  </div>
+                  {i < PHASE_STEPS.length - 1 && (
+                    <div className="h-px flex-shrink-0 w-8 mx-2.5 transition-all duration-700"
+                      style={{ background: isDone ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)' }} />
+                  )}
+                </Fragment>
+              )
+            })}
+          </div>
         </div>
       </div>
 
@@ -137,11 +192,15 @@ export function SessionPage() {
         {/* Conversation */}
         <div className="flex flex-col gap-6">
           {conversation_history.map((msg, i) => (
-            <div key={i} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={i} className={`flex gap-4 fade-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {msg.role === 'assistant' && (
                 <div className="flex-shrink-0 mt-1">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-semibold text-amber-400"
-                    style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-bold"
+                    style={{
+                      background: 'linear-gradient(135deg, #f59e0b, #e85d26)',
+                      color: '#08070a',
+                      boxShadow: '0 2px 10px rgba(245,158,11,0.22)',
+                    }}>
                     S
                   </div>
                 </div>
@@ -151,8 +210,9 @@ export function SessionPage() {
                 : 'flex-1 min-w-0 text-[14px] leading-relaxed'
               }
                 style={msg.role === 'user' ? {
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.07)',
+                  background: 'rgba(255,255,255,0.055)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
                 } : undefined}>
                 {msg.role === 'assistant' ? (
                   <div className="prose prose-invert max-w-none text-ink-300
@@ -169,8 +229,8 @@ export function SessionPage() {
               </div>
               {msg.role === 'user' && (
                 <div className="flex-shrink-0 mt-1">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-semibold text-ink-500"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-semibold text-ink-400"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
                     U
                   </div>
                 </div>
@@ -182,8 +242,12 @@ export function SessionPage() {
           {isSending && (
             <div className="flex gap-4">
               <div className="flex-shrink-0 mt-1">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-semibold text-amber-400"
-                  style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-bold"
+                  style={{
+                    background: 'linear-gradient(135deg, #f59e0b, #e85d26)',
+                    color: '#08070a',
+                    boxShadow: streamingMessage ? '0 2px 10px rgba(245,158,11,0.22)' : '0 2px 16px rgba(245,158,11,0.4)',
+                  }}>
                   S
                 </div>
               </div>
@@ -213,7 +277,7 @@ export function SessionPage() {
 
         {/* Quick reply choices */}
         {currentChoices.length > 0 && !isSending && !masterplan && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
             <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Quick reply</span>
             <div className="flex flex-wrap gap-2">
               {currentChoices.map((choice, i) => (
