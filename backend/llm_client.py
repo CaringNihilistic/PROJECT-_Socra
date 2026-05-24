@@ -872,21 +872,13 @@ def _trim_history_for_agents(history: list[dict], max_pairs: int = 4) -> list[di
 
 
 async def run_specialist_agent(agent_cfg: dict, conversation_history: list[dict]) -> dict:
-    """Run a single specialist agent and return its analysis report. Retries on 429."""
+    """Run a single specialist agent (kept for non-Groq paths)."""
     trimmed = _trim_history_for_agents(conversation_history)
     msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
-    content = ""
-    for attempt in range(3):
-        try:
-            content = await _call_fast_llm(agent_cfg["prompt"], msgs)
-            break
-        except Exception as e:
-            err_str = str(e)
-            if "429" in err_str and attempt < 2:
-                await asyncio.sleep(4 * (attempt + 1))  # 4s, 8s
-                continue
-            content = f"_Analysis unavailable ({err_str[:80]})_"
-            break
+    try:
+        content = await _call_fast_llm(agent_cfg["prompt"], msgs)
+    except Exception as e:
+        content = f"_Analysis unavailable ({str(e)[:80]})_"
     return {
         "key": agent_cfg["key"],
         "title": agent_cfg["title"],
@@ -894,6 +886,55 @@ async def run_specialist_agent(agent_cfg: dict, conversation_history: list[dict]
         "color": agent_cfg["color"],
         "content": content,
     }
+
+
+async def run_all_agents_combined(conversation_history: list[dict]) -> list[dict]:
+    """
+    Run all 5 specialist analyses in ONE Groq call to stay within the 6k TPM free-tier limit.
+    5 separate calls would consume ~4,675 tokens; this uses ~1,700 tokens total.
+    """
+    import logging as _logging
+    trimmed = _trim_history_for_agents(conversation_history, max_pairs=2)
+    msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
+
+    system = """Analyze this startup idea as 5 domain experts. Return ONLY a JSON object with exactly these keys:
+
+{
+  "finance": "4-5 bullet points (- prefix) on revenue model, unit economics, funding needs, path to profitability",
+  "market": "4-5 bullet points on TAM realism, market timing, customer segments, GTM weaknesses",
+  "competition": "4-5 bullet points naming real competitors, differentiation gaps, why incumbents win",
+  "tech": "4-5 bullet points on technical risks, architecture concerns, build vs buy, what breaks at scale",
+  "risk": "4-5 bullet points on failure modes, regulatory exposure, platform dependencies, the one killer assumption"
+}
+
+Each value is a plain markdown string with bullet points. Max 100 words per section. Be specific and direct."""
+
+    _default = [
+        {"key": a["key"], "title": a["title"], "icon": a["icon"], "color": a["color"],
+         "content": "_Analysis unavailable — rate limit reached. Try again in a minute._"}
+        for a in SPECIALIST_AGENTS
+    ]
+
+    try:
+        raw = await _call_groq(system, msgs, max_tokens=1200, json_mode=True)
+        _logging.getLogger(__name__).info("Combined agent result: %s", raw[:200])
+        data = json.loads(raw)
+        results = []
+        for agent_cfg in SPECIALIST_AGENTS:
+            content = data.get(agent_cfg["key"], "")
+            if isinstance(content, dict):
+                content = content.get("content", "") or str(content)
+            results.append({
+                "key": agent_cfg["key"],
+                "title": agent_cfg["title"],
+                "icon": agent_cfg["icon"],
+                "color": agent_cfg["color"],
+                "content": str(content).strip() if content else "_No analysis generated._",
+            })
+        return results
+    except Exception as e:
+        _logging.getLogger(__name__).error("Combined agent call failed: %s", e)
+        return _default
 
 
 def _build_followup_prompt(masterplan: str) -> str:
@@ -1008,14 +1049,21 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
         yield {"type": "synthesis_done", "text": text}
         return
 
-    # Phase 1: run specialist agents sequentially to avoid Groq TPM rate limits
+    # Phase 1: single combined call for all 5 agents (1 API call vs 5 — avoids Groq TPM limits)
     agent_reports: list[dict] = []
-    for i, agent_cfg in enumerate(SPECIALIST_AGENTS):
-        report = await run_specialist_agent(agent_cfg, conversation_history)
-        agent_reports.append(report)
-        yield {"type": "agent_report", "report": report}
-        if i < len(SPECIALIST_AGENTS) - 1:
-            await asyncio.sleep(1.5)  # avoid Groq 6k TPM limit
+    if settings.anthropic_api_key:
+        # Anthropic has no TPM concern — run each agent individually for best quality
+        for agent_cfg in SPECIALIST_AGENTS:
+            report = await run_specialist_agent(agent_cfg, conversation_history)
+            agent_reports.append(report)
+            yield {"type": "agent_report", "report": report}
+    else:
+        # Groq free tier: single combined call to stay within 6k TPM
+        all_reports = await run_all_agents_combined(conversation_history)
+        for report in all_reports:
+            agent_reports.append(report)
+            yield {"type": "agent_report", "report": report}
+            await asyncio.sleep(0.4)  # stagger reveals for UI effect
 
     # Phase 2: stream synthesis — use the larger model for better masterplan quality
     synthesis_system = _build_synthesis_prompt(agent_reports)
