@@ -2,12 +2,12 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from pydantic import BaseModel
 
 from db.database import get_db
 from db.models import Session
-from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message
+from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
 from llm_client import call_architect_llm, generate_masterplan, stream_architect_llm
 from api.routes.sessions import _serialize
 
@@ -81,6 +81,13 @@ async def send_message_stream(
     if not session:
         raise HTTPException(404, "Session not found")
 
+    # Capture all session state now — ORM objects inside async generators
+    # are unreliable for mutation tracking on JSON columns.
+    initial_idea = session.initial_idea
+    turn_number = session.turn_number
+    original_assumptions = list(session.assumptions or [])
+    original_masterplan = session.masterplan
+
     history = list(session.conversation_history or [])
     history.append({"role": "user", "content": req.content})
     current_scores = {
@@ -94,7 +101,7 @@ async def send_message_stream(
     async def event_stream():
         message_text = ""
 
-        async for event in stream_architect_llm(history, current_scores, session.turn_number):
+        async for event in stream_architect_llm(history, current_scores, turn_number):
             if event["type"] == "token":
                 message_text += event["delta"]
                 yield f"data: {json.dumps({'type': 'token', 'delta': event['delta']})}\n\n"
@@ -104,29 +111,48 @@ async def send_message_stream(
                 updated_scores = apply_delta(current_scores, llm_response.get("eval_delta", {}))
                 total = compute_total_score(updated_scores)
                 new_phase = get_phase(total)
+                new_assumptions = original_assumptions + llm_response.get("new_assumptions", [])
+                new_turn_number = turn_number + 1
 
-                masterplan = session.masterplan
+                masterplan = original_masterplan
                 if new_phase == "masterplan" and not masterplan:
                     masterplan = await generate_masterplan(full_history)
 
-                session.conversation_history = full_history
-                session.problem_clarity = updated_scores["problem_clarity"]
-                session.scale_constraints = updated_scores["scale_constraints"]
-                session.tech_context = updated_scores["tech_context"]
-                session.success_definition = updated_scores["success_definition"]
-                session.risk_awareness = updated_scores["risk_awareness"]
-                session.phase = new_phase
-                session.turn_number = session.turn_number + 1
-                session.assumptions = list(session.assumptions or []) + llm_response.get("new_assumptions", [])
-                session.masterplan = masterplan
+                # Direct SQL UPDATE — bypasses ORM mutation tracking entirely.
+                # ORM assignment on JSON columns inside async generators is not
+                # reliably detected by SQLAlchemy's change tracking.
+                await db.execute(
+                    update(Session)
+                    .where(Session.id == session_id)
+                    .values(
+                        conversation_history=full_history,
+                        problem_clarity=updated_scores["problem_clarity"],
+                        scale_constraints=updated_scores["scale_constraints"],
+                        tech_context=updated_scores["tech_context"],
+                        success_definition=updated_scores["success_definition"],
+                        risk_awareness=updated_scores["risk_awareness"],
+                        phase=new_phase,
+                        turn_number=new_turn_number,
+                        assumptions=new_assumptions,
+                        masterplan=masterplan,
+                    )
+                )
+                await db.commit()
 
-                # Serialize before commit — all fields are set in memory; refresh
-                # inside a streaming generator causes SQLAlchemy session issues.
                 choices = llm_response.get("choices", [])
                 refusal = get_refusal_message(total)
-                serialized = _serialize(session)
-
-                await db.commit()
+                serialized = {
+                    "id": session_id,
+                    "initial_idea": initial_idea,
+                    "scores": updated_scores,
+                    "total_score": total,
+                    "phase": new_phase,
+                    "turn_number": new_turn_number,
+                    "conversation_history": full_history,
+                    "assumptions": new_assumptions,
+                    "masterplan": masterplan,
+                    "explanations": get_score_explanation(updated_scores),
+                }
 
                 if choices:
                     yield f"data: {json.dumps({'type': 'choices', 'choices': choices})}\n\n"
