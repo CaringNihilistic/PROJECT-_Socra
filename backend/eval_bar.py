@@ -21,7 +21,7 @@ PHASE_THRESHOLDS = {
     "intake": 0.0,
     "debate": 0.40,
     "stress_test": 0.70,
-    "masterplan": 0.85,
+    "masterplan": 0.80,
 }
 
 

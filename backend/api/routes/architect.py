@@ -125,6 +125,9 @@ async def send_message_stream(
                 updated_scores = apply_delta(current_scores, llm_response.get("eval_delta", {}))
                 total = compute_total_score(updated_scores)
                 new_phase = get_phase(total)
+                # Server-side override: if model said analysis is ready or turn limit hit, force masterplan
+                if "activating specialist analysis" in message_text.lower() or (turn_number + 1) >= 9:
+                    new_phase = "masterplan"
                 new_assumptions = original_assumptions + llm_response.get("new_assumptions", [])
                 new_turn_number = turn_number + 1
 

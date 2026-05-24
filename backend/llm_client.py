@@ -375,29 +375,40 @@ async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, jso
 SEPARATOR = "###JSON###"
 
 
-def _build_groq_conversation_prompt(current_scores: dict) -> str:
+def _build_groq_conversation_prompt(current_scores: dict, turn_number: int = 0) -> str:
     total = sum(current_scores.values()) / 5
-    return f"""You are Socra — an expert AI architect who refuses to generate solutions until you fully understand the problem.
+    turns_used = turn_number
+    must_wrap_up = turns_used >= 7
 
-Your job is to interrogate, debate, and stress-test project ideas through Socratic dialogue.
+    wrap_up_rule = (
+        "IMPORTANT: You have asked enough questions. You MUST end your response with exactly this sentence: "
+        '"Context is sufficient — activating specialist analysis." Do not ask any more questions.'
+        if must_wrap_up
+        else f"You have {max(1, 7 - turns_used)} turns left before analysis begins. Be focused."
+    )
 
-CURRENT EVALUATION SCORES (0.0 to 1.0):
-- Problem Clarity: {current_scores['problem_clarity']}
-- Scale & Constraints: {current_scores['scale_constraints']}
-- Tech Context: {current_scores['tech_context']}
-- Success Definition: {current_scores['success_definition']}
-- Risk Awareness: {current_scores['risk_awareness']}
+    return f"""You are Socra — a startup advisor who asks sharp questions to understand a business idea before generating a masterplan.
 
-TOTAL SCORE: {total:.0%}
+EVALUATION SCORES (0.0 to 1.0, higher = more context gathered):
+- Problem Clarity: {current_scores['problem_clarity']:.2f}
+- Scale & Constraints: {current_scores['scale_constraints']:.2f}
+- Tech Context: {current_scores['tech_context']:.2f}
+- Success Definition: {current_scores['success_definition']:.2f}
+- Risk Awareness: {current_scores['risk_awareness']:.2f}
+TOTAL: {total:.0%}
 
 RULES:
-1. Ask maximum 2-3 targeted questions per turn. Never more.
-2. If score < 0.4: Stay in intake phase, ask clarifying questions.
-3. If score 0.4-0.7: Enter debate phase — propose approaches and argue against them.
-4. If score 0.7-0.85: Enter stress-test phase — challenge with failure scenarios.
-5. If score > 0.85: Write ONE SHORT SENTENCE confirming analysis is ready (e.g. "Context is sufficient — activating specialist analysis."). Do NOT write the masterplan yourself.
+1. Ask MAXIMUM 2 targeted questions per turn.
+2. ONLY ask about BUSINESS fundamentals: target users, revenue model, competitive advantage, success metrics, biggest risks.
+3. Do NOT ask about implementation details, specific technologies, code architecture, authentication systems, or API design. Those are for the masterplan.
+4. Score 0-40%: Ask clarifying questions about the problem and users.
+5. Score 40-70%: Propose approaches and argue against them (debate phase).
+6. Score 70-80%: Challenge with specific failure scenarios (stress-test phase).
+7. Score >80%: End with "Context is sufficient — activating specialist analysis."
 
-Respond in markdown. Do NOT include any JSON, separators, or structured data in your response — only your conversational reply."""
+{wrap_up_rule}
+
+Respond in markdown. Do NOT include any JSON or structured data."""
 
 
 def _build_groq_eval_prompt(current_scores: dict) -> str:
@@ -411,7 +422,7 @@ CURRENT SCORES (0.0 to 1.0):
 - risk_awareness: {current_scores['risk_awareness']}
 
 The conversation ends with an assistant message containing questions for the user. Output a JSON object with exactly these three keys:
-- "eval_delta": object — conservative score increments (0.05-0.15 each) ONLY for dimensions the user's latest message actually addressed. Leave others at 0.
+- "eval_delta": object — score increments (0.10-0.25 each) for dimensions the user's latest message addressed. Leave unaddressed dimensions at 0. Be generous when the user gives concrete, specific answers.
 - "new_assumptions": array of strings — concrete facts you can infer from the user's latest message (e.g. "Target users are enterprise teams", "No technical co-founder yet").
 - "choices": array of exactly 3-4 short strings (max 10 words each) — the most concrete, specific answer options a user would click in response to the assistant's questions. These must be actionable choices, not generic phrases.
 
@@ -573,7 +584,8 @@ async def stream_architect_llm(
     else:
         # Groq llama-3.1-8b-instant: two-call approach
         # Call 1: stream plain text (no separator/JSON format required)
-        conversation_prompt = _build_groq_conversation_prompt(current_scores)
+        import logging as _logging
+        conversation_prompt = _build_groq_conversation_prompt(current_scores, turn_number)
         message_text = ""
         try:
             async for token in _stream_llm_tokens(conversation_prompt, msgs):
@@ -582,21 +594,32 @@ async def stream_architect_llm(
         except Exception:
             pass
 
+        # If the model explicitly declared analysis complete, skip eval and force masterplan scores
+        if "activating specialist analysis" in message_text.lower():
+            yield {"type": "result", "data": {
+                "eval_delta": {k: max(0.0, 1.0 - current_scores[k]) for k in current_scores},
+                "new_assumptions": [],
+                "phase": "masterplan",
+                "choices": [],
+            }}
+            return
+
         # Call 2: separate JSON-mode call to get structured eval
         eval_prompt = _build_groq_eval_prompt(current_scores)
         eval_msgs = msgs + [{"role": "assistant", "content": message_text}]
         try:
             eval_raw = await _call_groq(eval_prompt, eval_msgs, max_tokens=600, json_mode=True)
-            import logging as _logging
             _logging.getLogger(__name__).info("Groq eval result: %s", eval_raw)
             result = json.loads(eval_raw)
-            result.setdefault("eval_delta", {k: 0.05 for k in current_scores})
+            result.setdefault("eval_delta", {k: 0.10 for k in current_scores})
             result.setdefault("new_assumptions", [])
             result.setdefault("phase", "intake")
             result.setdefault("choices", [])
-            # Ensure choices is a list, not None
             if not isinstance(result.get("choices"), list):
                 result["choices"] = []
+            # Hard turn limit: after 8 turns push to masterplan regardless
+            if turn_number >= 8:
+                result["eval_delta"] = {k: max(0.0, 1.0 - current_scores[k]) for k in current_scores}
         except Exception as e:
             _logging.getLogger(__name__).error("Groq eval failed: %s", e)
             result = _default_result
@@ -835,19 +858,35 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
     response = await client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        max_tokens=400,
+        max_tokens=250,
         messages=[{"role": "system", "content": system}, *messages],
     )
     return response.choices[0].message.content or ""
 
 
+def _trim_history_for_agents(history: list[dict], max_pairs: int = 4) -> list[dict]:
+    """Keep first message (the original idea) + last N turn pairs to stay within token limits."""
+    if len(history) <= max_pairs * 2 + 1:
+        return history
+    return [history[0]] + history[-(max_pairs * 2):]
+
+
 async def run_specialist_agent(agent_cfg: dict, conversation_history: list[dict]) -> dict:
-    """Run a single specialist agent and return its analysis report."""
-    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
-    try:
-        content = await _call_fast_llm(agent_cfg["prompt"], msgs)
-    except Exception as e:
-        content = f"_Analysis unavailable ({str(e)[:60]})_"
+    """Run a single specialist agent and return its analysis report. Retries on 429."""
+    trimmed = _trim_history_for_agents(conversation_history)
+    msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
+    content = ""
+    for attempt in range(3):
+        try:
+            content = await _call_fast_llm(agent_cfg["prompt"], msgs)
+            break
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str and attempt < 2:
+                await asyncio.sleep(4 * (attempt + 1))  # 4s, 8s
+                continue
+            content = f"_Analysis unavailable ({err_str[:80]})_"
+            break
     return {
         "key": agent_cfg["key"],
         "title": agent_cfg["title"],
@@ -937,20 +976,14 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
         yield {"type": "synthesis_done", "text": text}
         return
 
-    # Phase 1: run all specialist agents in parallel, yield as each completes
-    tasks = [
-        asyncio.create_task(run_specialist_agent(agent_cfg, conversation_history))
-        for agent_cfg in SPECIALIST_AGENTS
-    ]
+    # Phase 1: run specialist agents sequentially to avoid Groq TPM rate limits
     agent_reports: list[dict] = []
-    pending = set(tasks)
-
-    while pending:
-        done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-        for task in done:
-            report = await task
-            agent_reports.append(report)
-            yield {"type": "agent_report", "report": report}
+    for i, agent_cfg in enumerate(SPECIALIST_AGENTS):
+        report = await run_specialist_agent(agent_cfg, conversation_history)
+        agent_reports.append(report)
+        yield {"type": "agent_report", "report": report}
+        if i < len(SPECIALIST_AGENTS) - 1:
+            await asyncio.sleep(1.5)  # avoid Groq 6k TPM limit
 
     # Phase 2: stream synthesis — use the larger model for better masterplan quality
     synthesis_system = _build_synthesis_prompt(agent_reports)
