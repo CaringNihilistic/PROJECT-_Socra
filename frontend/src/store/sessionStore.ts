@@ -71,6 +71,7 @@ interface SessionStore {
   isLoading: boolean
   isSending: boolean
   streamingMessage: string
+  currentChoices: string[]
   authToken: string | null
   setAuthToken: (token: string | null) => void
   loadSessionHistory: () => Promise<void>
@@ -94,6 +95,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   isLoading: false,
   isSending: false,
   streamingMessage: '',
+  currentChoices: [],
   authToken: null,
 
   setAuthToken: (token) => set({ authToken: token }),
@@ -153,7 +155,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   sendMessage: async (content: string) => {
     const { session, authToken } = get()
     if (!session) return
-    set({ isSending: true, streamingMessage: '' })
+    set({ isSending: true, streamingMessage: '', currentChoices: [] })
 
     try {
       const response = await fetch(`${API_URL}/sessions/${session.id}/message/stream`, {
@@ -179,6 +181,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           const payload = JSON.parse(line.slice(6))
           if (payload.type === 'token') {
             set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
+          } else if (payload.type === 'choices') {
+            set({ currentChoices: payload.choices })
           } else if (payload.type === 'done') {
             const updated: SessionData = payload.session
             set({ session: updated, streamingMessage: '' })
@@ -199,5 +203,5 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
-  clearSession: () => set({ session: null, streamingMessage: '' }),
+  clearSession: () => set({ session: null, streamingMessage: '', currentChoices: [] }),
 }))

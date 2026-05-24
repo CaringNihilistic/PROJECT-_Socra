@@ -57,7 +57,7 @@ async def _process_message(session, req_content: str, db: AsyncSession):
     await db.commit()
     await db.refresh(session)
 
-    return _serialize(session), llm_response["message"], get_refusal_message(total)
+    return _serialize(session), llm_response["message"], get_refusal_message(total), llm_response.get("choices", [])
 
 
 @router.post("/{session_id}/message")
@@ -69,7 +69,7 @@ async def send_message(
     if not session:
         raise HTTPException(404, "Session not found")
 
-    serialized, message_text, refusal = await _process_message(session, req.content, db)
+    serialized, message_text, refusal, _choices = await _process_message(session, req.content, db)
     return {**serialized, "latest_response": message_text, "refusal": refusal}
 
 
@@ -83,7 +83,7 @@ async def send_message_stream(
         raise HTTPException(404, "Session not found")
 
     # Process synchronously first (LLM call + DB update), then stream the text
-    serialized, message_text, refusal = await _process_message(session, req.content, db)
+    serialized, message_text, refusal, choices = await _process_message(session, req.content, db)
 
     async def event_stream():
         words = message_text.split(" ")
@@ -91,6 +91,8 @@ async def send_message_stream(
             chunk = word + (" " if i < len(words) - 1 else "")
             yield f"data: {json.dumps({'type': 'token', 'delta': chunk})}\n\n"
             await asyncio.sleep(0.04)
+        if choices:
+            yield f"data: {json.dumps({'type': 'choices', 'choices': choices})}\n\n"
         done_payload = {**serialized, "refusal": refusal}
         yield f"data: {json.dumps({'type': 'done', 'session': done_payload})}\n\n"
 

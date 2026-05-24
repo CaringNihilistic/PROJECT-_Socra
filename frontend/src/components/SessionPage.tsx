@@ -44,7 +44,7 @@ function AssumptionsList({ assumptions }: { assumptions: string[] }) {
 
 export function SessionPage() {
   const [input, setInput] = useState('')
-  const { session, isSending, streamingMessage, sendMessage, clearSession } = useSessionStore()
+  const { session, isSending, streamingMessage, currentChoices, sendMessage, clearSession } = useSessionStore()
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -210,6 +210,24 @@ export function SessionPage() {
 
           <div ref={bottomRef} />
         </div>
+
+        {/* Quick reply choices */}
+        {currentChoices.length > 0 && !isSending && !masterplan && (
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Quick reply</span>
+            <div className="flex flex-wrap gap-2">
+              {currentChoices.map((choice, i) => (
+                <button
+                  key={i}
+                  onClick={() => sendMessage(choice)}
+                  className="text-[13px] text-ink-400 border border-ink-800/70 hover:border-amber-500/40 hover:text-ink-100 hover:bg-amber-500/5 px-4 py-2 rounded-full transition-all duration-200 text-left"
+                >
+                  {choice}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Refusal notice */}
         {refusal && (
