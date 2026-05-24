@@ -3,8 +3,13 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-react'
 import { useSessionStore } from './store/sessionStore'
 import { LandingPage } from './components/LandingPage'
 import { SessionPage } from './components/SessionPage'
+import { SharePage } from './components/SharePage'
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
+
+// Detect share route: /share/<sessionId>
+const shareMatch = window.location.pathname.match(/^\/share\/([^/]+)$/)
+const SHARE_SESSION_ID = shareMatch ? shareMatch[1] : null
 
 /** Syncs the Clerk JWT into the store. Only rendered inside ClerkProvider. */
 function ClerkSync() {
@@ -38,6 +43,11 @@ function AppShell() {
 }
 
 export default function App() {
+  // Share page is a public read-only view — no auth or store needed
+  if (SHARE_SESSION_ID) {
+    return <SharePage sessionId={SHARE_SESSION_ID} />
+  }
+
   if (CLERK_KEY) {
     return (
       <ClerkProvider publishableKey={CLERK_KEY}>

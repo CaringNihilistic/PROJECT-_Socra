@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
-from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan
+from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm
 from api.routes.sessions import _serialize
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
@@ -113,6 +113,36 @@ async def send_message_stream(
 
     async def event_stream():
         message_text = ""
+
+        # Follow-up mode: masterplan already exists — use advisory prompt, no scoring
+        if original_masterplan:
+            async for event in stream_followup_llm(history, original_masterplan):
+                if event["type"] == "token":
+                    message_text += event["delta"]
+                    yield f"data: {json.dumps({'type': 'token', 'delta': event['delta']})}\n\n"
+                elif event["type"] == "result":
+                    full_history = history + [{"role": "assistant", "content": message_text}]
+                    await db.execute(
+                        update(Session)
+                        .where(Session.id == session_id)
+                        .values(conversation_history=full_history, turn_number=turn_number + 1)
+                    )
+                    await db.commit()
+                    followup_serialized = {
+                        "id": session_id,
+                        "initial_idea": initial_idea,
+                        "scores": current_scores,
+                        "total_score": compute_total_score(current_scores),
+                        "phase": "masterplan",
+                        "turn_number": turn_number + 1,
+                        "conversation_history": full_history,
+                        "assumptions": original_assumptions,
+                        "masterplan": original_masterplan,
+                        "agent_reports": original_agent_reports,
+                        "explanations": get_score_explanation(current_scores),
+                    }
+                    yield f"data: {json.dumps({'type': 'done', 'session': followup_serialized})}\n\n"
+            return
 
         async for event in stream_architect_llm(history, current_scores, turn_number):
             if event["type"] == "token":

@@ -896,6 +896,38 @@ async def run_specialist_agent(agent_cfg: dict, conversation_history: list[dict]
     }
 
 
+def _build_followup_prompt(masterplan: str) -> str:
+    excerpt = masterplan[:3000] if len(masterplan) > 3000 else masterplan
+    return f"""You are Socra, a startup advisor. A full analysis has been completed and the masterplan below was generated.
+
+MASTERPLAN:
+{excerpt}
+
+You are now in advisory mode. Answer follow-up questions clearly and specifically. Reference specific sections of the masterplan when relevant. Be direct and actionable. Use markdown for structure when helpful. Keep responses focused and under 300 words unless the question genuinely requires more depth. Do NOT ask Socratic questions — just give good answers."""
+
+
+async def stream_followup_llm(conversation_history: list[dict], masterplan: str):
+    """Stream advisory responses after masterplan phase. No eval scoring needed."""
+    if settings.is_stub:
+        msg = "Based on the masterplan, I'd prioritize Phase 1's core infrastructure before adding complexity. The key is validating the core assumption first — everything else follows from that."
+        for word in msg.split():
+            yield {"type": "token", "delta": word + " "}
+            await asyncio.sleep(0.04)
+        yield {"type": "result", "data": {"eval_delta": {}, "new_assumptions": [], "choices": []}}
+        return
+
+    system = _build_followup_prompt(masterplan)
+    # Keep only recent exchanges — follow-up context, not the full Socratic history
+    recent = conversation_history[-8:] if len(conversation_history) > 8 else conversation_history
+    msgs = [{"role": m["role"], "content": m["content"]} for m in recent]
+    try:
+        async for token in _stream_llm_tokens(system, msgs):
+            yield {"type": "token", "delta": token}
+    except Exception:
+        pass
+    yield {"type": "result", "data": {"eval_delta": {}, "new_assumptions": [], "choices": []}}
+
+
 def _build_synthesis_prompt(agent_reports: list[dict]) -> str:
     reports_text = "\n\n".join(
         f"### {r['title']}\n{r['content']}" for r in agent_reports

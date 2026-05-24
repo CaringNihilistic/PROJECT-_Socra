@@ -104,11 +104,20 @@ function AgentReportSkeleton() {
 
 export function SessionPage() {
   const [input, setInput] = useState('')
+  const [copied, setCopied] = useState(false)
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing,
     sendMessage, clearSession,
   } = useSessionStore()
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/share/${session?.id}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -247,19 +256,32 @@ export function SessionPage() {
                   Architecture masterplan
                 </span>
               </div>
-              <button
-                onClick={() => {
-                  const slug = session.initial_idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-                  const blob = new Blob([masterplan], { type: 'text/markdown' })
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url; a.download = `socra-${slug}.md`; a.click()
-                  URL.revokeObjectURL(url)
-                }}
-                className="text-[11px] font-mono text-emerald-500/50 hover:text-emerald-400 border border-emerald-500/15 hover:border-emerald-500/40 px-3 py-1 rounded-lg transition-all"
-              >
-                ↓ Export .md
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleShare}
+                  className="text-[11px] font-mono border px-3 py-1 rounded-lg transition-all"
+                  style={copied ? {
+                    color: '#34d399', borderColor: 'rgba(52,211,153,0.4)',
+                  } : {
+                    color: 'rgba(52,211,153,0.4)', borderColor: 'rgba(52,211,153,0.15)',
+                  }}
+                >
+                  {copied ? '✓ Copied' : '↗ Share'}
+                </button>
+                <button
+                  onClick={() => {
+                    const slug = session.initial_idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+                    const blob = new Blob([masterplan], { type: 'text/markdown' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url; a.download = `socra-${slug}.md`; a.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                  className="text-[11px] font-mono text-emerald-500/50 hover:text-emerald-400 border border-emerald-500/15 hover:border-emerald-500/40 px-3 py-1 rounded-lg transition-all"
+                >
+                  ↓ Export .md
+                </button>
+              </div>
             </div>
             <div className="px-5 py-5 prose prose-invert prose-sm max-w-none text-ink-400
               prose-headings:text-ink-100 prose-headings:font-display prose-headings:tracking-tight
@@ -391,47 +413,64 @@ export function SessionPage() {
           </div>
         )}
 
-        {/* Input */}
-        {!masterplan && (
-          <div className="sticky bottom-6">
-            <div className="relative group">
-              <div className="absolute -inset-px rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none"
-                style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(232,93,38,0.1))', filter: 'blur(1px)' }} />
-              <div className="relative rounded-2xl overflow-hidden border border-ink-800/70 group-focus-within:border-amber-500/25 transition-colors duration-300"
-                style={{ background: 'rgba(13,12,11,0.97)', backdropFilter: 'blur(12px)' }}>
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Reply to Socra..."
-                  rows={3}
-                  disabled={isSending}
-                  className="w-full bg-transparent px-5 pt-4 pb-3 text-[14px] text-ink-100 placeholder-ink-700 resize-none focus:outline-none leading-relaxed disabled:opacity-40"
-                  onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) handleSend() }}
-                />
-                <div className="flex items-center justify-between px-5 py-3 border-t border-ink-800/50">
+        {/* Input — always visible; switches to follow-up mode after masterplan */}
+        <div className="sticky bottom-6">
+          <div className="relative group">
+            <div className="absolute -inset-px rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none"
+              style={{
+                background: masterplan
+                  ? 'linear-gradient(135deg, rgba(52,211,153,0.15), rgba(52,211,153,0.05))'
+                  : 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(232,93,38,0.1))',
+                filter: 'blur(1px)',
+              }} />
+            <div className="relative rounded-2xl overflow-hidden border transition-colors duration-300"
+              style={{
+                background: 'rgba(13,12,11,0.97)',
+                backdropFilter: 'blur(12px)',
+                borderColor: masterplan ? 'rgba(52,211,153,0.12)' : 'rgba(255,255,255,0.1)',
+              }}>
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={masterplan ? 'Ask a follow-up question…' : 'Reply to Socra…'}
+                rows={3}
+                disabled={isSending}
+                className="w-full bg-transparent px-5 pt-4 pb-3 text-[14px] text-ink-100 placeholder-ink-700 resize-none focus:outline-none leading-relaxed disabled:opacity-40"
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) handleSend() }}
+              />
+              <div className="flex items-center justify-between px-5 py-3 border-t border-ink-800/50">
+                {masterplan ? (
+                  <span className="text-[11px] font-mono" style={{ color: 'rgba(52,211,153,0.35)' }}>
+                    Follow-up mode
+                  </span>
+                ) : (
                   <span className="text-[11px] text-ink-800 font-mono">⌘↵ to send</span>
-                  <button
-                    onClick={handleSend}
-                    disabled={!input.trim() || isSending}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-25"
-                    style={{
-                      background: input.trim() && !isSending
-                        ? 'linear-gradient(135deg, #f59e0b, #e85d26)'
-                        : 'rgba(40,38,34,0.8)',
-                      boxShadow: input.trim() && !isSending ? '0 0 16px rgba(245,158,11,0.2)' : 'none',
-                    }}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"
-                      stroke={input.trim() && !isSending ? '#08070a' : '#4a4840'} strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
+                )}
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isSending}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-25"
+                  style={{
+                    background: input.trim() && !isSending
+                      ? masterplan
+                        ? 'linear-gradient(135deg, #34d399, #10b981)'
+                        : 'linear-gradient(135deg, #f59e0b, #e85d26)'
+                      : 'rgba(40,38,34,0.8)',
+                    boxShadow: input.trim() && !isSending
+                      ? masterplan ? '0 0 16px rgba(52,211,153,0.2)' : '0 0 16px rgba(245,158,11,0.2)'
+                      : 'none',
+                  }}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"
+                    stroke={input.trim() && !isSending ? '#08070a' : '#4a4840'} strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
