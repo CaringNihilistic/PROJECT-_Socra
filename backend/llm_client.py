@@ -401,7 +401,7 @@ Respond in markdown. Do NOT include any JSON, separators, or structured data in 
 
 
 def _build_groq_eval_prompt(current_scores: dict) -> str:
-    return f"""You are an evaluator for a Socratic startup dialogue.
+    return f"""You evaluate structured metadata from a Socratic startup conversation.
 
 CURRENT SCORES (0.0 to 1.0):
 - problem_clarity: {current_scores['problem_clarity']}
@@ -410,13 +410,12 @@ CURRENT SCORES (0.0 to 1.0):
 - success_definition: {current_scores['success_definition']}
 - risk_awareness: {current_scores['risk_awareness']}
 
-Based on what the user clarified in their latest message, output a JSON object with exactly these keys:
-- "eval_delta": object with score increments (0.05-0.25 each) for dimensions clarified this turn
-- "new_assumptions": array of key assumptions extracted from the user's latest message
-- "phase": one of "intake" | "debate" | "stress_test" | "masterplan" — use the current phase rule (intake<0.4, debate 0.4-0.7, stress_test 0.7-0.85, masterplan>0.85)
-- "choices": array of 3-4 concise response options (max 12 words each) for what the user might reply; empty array [] if phase is "masterplan"
+The conversation ends with an assistant message containing questions for the user. Output a JSON object with exactly these three keys:
+- "eval_delta": object — conservative score increments (0.05-0.15 each) ONLY for dimensions the user's latest message actually addressed. Leave others at 0.
+- "new_assumptions": array of strings — concrete facts you can infer from the user's latest message (e.g. "Target users are enterprise teams", "No technical co-founder yet").
+- "choices": array of exactly 3-4 short strings (max 10 words each) — the most concrete, specific answer options a user would click in response to the assistant's questions. These must be actionable choices, not generic phrases.
 
-Output only valid JSON, nothing else."""
+Output only valid JSON with these three keys. No extra text."""
 
 
 def _build_streaming_system_prompt(current_scores: dict) -> str:
@@ -588,12 +587,18 @@ async def stream_architect_llm(
         eval_msgs = msgs + [{"role": "assistant", "content": message_text}]
         try:
             eval_raw = await _call_groq(eval_prompt, eval_msgs, max_tokens=600, json_mode=True)
+            import logging as _logging
+            _logging.getLogger(__name__).info("Groq eval result: %s", eval_raw)
             result = json.loads(eval_raw)
             result.setdefault("eval_delta", {k: 0.05 for k in current_scores})
             result.setdefault("new_assumptions", [])
             result.setdefault("phase", "intake")
             result.setdefault("choices", [])
-        except Exception:
+            # Ensure choices is a list, not None
+            if not isinstance(result.get("choices"), list):
+                result["choices"] = []
+        except Exception as e:
+            _logging.getLogger(__name__).error("Groq eval failed: %s", e)
             result = _default_result
 
         yield {"type": "result", "data": result}

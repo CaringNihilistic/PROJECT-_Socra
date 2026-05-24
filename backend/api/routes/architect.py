@@ -162,7 +162,8 @@ async def send_message_stream(
                 )
                 await db.commit()
 
-                choices = llm_response.get("choices", [])
+                # Only show choices when not in masterplan phase (server-computed, not model-reported)
+                choices = llm_response.get("choices", []) if new_phase != "masterplan" else []
                 refusal = get_refusal_message(total)
                 serialized = {
                     "id": session_id,
