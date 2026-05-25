@@ -11,10 +11,11 @@ class Settings(BaseSettings):
     clerk_secret_key: str = ""
     clerk_frontend_api_url: str = ""  # e.g. https://xxxx.clerk.accounts.dev
     groq_api_key: str = ""
+    google_api_key: str = ""
 
     @property
     def is_stub(self) -> bool:
-        has_key = bool(self.anthropic_api_key or self.groq_api_key)
+        has_key = bool(self.anthropic_api_key or self.groq_api_key or self.google_api_key)
         return self.stub_mode.lower() == "true" or not has_key
 
     model_config = {"env_file": ".env", "extra": "ignore"}

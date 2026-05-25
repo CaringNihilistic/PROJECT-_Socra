@@ -353,7 +353,7 @@ async def _call_anthropic(system: str, messages: list[dict], max_tokens: int) ->
     import anthropic
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     response = await client.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-haiku-4-5-20251001",
         max_tokens=max_tokens,
         system=system,
         messages=messages,
@@ -361,10 +361,29 @@ async def _call_anthropic(system: str, messages: list[dict], max_tokens: int) ->
     return response.content[0].text
 
 
+async def _call_google(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(
+        api_key=settings.google_api_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+    )
+    kwargs: dict = {
+        "model": "gemini-2.0-flash",
+        "max_tokens": max_tokens,
+        "messages": [{"role": "system", "content": system}, *messages],
+    }
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    response = await client.chat.completions.create(**kwargs)
+    return response.choices[0].message.content or ""
+
+
 async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
-    """Route to Anthropic if key is set, otherwise Groq."""
+    """Route to Anthropic → Google → Groq based on available keys."""
     if settings.anthropic_api_key:
         return await _call_anthropic(system, messages, max_tokens)
+    if settings.google_api_key:
+        return await _call_google(system, messages, max_tokens, json_mode=json_mode)
     return await _call_groq(system, messages, max_tokens, json_mode=json_mode)
 
 
@@ -431,7 +450,7 @@ CURRENT SCORES (0.0 to 1.0):
 The conversation ends with an assistant message containing questions for the user. Output a JSON object with exactly these three keys:
 - "eval_delta": object — score increments (0.10-0.25 each) for dimensions the user's latest message addressed. Leave unaddressed dimensions at 0. Be generous when the user gives concrete, specific answers.
 - "new_assumptions": array of strings — concrete facts you can infer from the user's latest message (e.g. "Target users are enterprise teams", "No technical co-founder yet").
-- "choices": array of exactly 3-4 strings (max 12 words each) — concrete answer options that contain a specific claim, number, or name. BAD: "Reduce costs". GOOD: "Cut agent headcount 40%, saving ~$800k/year". BAD: "Use cloud". GOOD: "AWS + existing Salesforce CRM, ~$2k/month infra". Each choice must contain actual information, not a vague label.
+- "choices": array of exactly 3-4 strings — each choice MUST contain a number, a company name, or a specific claim. FORBIDDEN: "Reduce costs", "Use AI", "Improve UX", "Scale better". REQUIRED format: "Cut 3 FTEs in year 1, ~$180k saved", "SMB clients paying $500/mo, churn is the risk", "Upwork + Toptal already do this — our edge is X". If you cannot make a choice specific, add a number or name to it.
 
 Output only valid JSON with these three keys. No extra text."""
 
@@ -481,13 +500,31 @@ async def _stream_llm_tokens(system: str, messages: list[dict]):
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         async with client.messages.stream(
-            model="claude-sonnet-4-6",
+            model="claude-haiku-4-5-20251001",
             max_tokens=2500,
             system=system,
             messages=messages,
         ) as stream:
             async for text in stream.text_stream:
                 yield text
+    elif settings.google_api_key:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(
+            api_key=settings.google_api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
+        stream = await client.chat.completions.create(
+            model="gemini-2.0-flash",
+            max_tokens=2500,
+            messages=[{"role": "system", "content": system}, *messages],
+            stream=True,
+        )
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
     else:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
@@ -548,8 +585,8 @@ async def stream_architect_llm(
 
     msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
 
-    if settings.anthropic_api_key:
-        # Anthropic: stream text + embedded ###JSON### separator (reliable)
+    if settings.anthropic_api_key or settings.google_api_key:
+        # Anthropic / Google: stream text + embedded ###JSON### separator (reliable instruction following)
         system_prompt = _build_streaming_system_prompt(current_scores)
         full_text = ""
         yielded_chars = 0
@@ -865,6 +902,8 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
             messages=messages,
         )
         return response.content[0].text
+    if settings.google_api_key:
+        return await _call_google(system, messages, max_tokens=400)
     from openai import AsyncOpenAI
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
     response = await client.chat.completions.create(
@@ -908,17 +947,17 @@ async def run_all_agents_combined(conversation_history: list[dict]) -> list[dict
     trimmed = _trim_history_for_agents(conversation_history, max_pairs=2)
     msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
 
-    system = """Analyze this startup idea as 5 domain experts. Return ONLY a JSON object with exactly these keys:
+    # Compact prompt — 8B model fills long Finance first then truncates the rest if too verbose
+    system = """Analyze this startup idea as 5 experts. Return ONLY valid JSON with these 5 keys.
+Each value = 3-4 markdown bullet points (- prefix). MAX 60 WORDS PER SECTION — be concise.
 
-{
-  "finance": "4-5 bullet points on: realistic CAC/LTV estimates with numbers, pricing vs named competitors, actual burn rate line items, funding needed before revenue, the one financial assumption that kills viability if wrong",
-  "market": "4-5 bullet points on: TAM with a real source and realistic SAM, who the first 10 paying customers actually are by company type, the single biggest GTM obstacle, market timing risk, real customer acquisition cost in this category",
-  "competition": "4-5 bullet points NAMING REAL COMPANIES: 3 direct competitors by name, which incumbent could crush this with a feature update and why, why the differentiation is not a real moat, which competitor has the distribution advantage",
-  "tech": "4-5 bullet points NAMING REAL TOOLS: specific build vs buy decisions with actual product names, the hardest underestimated technical problem, which specific API/vendor creates fragility, what breaks first at 10x scale",
-  "risk": "4-5 bullet points: the specific regulation by name (TCPA/GDPR/HIPAA etc) and what compliance requires, which platform dependency could kill this overnight, what has killed similar startups, the single falsifiable assumption that collapses the business model"
-}
+{"finance": "bullets: real CAC/LTV numbers, pricing vs named competitors, burn rate items, funding gap",
+ "market": "bullets: TAM with source, exact first-customer profile, biggest GTM obstacle, timing risk",
+ "competition": "bullets: name 3 real direct competitors, name the incumbent who could copy this, why moat is weak",
+ "tech": "bullets: name specific tools for build-vs-buy (e.g. Stripe not 'payment gateway'), what breaks at 10x",
+ "risk": "bullets: regulation name + what it requires, platform dependency risk, the one falsifiable killer assumption"}
 
-Each value is markdown with bullet points (- prefix). Max 120 words per section. Use real company names, real tool names, real numbers. No generic advice."""
+Use real company names and real numbers. No generic advice. Keep every section short."""
 
     _default = [
         {"key": a["key"], "title": a["title"], "icon": a["icon"], "color": a["color"],
@@ -927,20 +966,28 @@ Each value is markdown with bullet points (- prefix). Max 120 words per section.
     ]
 
     try:
-        raw = await _call_groq(system, msgs, max_tokens=1200, json_mode=True)
-        _logging.getLogger(__name__).info("Combined agent result: %s", raw[:200])
+        raw = await _call_groq(system, msgs, max_tokens=1800, json_mode=True)
+        _logging.getLogger(__name__).info("Combined agent raw: %s", raw[:300])
         data = json.loads(raw)
         results = []
         for agent_cfg in SPECIALIST_AGENTS:
             content = data.get(agent_cfg["key"], "")
             if isinstance(content, dict):
                 content = content.get("content", "") or str(content)
+            content = str(content).strip() if content else ""
+            # If model skipped a section, retry with a targeted single call
+            if not content:
+                _logging.getLogger(__name__).warning("Empty section for %s — retrying single call", agent_cfg["key"])
+                try:
+                    content = await _call_fast_llm(agent_cfg["prompt"], msgs)
+                except Exception:
+                    content = "_Analysis unavailable._"
             results.append({
                 "key": agent_cfg["key"],
                 "title": agent_cfg["title"],
                 "icon": agent_cfg["icon"],
                 "color": agent_cfg["color"],
-                "content": str(content).strip() if content else "_No analysis generated._",
+                "content": content,
             })
         return results
     except Exception as e:
@@ -1015,18 +1062,36 @@ Format as clean Markdown. Be opinionated. If there is a clearly better choice, s
 
 
 async def _stream_synthesis_tokens(system: str, messages: list[dict]):
-    """Stream synthesis using the larger/better model regardless of the main model setting."""
+    """Stream synthesis using the configured model."""
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         async with client.messages.stream(
-            model="claude-sonnet-4-6",
+            model="claude-haiku-4-5-20251001",
             max_tokens=3000,
             system=system,
             messages=messages,
         ) as stream:
             async for text in stream.text_stream:
                 yield text
+    elif settings.google_api_key:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(
+            api_key=settings.google_api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
+        stream = await client.chat.completions.create(
+            model="gemini-2.0-flash",
+            max_tokens=3000,
+            messages=[{"role": "system", "content": system}, *messages],
+            stream=True,
+        )
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
     else:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
@@ -1074,10 +1139,10 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
         yield {"type": "synthesis_done", "text": text}
         return
 
-    # Phase 1: single combined call for all 5 agents (1 API call vs 5 — avoids Groq TPM limits)
+    # Phase 1: run specialist agents
     agent_reports: list[dict] = []
-    if settings.anthropic_api_key:
-        # Anthropic has no TPM concern — run each agent individually for best quality
+    if settings.anthropic_api_key or settings.google_api_key:
+        # Anthropic/Google have no TPM concern — run each agent individually for best quality
         for agent_cfg in SPECIALIST_AGENTS:
             report = await run_specialist_agent(agent_cfg, conversation_history)
             agent_reports.append(report)
