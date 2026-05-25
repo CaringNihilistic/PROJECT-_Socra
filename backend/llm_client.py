@@ -967,12 +967,13 @@ def _trim_history_for_agents(history: list[dict], max_pairs: int = 4) -> list[di
     return [history[0]] + history[-(max_pairs * 2):]
 
 
-async def run_specialist_agent(agent_cfg: dict, conversation_history: list[dict]) -> dict:
-    """Run a single specialist agent (kept for non-Groq paths)."""
+async def run_specialist_agent(agent_cfg: dict, conversation_history: list[dict], web_context: str = "") -> dict:
+    """Run a single specialist agent with optional live web research context."""
     trimmed = _trim_history_for_agents(conversation_history)
     msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
+    system = f"{web_context}\n\n{agent_cfg['prompt']}" if web_context else agent_cfg["prompt"]
     try:
-        content = await _call_fast_llm(agent_cfg["prompt"], msgs)
+        content = await _call_fast_llm(system, msgs)
     except Exception as e:
         content = f"_Analysis unavailable ({str(e)[:80]})_"
     return {
@@ -984,7 +985,7 @@ async def run_specialist_agent(agent_cfg: dict, conversation_history: list[dict]
     }
 
 
-async def run_all_agents_combined(conversation_history: list[dict]) -> list[dict]:
+async def run_all_agents_combined(conversation_history: list[dict], web_context: str = "") -> list[dict]:
     """
     Run all 5 specialist analyses in ONE Groq call to stay within the 6k TPM free-tier limit.
     5 separate calls would consume ~4,675 tokens; this uses ~1,700 tokens total.
@@ -993,15 +994,17 @@ async def run_all_agents_combined(conversation_history: list[dict]) -> list[dict
     trimmed = _trim_history_for_agents(conversation_history, max_pairs=2)
     msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
 
-    # Compact prompt — 8B model fills long Finance first then truncates the rest if too verbose
-    system = """Analyze this startup idea as 5 experts. Return ONLY valid JSON with these 5 keys.
-Each value = 3-4 markdown bullet points (- prefix). MAX 60 WORDS PER SECTION — be concise.
+    web_section = f"\n{web_context}\n" if web_context else ""
 
-{"finance": "bullets: real CAC/LTV numbers, pricing vs named competitors, burn rate items, funding gap",
+    # Compact prompt — 8B model fills long Finance first then truncates the rest if too verbose
+    system = f"""Analyze this startup idea as 5 experts. Return ONLY valid JSON with these 5 keys.
+Each value = 3-4 markdown bullet points (- prefix). MAX 60 WORDS PER SECTION — be concise.
+{web_section}
+{{"finance": "bullets: real CAC/LTV numbers, pricing vs named competitors, burn rate items, funding gap",
  "market": "bullets: TAM with source, exact first-customer profile, biggest GTM obstacle, timing risk",
  "competition": "bullets: name 3 real direct competitors, name the incumbent who could copy this, why moat is weak",
  "tech": "bullets: name specific tools for build-vs-buy (e.g. Stripe not 'payment gateway'), what breaks at 10x",
- "risk": "bullets: regulation name + what it requires, platform dependency risk, the one falsifiable killer assumption"}
+ "risk": "bullets: regulation name + what it requires, platform dependency risk, the one falsifiable killer assumption"}}
 
 Use real company names and real numbers. No generic advice. Keep every section short."""
 
@@ -1229,17 +1232,23 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
         yield {"type": "synthesis_done", "text": text}
         return
 
-    # Phase 1: run specialist agents
+    # Phase 1: web research (runs before agents, enriches their prompts)
+    from web_search import gather_web_context
+    web_context, search_queries = await gather_web_context(conversation_history)
+    if search_queries:
+        yield {"type": "web_research", "queries": search_queries}
+
+    # Phase 2: run specialist agents
     agent_reports: list[dict] = []
     if settings.anthropic_api_key or settings.google_api_key:
         # Anthropic/Google have no TPM concern — run each agent individually for best quality
         for agent_cfg in SPECIALIST_AGENTS:
-            report = await run_specialist_agent(agent_cfg, conversation_history)
+            report = await run_specialist_agent(agent_cfg, conversation_history, web_context=web_context)
             agent_reports.append(report)
             yield {"type": "agent_report", "report": report}
     else:
-        # Groq free tier: single combined call to stay within 6k TPM
-        all_reports = await run_all_agents_combined(conversation_history)
+        # Groq free tier: single combined call — inject web context into the system prompt
+        all_reports = await run_all_agents_combined(conversation_history, web_context=web_context)
         for report in all_reports:
             agent_reports.append(report)
             yield {"type": "agent_report", "report": report}

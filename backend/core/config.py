@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     clerk_frontend_api_url: str = ""  # e.g. https://xxxx.clerk.accounts.dev
     groq_api_key: str = ""
     google_api_key: str = ""
+    tavily_api_key: str = ""
 
     @property
     def is_stub(self) -> bool:
@@ -25,4 +26,5 @@ _s = Settings()
 _s.groq_api_key = _s.groq_api_key.strip()
 _s.anthropic_api_key = _s.anthropic_api_key.strip()
 _s.google_api_key = _s.google_api_key.strip()
+_s.tavily_api_key = _s.tavily_api_key.strip()
 settings = _s

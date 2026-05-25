@@ -89,6 +89,7 @@ interface SessionStore {
   currentChoices: string[]
   currentAgentReports: AgentReport[]
   isAnalyzing: boolean
+  isResearching: boolean
   sessionError: string | null
   authToken: string | null
   setAuthToken: (token: string | null) => void
@@ -117,6 +118,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   currentChoices: [],
   currentAgentReports: [],
   isAnalyzing: false,
+  isResearching: false,
   sessionError: null,
   authToken: null,
 
@@ -177,7 +179,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   sendMessage: async (content: string) => {
     const { session, authToken } = get()
     if (!session) return
-    set({ isSending: true, streamingMessage: '', currentChoices: [], currentAgentReports: [], isAnalyzing: false })
+    set({ isSending: true, streamingMessage: '', currentChoices: [], currentAgentReports: [], isAnalyzing: false, isResearching: false })
 
     try {
       const response = await fetch(`${API_URL}/sessions/${session.id}/message/stream`, {
@@ -208,10 +210,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           } else if (payload.type === 'choices') {
             set({ currentChoices: payload.choices })
 
+          } else if (payload.type === 'web_research') {
+            set({ isResearching: true })
+
           } else if (payload.type === 'agent_report') {
             // First report signals we've entered the analysis phase
             set((s) => ({
               isAnalyzing: true,
+              isResearching: false,
               streamingMessage: '',
               currentAgentReports: [...s.currentAgentReports, payload.report],
             }))
@@ -222,7 +228,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
           } else if (payload.type === 'done') {
             const updated: SessionData = payload.session
-            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false })
+            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isResearching: false })
             saveToLocalStorage({
               id: updated.id,
               initial_idea: updated.initial_idea,
@@ -235,7 +241,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
       }
     } finally {
-      set({ isSending: false, streamingMessage: '', isAnalyzing: false })
+      set({ isSending: false, streamingMessage: '', isAnalyzing: false, isResearching: false })
     }
   },
 
@@ -263,5 +269,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     currentChoices: [],
     currentAgentReports: [],
     isAnalyzing: false,
+    isResearching: false,
   }),
 }))

@@ -182,7 +182,7 @@ export function SessionPage() {
   const [copied, setCopied] = useState(false)
   const {
     session, isSending, streamingMessage, currentChoices,
-    currentAgentReports, isAnalyzing,
+    currentAgentReports, isAnalyzing, isResearching,
     sendMessage, clearSession,
   } = useSessionStore()
 
@@ -293,6 +293,16 @@ export function SessionPage() {
 
         {/* Assumptions */}
         {assumptions.length > 0 && <AssumptionsList assumptions={assumptions} />}
+
+        {/* Web research indicator */}
+        {isResearching && (
+          <div className="flex items-center gap-2 py-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+            <span className="text-[11px] font-mono text-blue-400/80 animate-pulse">
+              Searching the web...
+            </span>
+          </div>
+        )}
 
         {/* Multi-agent analysis section */}
         {(specialistReports.length > 0 || isAnalyzing) && (
