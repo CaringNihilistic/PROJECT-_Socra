@@ -379,11 +379,14 @@ async def _call_google(system: str, messages: list[dict], max_tokens: int, json_
 
 
 async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
-    """Route to Anthropic → Google → Groq based on available keys."""
+    """Route to Anthropic → Google → Groq. Falls back automatically on quota/rate errors."""
     if settings.anthropic_api_key:
         return await _call_anthropic(system, messages, max_tokens)
     if settings.google_api_key:
-        return await _call_google(system, messages, max_tokens, json_mode=json_mode)
+        try:
+            return await _call_google(system, messages, max_tokens, json_mode=json_mode)
+        except Exception:
+            pass  # Google quota exhausted → fall through to Groq
     return await _call_groq(system, messages, max_tokens, json_mode=json_mode)
 
 
@@ -494,8 +497,47 @@ JSON rules:
 - If phase is "masterplan", Part 1 must be ONE SHORT SENTENCE only. The specialist agents generate the actual plan."""
 
 
+async def _stream_google_tokens(system: str, messages: list[dict], max_tokens: int = 2500):
+    """Async generator for Google Gemini streaming."""
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(
+        api_key=settings.google_api_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+    )
+    stream = await client.chat.completions.create(
+        model="gemini-2.0-flash",
+        max_tokens=max_tokens,
+        messages=[{"role": "system", "content": system}, *messages],
+        stream=True,
+    )
+    async for chunk in stream:
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta.content
+        if delta:
+            yield delta
+
+
+async def _stream_groq_tokens(system: str, messages: list[dict], model: str = "llama-3.1-8b-instant", max_tokens: int = 2500):
+    """Async generator for Groq streaming."""
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
+    stream = await client.chat.completions.create(
+        model=model,
+        max_tokens=max_tokens,
+        messages=[{"role": "system", "content": system}, *messages],
+        stream=True,
+    )
+    async for chunk in stream:
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta.content
+        if delta:
+            yield delta
+
+
 async def _stream_llm_tokens(system: str, messages: list[dict]):
-    """Async generator yielding raw text tokens from the configured LLM."""
+    """Async generator yielding raw text tokens. Falls back Google → Groq on quota errors."""
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
@@ -507,39 +549,21 @@ async def _stream_llm_tokens(system: str, messages: list[dict]):
         ) as stream:
             async for text in stream.text_stream:
                 yield text
-    elif settings.google_api_key:
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(
-            api_key=settings.google_api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
-        stream = await client.chat.completions.create(
-            model="gemini-2.0-flash",
-            max_tokens=2500,
-            messages=[{"role": "system", "content": system}, *messages],
-            stream=True,
-        )
-        async for chunk in stream:
-            if not chunk.choices:
-                continue
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
-    else:
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
-        stream = await client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            max_tokens=2500,
-            messages=[{"role": "system", "content": system}, *messages],
-            stream=True,
-        )
-        async for chunk in stream:
-            if not chunk.choices:
-                continue
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        return
+    if settings.google_api_key:
+        google_failed = False
+        try:
+            async for token in _stream_google_tokens(system, messages):
+                yield token
+            return
+        except Exception:
+            google_failed = True
+        if google_failed:
+            async for token in _stream_groq_tokens(system, messages):
+                yield token
+            return
+    async for token in _stream_groq_tokens(system, messages):
+        yield token
 
 
 async def stream_architect_llm(
@@ -891,7 +915,7 @@ Be direct and domain-specific. Under 150 words.""",
 
 
 async def _call_fast_llm(system: str, messages: list[dict]) -> str:
-    """Cheaper/faster model for specialist agents."""
+    """Cheaper/faster model for specialist agents. Falls back Google → Groq on quota errors."""
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
@@ -903,7 +927,10 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
         )
         return response.content[0].text
     if settings.google_api_key:
-        return await _call_google(system, messages, max_tokens=900)
+        try:
+            return await _call_google(system, messages, max_tokens=900)
+        except Exception:
+            pass  # Google quota exhausted → fall through to Groq
     from openai import AsyncOpenAI
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
     response = await client.chat.completions.create(
@@ -1012,13 +1039,17 @@ Write exactly 5 numbered critiques of this specific plan. Each critique must:
 Do NOT give generic startup advice. Critique the specific decisions in THIS plan.
 Format as a numbered list. Be direct and honest."""
 
-    # Use the same model tier as synthesis — NOT the small/fast agent model
+    # Use synthesis-quality model with Google → Groq fallback
+    content = ""
     try:
         if settings.anthropic_api_key:
             content = await _call_anthropic(system, [], max_tokens=800)
         elif settings.google_api_key:
-            content = await _call_google(system, [], max_tokens=800)
-        else:
+            try:
+                content = await _call_google(system, [], max_tokens=800)
+            except Exception:
+                pass  # Fall through to Groq
+        if not content and settings.groq_api_key:
             from openai import AsyncOpenAI
             client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
             resp = await client.chat.completions.create(
@@ -1120,7 +1151,7 @@ Format as clean Markdown. Be opinionated. If there is a clearly better choice, s
 
 
 async def _stream_synthesis_tokens(system: str, messages: list[dict]):
-    """Stream synthesis using the configured model."""
+    """Stream synthesis using the best available model. Falls back Google → Groq on quota errors."""
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
@@ -1132,39 +1163,21 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
         ) as stream:
             async for text in stream.text_stream:
                 yield text
-    elif settings.google_api_key:
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(
-            api_key=settings.google_api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
-        stream = await client.chat.completions.create(
-            model="gemini-2.0-flash",
-            max_tokens=3000,
-            messages=[{"role": "system", "content": system}, *messages],
-            stream=True,
-        )
-        async for chunk in stream:
-            if not chunk.choices:
-                continue
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
-    else:
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
-        stream = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            max_tokens=3000,
-            messages=[{"role": "system", "content": system}, *messages],
-            stream=True,
-        )
-        async for chunk in stream:
-            if not chunk.choices:
-                continue
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        return
+    if settings.google_api_key:
+        google_failed = False
+        try:
+            async for token in _stream_google_tokens(system, messages, max_tokens=3000):
+                yield token
+            return
+        except Exception:
+            google_failed = True
+        if google_failed:
+            async for token in _stream_groq_tokens(system, messages, model="llama-3.3-70b-versatile", max_tokens=3000):
+                yield token
+            return
+    async for token in _stream_groq_tokens(system, messages, model="llama-3.3-70b-versatile", max_tokens=3000):
+        yield token
 
 
 async def stream_multi_agent_masterplan(conversation_history: list[dict]):
