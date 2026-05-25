@@ -897,18 +897,18 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         response = await client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=400,
+            max_tokens=900,
             system=system,
             messages=messages,
         )
         return response.content[0].text
     if settings.google_api_key:
-        return await _call_google(system, messages, max_tokens=600)
+        return await _call_google(system, messages, max_tokens=900)
     from openai import AsyncOpenAI
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
     response = await client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        max_tokens=250,
+        max_tokens=400,
         messages=[{"role": "system", "content": system}, *messages],
     )
     return response.choices[0].message.content or ""
