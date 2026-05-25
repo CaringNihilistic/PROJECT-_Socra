@@ -345,6 +345,13 @@ export function SessionPage() {
                 >
                   {copied ? '✓ Copied' : '↗ Share'}
                 </button>
+                <a
+                  href={`/?compare=${session.id}`}
+                  className="text-[11px] font-mono text-emerald-500/50 hover:text-emerald-400 border border-emerald-500/15 hover:border-emerald-500/40 px-3 py-1 rounded-lg transition-all"
+                  title="Compare with another idea"
+                >
+                  ↔ Compare
+                </a>
                 <button
                   onClick={() => {
                     const slug = session.initial_idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')

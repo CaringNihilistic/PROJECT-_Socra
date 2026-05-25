@@ -4,12 +4,17 @@ import { useSessionStore } from './store/sessionStore'
 import { LandingPage } from './components/LandingPage'
 import { SessionPage } from './components/SessionPage'
 import { SharePage } from './components/SharePage'
+import { ComparePage } from './components/ComparePage'
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 
 // Detect share route: /share/<sessionId>
 const shareMatch = window.location.pathname.match(/^\/share\/([^/]+)$/)
 const SHARE_SESSION_ID = shareMatch ? shareMatch[1] : null
+
+// Detect compare route: /compare/<id1>/<id2>
+const compareMatch = window.location.pathname.match(/^\/compare\/([^/]+)\/([^/]+)$/)
+const COMPARE_IDS = compareMatch ? [compareMatch[1], compareMatch[2]] as const : null
 
 /** Syncs the Clerk JWT into the store. Only rendered inside ClerkProvider. */
 function ClerkSync() {
@@ -46,6 +51,11 @@ export default function App() {
   // Share page is a public read-only view — no auth or store needed
   if (SHARE_SESSION_ID) {
     return <SharePage sessionId={SHARE_SESSION_ID} />
+  }
+
+  // Compare page is a public read-only view — no auth or store needed
+  if (COMPARE_IDS) {
+    return <ComparePage id1={COMPARE_IDS[0]} id2={COMPARE_IDS[1]} />
   }
 
   if (CLERK_KEY) {

@@ -201,8 +201,26 @@ export function LandingPage() {
   const [waitlistDone, setWaitlistDone] = useState(false)
   const [waitlistLoading, setWaitlistLoading] = useState(false)
   const [waitlistError, setWaitlistError] = useState('')
+  // Compare flow: store the first selected session ID (pre-seeded from ?compare= param)
+  const [compareId, setCompareId] = useState<string | null>(() => {
+    const p = new URLSearchParams(window.location.search)
+    return p.get('compare')
+  })
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const { createSession, isLoading, sessionError, sessionHistory, resumeSession } = useSessionStore()
+
+  const handleCompareClick = (id: string) => {
+    if (compareId === id) {
+      // Deselect
+      setCompareId(null)
+    } else if (compareId) {
+      // Navigate to compare page
+      window.location.href = `/compare/${compareId}/${id}`
+    } else {
+      // Select as first session
+      setCompareId(id)
+    }
+  }
 
   const handleSubmit = async () => {
     const trimmed = idea.trim()
@@ -376,25 +394,51 @@ export function LandingPage() {
           <div className="w-full max-w-[600px] mt-8 border-t border-ink-800/40 pt-6">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Recent sessions</span>
-              {CLERK_ENABLED && <SyncNudge />}
+              <div className="flex items-center gap-3">
+                {compareId && (
+                  <span className="text-[10px] font-mono text-amber-400/70 animate-pulse">
+                    ↔ Select another to compare
+                  </span>
+                )}
+                {CLERK_ENABLED && <SyncNudge />}
+              </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              {sessionHistory.slice(0, 4).map((s) => (
-                <button key={s.id} onClick={() => resumeSession(s.id)} disabled={isLoading}
-                  className="group text-left px-4 py-3 rounded-xl border border-ink-800/40 hover:border-ink-700/60 hover:bg-ink-900/30 transition-all flex items-center gap-3">
-                  <p className="flex-1 text-[13px] text-ink-600 group-hover:text-ink-400 transition-colors truncate leading-relaxed">{s.initial_idea}</p>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {s.has_masterplan && <span className="text-[10px] font-mono text-emerald-500/60">✓</span>}
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border" style={{
-                      color: PHASE_COLORS[s.phase] ?? '#55545c',
-                      borderColor: `${PHASE_COLORS[s.phase] ?? '#55545c'}30`,
-                      background: `${PHASE_COLORS[s.phase] ?? '#55545c'}08`,
+              {sessionHistory.slice(0, 6).map((s) => {
+                const isSelected = s.id === compareId
+                return (
+                  <div key={s.id}
+                    className="group flex items-center gap-2 rounded-xl border transition-all"
+                    style={{
+                      borderColor: isSelected ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.06)',
+                      background: isSelected ? 'rgba(245,158,11,0.05)' : 'transparent',
                     }}>
-                      {Math.round(s.total_score * 100)}%
-                    </span>
+                    <button onClick={() => resumeSession(s.id)} disabled={isLoading}
+                      className="flex-1 text-left px-4 py-3 flex items-center gap-3 min-w-0">
+                      <p className="flex-1 text-[13px] text-ink-600 group-hover:text-ink-400 transition-colors truncate leading-relaxed">{s.initial_idea}</p>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {s.has_masterplan && <span className="text-[10px] font-mono text-emerald-500/60">✓</span>}
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border" style={{
+                          color: PHASE_COLORS[s.phase] ?? '#55545c',
+                          borderColor: `${PHASE_COLORS[s.phase] ?? '#55545c'}30`,
+                          background: `${PHASE_COLORS[s.phase] ?? '#55545c'}08`,
+                        }}>
+                          {Math.round(s.total_score * 100)}%
+                        </span>
+                      </div>
+                    </button>
+                    {s.has_masterplan && (
+                      <button
+                        onClick={() => handleCompareClick(s.id)}
+                        title={isSelected ? 'Deselect' : compareId ? 'Compare with selected' : 'Select to compare'}
+                        className={`px-3 py-3 text-[11px] font-mono transition-colors flex-shrink-0 rounded-r-xl hover:text-amber-400 ${isSelected ? 'text-amber-500' : 'text-white/20'}`}
+                      >
+                        ↔
+                      </button>
+                    )}
                   </div>
-                </button>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
