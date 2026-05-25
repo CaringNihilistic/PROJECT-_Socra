@@ -51,7 +51,9 @@ async def _process_message(session, req_content: str, db: AsyncSession):
     session.risk_awareness = updated_scores["risk_awareness"]
     session.phase = new_phase
     session.turn_number = session.turn_number + 1
-    session.assumptions = list(session.assumptions or []) + llm_response.get("new_assumptions", [])
+    normalized = [{"text": a, "status": "unknown"} if isinstance(a, str) else a for a in (session.assumptions or [])]
+    new_raw = [{"text": a, "status": "unknown"} if isinstance(a, str) else a for a in llm_response.get("new_assumptions", [])]
+    session.assumptions = normalized + new_raw
     session.masterplan = masterplan
     session.agent_reports = agent_reports
 
@@ -101,7 +103,10 @@ async def send_message_stream(
     # Capture all session state before entering the async generator
     initial_idea = session.initial_idea
     turn_number = session.turn_number
-    original_assumptions = list(session.assumptions or [])
+    original_assumptions = [
+        {"text": a, "status": "unknown"} if isinstance(a, str) else a
+        for a in (session.assumptions or [])
+    ]
     original_masterplan = session.masterplan
     original_agent_reports = list(session.agent_reports or [])
 
@@ -162,7 +167,10 @@ async def send_message_stream(
                 # Server-side override: if model said analysis is ready or turn limit hit, force masterplan
                 if "activating specialist analysis" in message_text.lower() or (turn_number + 1) >= 9:
                     new_phase = "masterplan"
-                new_assumptions = original_assumptions + llm_response.get("new_assumptions", [])
+                new_assumptions = original_assumptions + [
+                    {"text": a, "status": "unknown"} if isinstance(a, str) else a
+                    for a in llm_response.get("new_assumptions", [])
+                ]
                 new_turn_number = turn_number + 1
 
                 masterplan = original_masterplan

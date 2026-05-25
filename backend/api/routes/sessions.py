@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, update
 from pydantic import BaseModel
 
 from db.database import get_db
@@ -23,6 +23,18 @@ class CreateSessionRequest(BaseModel):
     idea: str
 
 
+class AssumptionUpdateRequest(BaseModel):
+    index: int
+    status: str  # "unknown" | "validated" | "disproved"
+
+
+def _normalize_assumption(a) -> dict:
+    """Ensure assumption is always {text, status} — handles legacy string format."""
+    if isinstance(a, str):
+        return {"text": a, "status": "unknown"}
+    return a
+
+
 def _serialize(session: Session) -> dict:
     scores = {
         "problem_clarity": session.problem_clarity,
@@ -39,7 +51,7 @@ def _serialize(session: Session) -> dict:
         "phase": session.phase,
         "turn_number": session.turn_number,
         "conversation_history": session.conversation_history or [],
-        "assumptions": session.assumptions or [],
+        "assumptions": [_normalize_assumption(a) for a in (session.assumptions or [])],
         "masterplan": session.masterplan,
         "agent_reports": session.agent_reports or [],
         "explanations": get_score_explanation(scores),
@@ -129,3 +141,26 @@ async def get_session(session_id: str, db: AsyncSession = Depends(get_db)):
     if not session:
         raise HTTPException(404, "Session not found")
     return _serialize(session)
+
+
+@router.patch("/{session_id}/assumptions")
+async def update_assumption_status(
+    session_id: str, req: AssumptionUpdateRequest, db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if req.status not in ("unknown", "validated", "disproved"):
+        raise HTTPException(400, "Invalid status")
+
+    assumptions = [_normalize_assumption(a) for a in (session.assumptions or [])]
+    if req.index < 0 or req.index >= len(assumptions):
+        raise HTTPException(400, "Invalid assumption index")
+
+    assumptions[req.index] = {**assumptions[req.index], "status": req.status}
+    await db.execute(
+        update(Session).where(Session.id == session_id).values(assumptions=assumptions)
+    )
+    await db.commit()
+    return {"ok": True}

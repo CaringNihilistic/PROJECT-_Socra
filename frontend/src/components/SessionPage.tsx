@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useSessionStore } from '../store/sessionStore'
-import type { AgentReport } from '../store/sessionStore'
+import type { AgentReport, Assumption } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
 
 const PHASE_STEPS = [
@@ -17,7 +18,19 @@ const PHASE_COLOR: Record<string, string> = {
 
 const TOTAL_AGENTS = 5
 
-function AssumptionsList({ assumptions }: { assumptions: string[] }) {
+const STATUS_CYCLE: Record<Assumption['status'], Assumption['status']> = {
+  unknown: 'validated',
+  validated: 'disproved',
+  disproved: 'unknown',
+}
+const STATUS_STYLE: Record<Assumption['status'], { chip: string; dot: string; label: string }> = {
+  unknown:   { chip: 'text-ink-500 bg-ink-900/60 border-ink-800/50 hover:border-ink-700/70',      dot: 'bg-amber-400/40',   label: '' },
+  validated: { chip: 'text-emerald-400/80 bg-emerald-500/8 border-emerald-500/25 hover:border-emerald-500/50', dot: 'bg-emerald-400/80', label: '✓' },
+  disproved: { chip: 'text-red-400/70 bg-red-500/8 border-red-500/20 hover:border-red-500/40',    dot: 'bg-red-400/70',     label: '✗' },
+}
+
+function AssumptionsList({ assumptions }: { assumptions: Assumption[] }) {
+  const updateAssumptionStatus = useSessionStore((s) => s.updateAssumptionStatus)
   const [expanded, setExpanded] = useState(true)
   const prevCount = useRef(assumptions.length)
 
@@ -25,6 +38,9 @@ function AssumptionsList({ assumptions }: { assumptions: string[] }) {
     if (assumptions.length > prevCount.current) setExpanded(true)
     prevCount.current = assumptions.length
   }, [assumptions.length])
+
+  const validated = assumptions.filter(a => a.status === 'validated').length
+  const disproved = assumptions.filter(a => a.status === 'disproved').length
 
   return (
     <div className="rounded-xl border border-ink-800/60 overflow-hidden">
@@ -36,6 +52,16 @@ function AssumptionsList({ assumptions }: { assumptions: string[] }) {
         <span className="text-[10px] font-mono text-ink-700 bg-ink-800/80 px-1.5 py-0.5 rounded-full tabular-nums">
           {assumptions.length}
         </span>
+        {validated > 0 && (
+          <span className="text-[10px] font-mono text-emerald-400/70 bg-emerald-500/8 border border-emerald-500/20 px-1.5 py-0.5 rounded-full tabular-nums">
+            ✓ {validated}
+          </span>
+        )}
+        {disproved > 0 && (
+          <span className="text-[10px] font-mono text-red-400/60 bg-red-500/8 border border-red-500/15 px-1.5 py-0.5 rounded-full tabular-nums">
+            ✗ {disproved}
+          </span>
+        )}
         <svg className={`w-3 h-3 text-ink-700 ml-auto transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -43,13 +69,25 @@ function AssumptionsList({ assumptions }: { assumptions: string[] }) {
       </button>
       {expanded && (
         <div className="px-4 pb-3 pt-1.5 flex flex-wrap gap-1.5 border-t border-ink-800/50">
-          {assumptions.map((assumption, i) => (
-            <span key={i}
-              className="inline-flex items-center gap-1.5 text-[11px] text-ink-500 bg-ink-900/60 border border-ink-800/50 rounded-full px-3 py-1 leading-none">
-              <span className="w-1 h-1 rounded-full bg-amber-400/40 flex-shrink-0" />
-              {assumption}
-            </span>
-          ))}
+          {assumptions.map((assumption, i) => {
+            const s = STATUS_STYLE[assumption.status]
+            return (
+              <button
+                key={i}
+                title="Click to mark validated / disproved"
+                onClick={() => updateAssumptionStatus(i, STATUS_CYCLE[assumption.status])}
+                className={`inline-flex items-center gap-1.5 text-[11px] border rounded-full px-3 py-1 leading-none transition-all duration-200 cursor-pointer ${s.chip}`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 text-[9px] flex items-center justify-center ${!s.label ? s.dot : ''}`}
+                  style={s.label ? {} : undefined}>
+                  {s.label && <span className={`text-[10px] leading-none ${assumption.status === 'validated' ? 'text-emerald-400' : 'text-red-400'}`}>{s.label}</span>}
+                  {!s.label && <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />}
+                </span>
+                {assumption.text}
+              </button>
+            )
+          })}
+          <p className="w-full text-[10px] font-mono text-ink-800 mt-1">Click any assumption to mark it validated ✓ or disproved ✗</p>
         </div>
       )}
     </div>
@@ -85,7 +123,7 @@ function AgentReportCard({ report, isNew }: { report: AgentReport; isNew?: boole
             prose-p:text-ink-400 prose-p:leading-relaxed prose-p:my-1.5
             prose-li:text-ink-400 prose-li:my-0.5
             prose-strong:text-ink-200 prose-ul:my-1">
-            <ReactMarkdown>{report.content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.content}</ReactMarkdown>
           </div>
         </div>
       )}
@@ -98,6 +136,43 @@ function AgentReportSkeleton() {
     <div className="rounded-xl border border-ink-800/40 px-4 py-3 flex items-center gap-3">
       <div className="w-4 h-4 rounded-full border-2 border-ink-700/60 border-t-transparent animate-spin flex-shrink-0" />
       <span className="text-[11px] font-mono text-ink-800">Analyzing...</span>
+    </div>
+  )
+}
+
+function DevilsAdvocateCard({ report }: { report: AgentReport }) {
+  const [collapsed, setCollapsed] = useState(false)
+  return (
+    <div className="rounded-2xl border overflow-hidden fade-up"
+      style={{ borderColor: 'rgba(239,68,68,0.22)', background: 'rgba(239,68,68,0.025)' }}>
+      <button
+        className="w-full px-5 py-4 flex items-center gap-3 hover:bg-white/[0.01] transition-colors"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <span className="text-xl flex-shrink-0">💀</span>
+        <div className="flex-1 text-left">
+          <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-red-400/80">
+            Devil's Advocate
+          </div>
+          <div className="text-[11px] font-mono text-red-600/50 mt-0.5">
+            5 reasons this fails
+          </div>
+        </div>
+        <svg className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          style={{ color: 'rgba(239,68,68,0.35)' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {!collapsed && (
+        <div className="px-5 pb-5 pt-1 border-t" style={{ borderColor: 'rgba(239,68,68,0.10)' }}>
+          <div className="prose prose-invert prose-sm max-w-none
+            prose-p:text-red-300/65 prose-li:text-red-300/65 prose-strong:text-red-200/80
+            prose-ol:my-2 prose-ol:space-y-1">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.content}</ReactMarkdown>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -134,7 +209,9 @@ export function SessionPage() {
 
   // Prefer stored agent_reports (from DB) over in-progress streaming ones
   const displayReports = agent_reports?.length ? agent_reports : currentAgentReports
-  const pendingAgentCount = isAnalyzing ? Math.max(0, TOTAL_AGENTS - currentAgentReports.length) : 0
+  const specialistReports = displayReports.filter(r => r.key !== 'devils_advocate')
+  const devilReport = displayReports.find(r => r.key === 'devils_advocate')
+  const pendingAgentCount = isAnalyzing ? Math.max(0, TOTAL_AGENTS - specialistReports.length) : 0
 
   const handleSend = async () => {
     const trimmed = input.trim()
@@ -218,7 +295,7 @@ export function SessionPage() {
         {assumptions.length > 0 && <AssumptionsList assumptions={assumptions} />}
 
         {/* Multi-agent analysis section */}
-        {(displayReports.length > 0 || isAnalyzing) && (
+        {(specialistReports.length > 0 || isAnalyzing) && (
           <div>
             <div className="flex items-center gap-3 mb-3">
               <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">
@@ -226,11 +303,11 @@ export function SessionPage() {
               </span>
               <div className="flex-1 h-px bg-ink-800/60" />
               <span className="text-[10px] font-mono text-ink-800 tabular-nums">
-                {displayReports.length} / {TOTAL_AGENTS}
+                {specialistReports.length} / {TOTAL_AGENTS}
               </span>
             </div>
             <div className="flex flex-col gap-2">
-              {displayReports.map((report) => (
+              {specialistReports.map((report) => (
                 <AgentReportCard
                   key={report.key}
                   report={report}
@@ -283,14 +360,31 @@ export function SessionPage() {
                 </button>
               </div>
             </div>
-            <div className="px-5 py-5 prose prose-invert prose-sm max-w-none text-ink-400
-              prose-headings:text-ink-100 prose-headings:font-display prose-headings:tracking-tight
-              prose-strong:text-ink-200 prose-code:text-amber-300 prose-code:bg-ink-900 prose-code:px-1 prose-code:rounded
-              prose-li:text-ink-400 prose-p:text-ink-400 prose-table:text-ink-400
-              prose-th:text-ink-300 prose-th:font-mono prose-th:text-[11px] prose-th:uppercase prose-th:tracking-wider">
-              <ReactMarkdown>{masterplan}</ReactMarkdown>
+            <div className="px-7 py-7 prose prose-invert max-w-none
+              prose-headings:font-display prose-headings:tracking-tight
+              prose-h1:text-[20px] prose-h1:text-ink-50 prose-h1:font-bold prose-h1:mb-3
+              prose-h2:text-[11px] prose-h2:font-semibold prose-h2:uppercase prose-h2:tracking-[0.14em] prose-h2:text-emerald-400/70 prose-h2:mt-9 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-emerald-500/15
+              prose-h3:text-[14px] prose-h3:text-ink-200 prose-h3:font-semibold prose-h3:mt-5 prose-h3:mb-2
+              prose-p:text-ink-400 prose-p:leading-7 prose-p:text-[14px] prose-p:my-2
+              prose-li:text-ink-400 prose-li:text-[14px] prose-li:leading-6 prose-li:my-1
+              prose-ul:my-2 prose-ol:my-2
+              prose-strong:text-ink-200 prose-strong:font-semibold
+              prose-code:text-amber-300 prose-code:bg-amber-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
+              prose-pre:bg-ink-900/80 prose-pre:border prose-pre:border-ink-800/60 prose-pre:rounded-xl prose-pre:p-4
+              prose-table:text-[13px] prose-table:w-full
+              prose-thead:border-b prose-thead:border-ink-700/50
+              prose-th:text-ink-500 prose-th:font-mono prose-th:text-[10px] prose-th:uppercase prose-th:tracking-wider prose-th:py-2.5 prose-th:px-4 prose-th:font-medium prose-th:bg-ink-900/40
+              prose-td:text-ink-400 prose-td:py-2.5 prose-td:px-4 prose-td:border-b prose-td:border-ink-800/40 prose-td:align-top prose-td:text-[13px] prose-td:leading-relaxed
+              prose-hr:border-ink-800/50 prose-hr:my-6
+              prose-blockquote:border-l-2 prose-blockquote:border-amber-500/30 prose-blockquote:text-ink-500 prose-blockquote:pl-4 prose-blockquote:not-italic">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{masterplan}</ReactMarkdown>
             </div>
           </div>
+        )}
+
+        {/* Devil's Advocate — appears after masterplan */}
+        {masterplan && devilReport && (
+          <DevilsAdvocateCard report={devilReport} />
         )}
 
         {/* Conversation */}

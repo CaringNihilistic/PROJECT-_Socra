@@ -30,6 +30,11 @@ export interface AgentReport {
   content: string
 }
 
+export interface Assumption {
+  text: string
+  status: 'unknown' | 'validated' | 'disproved'
+}
+
 export interface SessionData {
   id: string
   initial_idea: string
@@ -38,7 +43,7 @@ export interface SessionData {
   phase: string
   turn_number: number
   conversation_history: Message[]
-  assumptions: string[]
+  assumptions: Assumption[]
   masterplan: string | null
   agent_reports: AgentReport[]
   explanations: ScoreExplanation[]
@@ -91,6 +96,7 @@ interface SessionStore {
   createSession: (idea: string) => Promise<void>
   resumeSession: (sessionId: string) => Promise<void>
   sendMessage: (content: string) => Promise<void>
+  updateAssumptionStatus: (index: number, status: Assumption['status']) => Promise<void>
   clearSession: () => void
 }
 
@@ -230,6 +236,24 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       }
     } finally {
       set({ isSending: false, streamingMessage: '', isAnalyzing: false })
+    }
+  },
+
+  updateAssumptionStatus: async (index, status) => {
+    const { session, authToken } = get()
+    if (!session) return
+    // Optimistic update
+    const updated = session.assumptions.map((a, i) => i === index ? { ...a, status } : a)
+    set((s) => ({ session: s.session ? { ...s.session, assumptions: updated } : null }))
+    try {
+      await axios.patch(
+        `${API_URL}/sessions/${session.id}/assumptions`,
+        { index, status },
+        { headers: authHeaders(authToken) },
+      )
+    } catch {
+      // Roll back
+      set((s) => ({ session: s.session ? { ...s.session, assumptions: session.assumptions } : null }))
     }
   },
 

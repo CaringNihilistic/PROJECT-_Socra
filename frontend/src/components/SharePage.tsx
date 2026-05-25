@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import axios from 'axios'
 import type { SessionData, AgentReport, ScoreExplanation } from '../store/sessionStore'
 
@@ -16,6 +17,41 @@ function ScoreRow({ exp }: { exp: ScoreExplanation }) {
           style={{ width: `${pct}%`, background: color, boxShadow: `0 0 6px ${color}40` }} />
       </div>
       <span className="text-[11px] font-mono tabular-nums w-8 text-right" style={{ color }}>{pct}%</span>
+    </div>
+  )
+}
+
+function SharedDevilCard({ report }: { report: AgentReport }) {
+  const [collapsed, setCollapsed] = useState(false)
+  return (
+    <div className="rounded-2xl border overflow-hidden"
+      style={{ borderColor: 'rgba(239,68,68,0.22)', background: 'rgba(239,68,68,0.025)' }}>
+      <button
+        className="w-full px-5 py-4 flex items-center gap-3 hover:bg-white/[0.01] transition-colors"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <span className="text-xl flex-shrink-0">💀</span>
+        <div className="flex-1 text-left">
+          <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-red-400/80">
+            Devil's Advocate
+          </div>
+          <div className="text-[11px] font-mono text-red-600/50 mt-0.5">5 reasons this fails</div>
+        </div>
+        <svg className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          style={{ color: 'rgba(239,68,68,0.35)' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {!collapsed && (
+        <div className="px-5 pb-5 pt-1 border-t" style={{ borderColor: 'rgba(239,68,68,0.10)' }}>
+          <div className="prose prose-invert prose-sm max-w-none
+            prose-p:text-red-300/65 prose-li:text-red-300/65 prose-strong:text-red-200/80
+            prose-ol:my-2 prose-ol:space-y-1">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.content}</ReactMarkdown>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -41,7 +77,7 @@ function SharedAgentCard({ report }: { report: AgentReport }) {
       {expanded && (
         <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: `${report.color}15` }}>
           <div className="prose prose-invert prose-sm max-w-none prose-p:text-ink-400 prose-li:text-ink-400 prose-strong:text-ink-200 prose-ul:my-1">
-            <ReactMarkdown>{report.content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.content}</ReactMarkdown>
           </div>
         </div>
       )}
@@ -141,7 +177,7 @@ export function SharePage({ sessionId }: { sessionId: string }) {
           <div>
             <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700 mb-3">Specialist analysis</p>
             <div className="flex flex-col gap-2">
-              {session.agent_reports.map((report) => (
+              {session.agent_reports.filter(r => r.key !== 'devils_advocate').map((report) => (
                 <SharedAgentCard key={report.key} report={report} />
               ))}
             </div>
@@ -158,14 +194,31 @@ export function SharePage({ sessionId }: { sessionId: string }) {
               Architecture masterplan
             </span>
           </div>
-          <div className="px-5 py-5 prose prose-invert prose-sm max-w-none text-ink-400
-            prose-headings:text-ink-100 prose-headings:font-display prose-headings:tracking-tight
-            prose-strong:text-ink-200 prose-code:text-amber-300 prose-code:bg-ink-900 prose-code:px-1 prose-code:rounded
-            prose-li:text-ink-400 prose-p:text-ink-400 prose-table:text-ink-400
-            prose-th:text-ink-300 prose-th:font-mono prose-th:text-[11px] prose-th:uppercase prose-th:tracking-wider">
-            <ReactMarkdown>{session.masterplan}</ReactMarkdown>
+          <div className="px-7 py-7 prose prose-invert max-w-none
+            prose-headings:font-display prose-headings:tracking-tight
+            prose-h1:text-[20px] prose-h1:text-ink-50 prose-h1:font-bold prose-h1:mb-3
+            prose-h2:text-[11px] prose-h2:font-semibold prose-h2:uppercase prose-h2:tracking-[0.14em] prose-h2:text-emerald-400/70 prose-h2:mt-9 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-emerald-500/15
+            prose-h3:text-[14px] prose-h3:text-ink-200 prose-h3:font-semibold prose-h3:mt-5 prose-h3:mb-2
+            prose-p:text-ink-400 prose-p:leading-7 prose-p:text-[14px] prose-p:my-2
+            prose-li:text-ink-400 prose-li:text-[14px] prose-li:leading-6 prose-li:my-1
+            prose-ul:my-2 prose-ol:my-2
+            prose-strong:text-ink-200 prose-strong:font-semibold
+            prose-code:text-amber-300 prose-code:bg-amber-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
+            prose-pre:bg-ink-900/80 prose-pre:border prose-pre:border-ink-800/60 prose-pre:rounded-xl prose-pre:p-4
+            prose-table:text-[13px] prose-table:w-full
+            prose-thead:border-b prose-thead:border-ink-700/50
+            prose-th:text-ink-500 prose-th:font-mono prose-th:text-[10px] prose-th:uppercase prose-th:tracking-wider prose-th:py-2.5 prose-th:px-4 prose-th:font-medium prose-th:bg-ink-900/40
+            prose-td:text-ink-400 prose-td:py-2.5 prose-td:px-4 prose-td:border-b prose-td:border-ink-800/40 prose-td:align-top prose-td:text-[13px] prose-td:leading-relaxed
+            prose-hr:border-ink-800/50 prose-hr:my-6
+            prose-blockquote:border-l-2 prose-blockquote:border-amber-500/30 prose-blockquote:text-ink-500 prose-blockquote:pl-4 prose-blockquote:not-italic">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{session.masterplan}</ReactMarkdown>
           </div>
         </div>
+
+        {/* Devil's Advocate */}
+        {session.agent_reports?.find(r => r.key === 'devils_advocate') && (
+          <SharedDevilCard report={session.agent_reports.find(r => r.key === 'devils_advocate')!} />
+        )}
 
         {/* Footer CTA */}
         <div className="rounded-2xl border border-ink-800/40 px-6 py-6 text-center flex flex-col items-center gap-3"

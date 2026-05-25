@@ -903,7 +903,7 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
         )
         return response.content[0].text
     if settings.google_api_key:
-        return await _call_google(system, messages, max_tokens=400)
+        return await _call_google(system, messages, max_tokens=600)
     from openai import AsyncOpenAI
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
     response = await client.chat.completions.create(
@@ -995,6 +995,38 @@ Use real company names and real numbers. No generic advice. Keep every section s
         return _default
 
 
+async def run_devils_advocate(masterplan: str, conversation_history: list[dict]) -> dict:
+    """Runs after synthesis — critiques the actual masterplan with 5 specific reasons it fails."""
+    excerpt = masterplan[:2500] if len(masterplan) > 2500 else masterplan
+    system = f"""You are a brutal devil's advocate. Your job: destroy this specific masterplan.
+
+MASTERPLAN:
+{excerpt}
+
+Write exactly 5 numbered reasons this plan fails. Each reason must:
+- Name a SPECIFIC claim, tool choice, timeline, or number from the masterplan above
+- Explain why that specific thing is wrong or will fail — with a real-world reason
+- Be under 50 words — punchy, not verbose
+- Say "this fails because" or "this is wrong because" — no hedging, no "may", no "consider"
+
+Do NOT give generic startup advice. Attack THIS plan's specific decisions.
+Format as a numbered list. Be merciless."""
+
+    trimmed = _trim_history_for_agents(conversation_history, max_pairs=3)
+    msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
+    try:
+        content = await _call_fast_llm(system, msgs)
+    except Exception:
+        content = "_Devil's advocate unavailable._"
+    return {
+        "key": "devils_advocate",
+        "title": "Devil's Advocate",
+        "icon": "💀",
+        "color": "#ef4444",
+        "content": content,
+    }
+
+
 def _build_followup_prompt(masterplan: str) -> str:
     excerpt = masterplan[:3000] if len(masterplan) > 3000 else masterplan
     return f"""You are Socra, a startup advisor. A full analysis has been completed and the masterplan below was generated.
@@ -1036,29 +1068,39 @@ def _build_synthesis_prompt(agent_reports: list[dict]) -> str:
     reports_text = "\n\n".join(
         f"### {r['title']}\n{r['content']}" for r in agent_reports
     )
-    return f"""You are a senior startup advisor writing a masterplan based on specialist analyses.
+    return f"""You are a senior startup advisor writing a technical masterplan based on specialist analyses.
 
 SPECIALIST FINDINGS:
 {reports_text}
 
-Write a masterplan using the full conversation history and the findings above. Follow these rules strictly:
+Write a masterplan using the full conversation history and the findings above. Follow every rule below exactly.
 
-SPECIFICITY RULES (break these and the masterplan is useless):
-- Name actual tools and services in every recommendation. Not "use a speech API" — say "use Deepgram for STT, ElevenLabs for TTS". Not "use cloud infrastructure" — say "use Railway for MVP, migrate to AWS ECS when you hit 10k users".
-- Name real competitors the user will face on day 1. Not "established players" — say "Bland AI, Retell AI, and Vapi already do this — here's how to differentiate".
-- Use real numbers. Not "significant cost savings" — say "estimated $0.08/min vs $1.20/min for human agents = 15x cost advantage if call quality matches".
-- Name specific regulations that apply. Not "ensure compliance" — say "TCPA requires written consent before automated outbound calls — this is an existential risk if ignored".
+SPECIFICITY RULES — violating any of these makes the masterplan worthless:
+- Tech Stack lists tools you BUILD WITH, not competitors. FORBIDDEN: listing Upwork, Fiverr, Toptal, or any marketplace you are competing against. REQUIRED: infrastructure tools like PostgreSQL, Stripe Connect, Railway, Redis, React.
+- Name actual SaaS tools in every recommendation. Not "payment gateway" — say "Stripe Connect". Not "cloud hosting" — say "Railway for MVP, AWS ECS at 10k users". Not "search" — say "Postgres full-text search → Algolia at scale".
+- Name real competitors by name. Not "established players" — say "Upwork, Toptal, and Scale AI already do this — your edge must be X".
+- Use real numbers from the specialist findings. Not "high churn risk" — say "SMB marketplaces average 25-40% annual churn — you need escrow + reviews to create switching cost".
+- Name specific regulations. Not "ensure compliance" — say "1099-NEC required for any contractor earning $600+/year — use Stripe Tax to automate this".
+
+RISK REGISTER RULES — mitigations must be SPECIFIC ACTIONS:
+- FORBIDDEN mitigations: "provide high-quality services", "monitor closely", "build relationships", "invest in security", "stay competitive"
+- REQUIRED format: name the tool or process that prevents the risk. Example: "Off-platform leakage → Stripe Connect escrow holds funds until client approves deliverable, making on-platform safer than off"
+
+FIRST 3 FILES RULE:
+- Must be actual SOURCE CODE files with full paths, not documentation or markdown.
+- FORBIDDEN: README.md, business_plan.md, architecture.json, any .md planning file
+- REQUIRED format: `backend/payments/stripe_connect.py` — what it contains (2 sentences max)
 
 STRUCTURE:
-1. **Project Summary** — 2-3 sentences naming the exact problem, exact customer, exact mechanism
-2. **Tech Stack** — table with Layer / Specific Tool / Why This One (not a category — a product)
-3. **Phase 1: MVP (Weeks 1-8)** — what to build, what to buy, what NOT to build yet
+1. **Project Summary** — 2-3 sentences: exact problem, exact customer type, exact mechanism
+2. **Tech Stack** — table: Layer | Specific Tool | Why This One
+3. **Phase 1: MVP (Weeks 1-8)** — what to build, what to buy off-shelf, what NOT to build yet
 4. **Phase 2: Growth (Months 3-9)** — first 10 customers, GTM motion, key hires
-5. **Phase 3: Scale/Moat (Months 9-18)** — defensibility, what makes this hard to copy
-6. **Risk Register** — top 5 risks from the specialist analyses, with specific mitigations (not "monitor closely")
-7. **First 3 files to write** — concrete file names and what they contain
+5. **Phase 3: Scale/Moat (Months 9-18)** — defensibility, what makes this hard to copy at scale
+6. **Risk Register** — top 5 risks from the specialist findings with specific tool/process mitigations
+7. **First 3 files to write** — source code files with paths and what they contain
 
-Format as clean Markdown. Be opinionated. If there is a clearly better choice, say so and explain why the alternatives lose."""
+Format as clean Markdown. Be opinionated. If there is a clearly better choice, say so and name the alternative that loses."""
 
 
 async def _stream_synthesis_tokens(system: str, messages: list[dict]):
@@ -1168,3 +1210,8 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
         pass
 
     yield {"type": "synthesis_done", "text": synthesis_text}
+
+    # Devil's advocate — critiques the actual masterplan; runs last so it can reference it
+    if synthesis_text:
+        devil_report = await run_devils_advocate(synthesis_text, conversation_history)
+        yield {"type": "agent_report", "report": devil_report}
