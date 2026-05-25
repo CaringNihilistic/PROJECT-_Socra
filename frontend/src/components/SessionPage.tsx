@@ -1,11 +1,51 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+// @ts-ignore
+import { useAuth, useClerk, UserButton } from '@clerk/clerk-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { AgentReport, Assumption } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
 import { PitchDeckView } from './PitchDeckView'
 import { DebateView } from './DebateView'
+import { CLERK_ENABLED } from '../lib/auth'
+
+function SessionAuthButton() {
+  // @ts-ignore
+  const { isSignedIn, isLoaded } = useAuth()
+  // @ts-ignore
+  const { openSignIn } = useClerk()
+  if (!CLERK_ENABLED || !isLoaded) return null
+  if (isSignedIn) return (
+    <div className="flex-shrink-0">
+      <UserButton afterSignOutUrl="/" />
+    </div>
+  )
+  return (
+    <button
+      onClick={() => openSignIn()}
+      className="flex-shrink-0 text-[11px] font-mono text-amber-400/50 hover:text-amber-400 border border-amber-500/15 hover:border-amber-500/40 px-2.5 py-1 rounded-lg transition-all"
+    >
+      Sign in
+    </button>
+  )
+}
+
+function SaveNudge() {
+  // @ts-ignore
+  const { isSignedIn, isLoaded } = useAuth()
+  // @ts-ignore
+  const { openSignIn } = useClerk()
+  if (!CLERK_ENABLED || !isLoaded || isSignedIn) return null
+  return (
+    <button
+      onClick={() => openSignIn()}
+      className="w-full text-center text-[11px] font-mono text-amber-400/50 hover:text-amber-400 border border-amber-500/10 hover:border-amber-500/25 bg-amber-500/[0.03] px-4 py-2 rounded-xl transition-all"
+    >
+      ⚠ This session isn't saved to an account — sign in to keep your work across devices →
+    </button>
+  )
+}
 
 const PHASE_STEPS = [
   { key: 'intake',      label: 'Intake',      color: '#8a8578' },
@@ -259,6 +299,7 @@ export function SessionPage() {
             >
               ← new
             </button>
+            <SessionAuthButton />
           </div>
 
           {/* Phase stepper */}
@@ -296,6 +337,9 @@ export function SessionPage() {
 
         {/* Eval bar */}
         <EvalBar scores={scores} totalScore={total_score} phase={phase} explanations={explanations} />
+
+        {/* Save nudge for anonymous users */}
+        <SaveNudge />
 
         {/* Assumptions */}
         {assumptions.length > 0 && <AssumptionsList assumptions={assumptions} />}

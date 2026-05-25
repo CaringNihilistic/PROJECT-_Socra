@@ -16,21 +16,29 @@ const SHARE_SESSION_ID = shareMatch ? shareMatch[1] : null
 const compareMatch = window.location.pathname.match(/^\/compare\/([^/]+)\/([^/]+)$/)
 const COMPARE_IDS = compareMatch ? [compareMatch[1], compareMatch[2]] as const : null
 
-/** Syncs the Clerk JWT into the store. Only rendered inside ClerkProvider. */
+/** Syncs the Clerk JWT into the store. Refreshes every 45 min before expiry. */
 function ClerkSync() {
   const { getToken, isSignedIn } = useAuth()
   const setAuthToken = useSessionStore((s) => s.setAuthToken)
   const loadSessionHistory = useSessionStore((s) => s.loadSessionHistory)
 
   useEffect(() => {
-    if (isSignedIn) {
-      getToken().then((t) => {
-        setAuthToken(t)
-        loadSessionHistory()
-      })
-    } else {
+    if (!isSignedIn) {
       setAuthToken(null)
+      return
     }
+
+    const refresh = async () => {
+      const t = await getToken()
+      setAuthToken(t)
+    }
+
+    refresh()
+    loadSessionHistory()
+
+    // Clerk tokens expire in 1 h — refresh every 45 min
+    const interval = setInterval(refresh, 45 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [isSignedIn])
 
   return null

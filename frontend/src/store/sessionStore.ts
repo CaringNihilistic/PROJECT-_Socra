@@ -195,9 +195,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   resumeSession: async (sessionId: string) => {
+    const { authToken } = get()
     set({ isLoading: true })
     try {
-      const { data } = await axios.get<SessionData>(`${API_URL}/sessions/${sessionId}`)
+      const { data } = await axios.get<SessionData>(`${API_URL}/sessions/${sessionId}`, {
+        headers: authHeaders(authToken),
+      })
       set({ session: data })
     } finally {
       set({ isLoading: false })
