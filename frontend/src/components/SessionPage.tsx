@@ -5,6 +5,7 @@ import { useSessionStore } from '../store/sessionStore'
 import type { AgentReport, Assumption } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
 import { PitchDeckView } from './PitchDeckView'
+import { DebateView } from './DebateView'
 
 const PHASE_STEPS = [
   { key: 'intake',      label: 'Intake',      color: '#8a8578' },
@@ -183,10 +184,12 @@ export function SessionPage() {
   const [copied, setCopied] = useState(false)
   const [deckLoading, setDeckLoading] = useState(false)
   const [showDeck, setShowDeck] = useState(false)
+  const [debateLoading, setDebateLoading] = useState(false)
+  const [showDebate, setShowDebate] = useState(false)
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching,
-    sendMessage, clearSession, generatePitchDeck,
+    sendMessage, clearSession, generatePitchDeck, generateDebate,
   } = useSessionStore()
 
   const handleShare = () => {
@@ -205,7 +208,7 @@ export function SessionPage() {
 
   if (!session) return null
 
-  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports, pitch_deck } = session
+  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports, pitch_deck, debate } = session
 
   const phaseColor = PHASE_COLOR[phase] || '#8a8578'
   const phaseIdx = PHASE_STEPS.findIndex(p => p.key === phase)
@@ -391,6 +394,19 @@ export function SessionPage() {
                 >
                   {deckLoading ? '...' : pitch_deck ? (showDeck ? '▲ Pitch Deck' : '▼ Pitch Deck') : '⬡ Pitch Deck'}
                 </button>
+                <button
+                  onClick={async () => {
+                    if (debate) { setShowDebate(v => !v); return }
+                    setDebateLoading(true)
+                    await generateDebate()
+                    setDebateLoading(false)
+                    setShowDebate(true)
+                  }}
+                  disabled={debateLoading}
+                  className="text-[11px] font-mono text-indigo-400/50 hover:text-indigo-300 border border-indigo-500/15 hover:border-indigo-500/40 px-3 py-1 rounded-lg transition-all disabled:opacity-40"
+                >
+                  {debateLoading ? '...' : debate ? (showDebate ? '▲ Debate' : '▼ Debate') : '⚔ Debate'}
+                </button>
               </div>
             </div>
             <div className="px-7 py-7 prose prose-invert max-w-none
@@ -429,6 +445,9 @@ export function SessionPage() {
             devilReport={devilReport}
           />
         )}
+
+        {/* Debate — generated on demand, toggled by button */}
+        {showDebate && debate && <DebateView debate={debate} />}
 
         {/* Conversation */}
         <div className="flex flex-col gap-6">

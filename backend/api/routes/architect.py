@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
-from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, generate_pitch_deck_html
+from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, generate_pitch_deck_html, generate_debate
 from api.routes.sessions import _serialize
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
@@ -288,3 +288,28 @@ async def export_pitch_deck_html(session_id: str, db: AsyncSession = Depends(get
     return HTMLResponse(content=html, headers={
         "Content-Disposition": f'attachment; filename="pitch-deck.html"'
     })
+
+
+@router.post("/{session_id}/debate")
+async def create_debate(session_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if not session.masterplan:
+        raise HTTPException(400, "Masterplan must be generated before running a debate")
+
+    if session.debate:
+        return session.debate
+
+    debate = await generate_debate(
+        conversation_history=list(session.conversation_history or []),
+        agent_reports=list(session.agent_reports or []),
+        masterplan=session.masterplan,
+    )
+
+    await db.execute(
+        update(Session).where(Session.id == session_id).values(debate=debate)
+    )
+    await db.commit()
+    return debate

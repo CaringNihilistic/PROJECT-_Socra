@@ -25,6 +25,7 @@ class Session(Base):
     masterplan = Column(Text, nullable=True)
     agent_reports = Column(JSON, nullable=True)
     pitch_deck = Column(JSON, nullable=True)
+    debate = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

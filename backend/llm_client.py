@@ -932,6 +932,84 @@ Output ONLY the complete HTML file starting with <!DOCTYPE html>. No explanation
         return ""
 
 
+async def generate_debate(
+    conversation_history: list[dict],
+    agent_reports: list[dict],
+    masterplan: str,
+) -> dict:
+    """Generate a 3-round Bull vs Bear debate grounded in the masterplan and agent analysis."""
+    reports_text = "\n\n".join(
+        f"### {r['title']}\n{r['content']}"
+        for r in agent_reports
+        if r.get("content") and r.get("key") != "devils_advocate"
+    )
+    masterplan_excerpt = masterplan[:2500] if len(masterplan) > 2500 else masterplan
+
+    system = f"""You are moderating a structured debate between two expert investors about a startup idea.
+
+CONTEXT — both debaters have read this analysis. Reference specific claims from it:
+
+MASTERPLAN:
+{masterplan_excerpt}
+
+SPECIALIST ANALYSIS:
+{reports_text}
+
+PERSONAS:
+- BULL: A Tier-1 VC partner who has backed 3 unicorns. Genuinely believes in this idea. Cites specific market opportunities, analogies to successful companies, and concrete advantages from the analysis above.
+- BEAR: A veteran operator who has seen similar ideas fail. Cites specific risks, competitor advantages, and flawed assumptions from the analysis above.
+
+Generate exactly 3 debate rounds. Rules:
+- Every argument must reference a SPECIFIC claim, number, or decision from the masterplan/analysis — not generic startup advice
+- Name real companies and real market dynamics
+- Each argument is 3-5 punchy sentences — no fluff
+- Round 2 must directly rebut the other side's Round 1 argument
+- Round 3 must be a closing statement that brings in a new point not yet raised
+
+Return ONLY valid JSON:
+{{
+  "topic": "one sharp sentence framing the core question being debated",
+  "rounds": [
+    {{
+      "round": 1,
+      "label": "Opening Arguments",
+      "bull": "bull's opening argument",
+      "bear": "bear's opening argument"
+    }},
+    {{
+      "round": 2,
+      "label": "Rebuttals",
+      "bull": "bull's rebuttal to bear's opening",
+      "bear": "bear's rebuttal to bull's opening"
+    }},
+    {{
+      "round": 3,
+      "label": "Closing Statements",
+      "bull": "bull's closing with a new point",
+      "bear": "bear's closing with a new point"
+    }}
+  ],
+  "verdict": "2-3 sentences: what both sides actually agree on beneath the argument, and the single most important unresolved question that will decide if this succeeds"
+}}"""
+
+    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history[-4:]]
+    try:
+        raw = await _call_real_llm(system, msgs, max_tokens=2000, json_mode=True)
+        result = json.loads(raw)
+        if "rounds" not in result:
+            raise ValueError("missing rounds")
+        return result
+    except Exception:
+        import re as _re
+        try:
+            m = _re.search(r'\{.*\}', raw, _re.DOTALL)  # type: ignore[name-defined]
+            if m:
+                return json.loads(m.group())
+        except Exception:
+            pass
+        return {"topic": "", "rounds": [], "verdict": ""}
+
+
 async def generate_masterplan(conversation_history: list[dict]) -> str:
     if settings.is_stub:
         await asyncio.sleep(random.uniform(1.5, 2.5))
