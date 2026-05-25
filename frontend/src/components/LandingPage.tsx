@@ -265,12 +265,15 @@ export function LandingPage() {
   ]
 
   const features = [
-    { icon: '⚖️', title: 'Debate Engine', desc: 'Proposes an approach, then argues against its own proposal. Forces you to genuinely defend your choices.', tag: 'Core', tc: '#f59e0b' },
-    { icon: '📊', title: 'Evaluation Bar', desc: 'Real-time visual score across 5 dimensions. Refuses to generate output until context is sufficient.', tag: 'Core', tc: '#5590e8' },
-    { icon: '🔍', title: 'Assumption Tracker', desc: 'Every hidden assumption surfaced explicitly. Correct one and the whole recommendation recalibrates.', tag: 'Core', tc: '#e85d26' },
-    { icon: '🧠', title: 'Cross-session Memory', desc: 'Remembers your stack, team size, and past decisions. References them in future projects automatically.', tag: 'Pro', tc: '#34d399' },
-    { icon: '🗺️', title: 'Architecture Diagram', desc: 'Auto-generates a system diagram — components, communication patterns, scaling risks.', tag: 'Pro', tc: '#f59e0b' },
-    { icon: '⚠️', title: '"What Could Go Wrong"', desc: 'Top 5 failure modes at scale, each with a specific mitigation. The final senior-engineer review.', tag: 'Pro', tc: '#e05555' },
+    { icon: '📊', title: 'Live Evaluation Bar', desc: 'Real-time score across 5 dimensions — problem clarity, scale, tech context, success definition, risk. Masterplan unlocks only when context is sufficient.', tag: 'Core', tc: '#5590e8' },
+    { icon: '🔍', title: 'Assumption Tracker', desc: 'Every hidden assumption surfaced as a clickable chip. Mark each one validated or disproved — the analysis updates accordingly.', tag: 'Core', tc: '#e85d26' },
+    { icon: '🤖', title: '5 Specialist Agents', desc: 'Market analyst, system architect, risk assessor, financial modeler, and growth strategist run in parallel — each with real web research behind them.', tag: 'Core', tc: '#a78bfa' },
+    { icon: '🌐', title: 'Web Research', desc: 'Agents search the web for real competitor data, market sizing, and pricing benchmarks before writing their reports. No hallucinated numbers.', tag: 'Core', tc: '#22d3ee' },
+    { icon: '💀', title: "Devil's Advocate", desc: '5 hard reasons your idea fails — regulatory risk, unit economics, timing, competition, execution. The reality check before you commit.', tag: 'Core', tc: '#e05555' },
+    { icon: '📑', title: 'Investor Pitch Deck', desc: '9 slide-ready cards generated from your masterplan — problem, solution, market, traction, business model, competition, team, financials, and ask. Export as interactive HTML.', tag: 'Output', tc: '#f59e0b' },
+    { icon: '⚔️', title: 'AI Debate Mode', desc: 'Bull (VC optimist) vs Bear (operator skeptic) across 3 structured rounds with a final verdict. See your idea stress-tested from both sides.', tag: 'Output', tc: '#34d399' },
+    { icon: '↔️', title: 'Idea Comparison', desc: 'Compare two masterplans side by side — scores, agent reports, and architecture. Useful when you\'re deciding between two directions.', tag: 'Output', tc: '#f59e0b' },
+    { icon: '🗺️', title: 'Architecture Masterplan', desc: 'Full markdown document: system design, tech stack, data model, API contracts, scaling strategy, and risk register. Exportable as .md or shareable via link.', tag: 'Core', tc: '#34d399' },
   ]
 
   return (
@@ -365,7 +368,7 @@ export function LandingPage() {
 
         {/* Proof row */}
         <div className="flex items-center justify-center gap-5 mb-10 flex-wrap">
-          {['3 phases of interrogation', 'Live 5-dimension eval bar', 'Full architecture masterplan'].map((t) => (
+          {['5 specialist AI agents', 'Real web research', 'Investor pitch deck', 'Bull vs Bear debate'].map((t) => (
             <div key={t} className="flex items-center gap-1.5">
               <div className="w-1 h-1 rounded-full bg-ink-700" />
               <span className="text-[11px] text-ink-700 font-mono">{t}</span>
@@ -448,7 +451,7 @@ export function LandingPage() {
       <div className="border-y border-ink-800/40 py-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.015)' }}>
         <div className="ticker-track flex gap-0">
           {[...Array(2)].flatMap(() =>
-            ['Debates your approach', 'Stress-tests at scale', 'Saves API credits', 'Generates architecture', 'Surfaces assumptions', 'Exports to PRD', 'Finds failure modes', 'Challenges your decisions'].map((t) => (
+            ['5 specialist agents', 'Real web research', 'Investor pitch deck', 'Bull vs Bear debate', 'Devil\'s advocate', 'Assumption tracker', 'Architecture masterplan', 'Interactive HTML export', 'Idea comparison', 'Share + export'].map((t) => (
               <span key={t + Math.random()} className="flex items-center gap-2 px-8 text-[12px] font-mono text-ink-700">
                 {t} <span className="text-amber-500/40">◆</span>
               </span>
@@ -498,11 +501,11 @@ export function LandingPage() {
             <div className="rounded-2xl p-6 border" style={{ background: 'rgba(60,186,130,0.04)', borderColor: 'rgba(60,186,130,0.15)' }}>
               <p className="text-[12px] font-mono font-semibold text-emerald-400 uppercase tracking-wider mb-5">✓ With Socra</p>
               {[
-                'Structured debate → expert context → precise output first time',
-                'One optimized call to the right model',
-                'Architecture stress-tested against scale and failure modes',
+                '5 specialist agents research your market in parallel — real data, not guesses',
+                'Architecture masterplan with stack, data model, API contracts, and risk register',
                 'Every assumption surfaced and confirmed before a line is written',
-                'Full decision log exported as a PRD',
+                'Investor pitch deck generated and exported as interactive HTML',
+                'Bull vs Bear debate surfaces the best and worst case before you commit',
               ].map((t) => (
                 <div key={t} className="flex gap-2.5 text-[13px] text-ink-400 mb-3 leading-snug">
                   <span className="text-emerald-600 flex-shrink-0">→</span>{t}
@@ -518,8 +521,8 @@ export function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <SectionBadge>What Socra does</SectionBadge>
           <SectionHeading>
-            Everything a staff engineer does<br />
-            before saying <em className="text-amber-400 not-italic">"let's start coding."</em>
+            From raw idea to investor-ready output —<br />
+            <em className="text-amber-400 not-italic">before a line of code is written.</em>
           </SectionHeading>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
