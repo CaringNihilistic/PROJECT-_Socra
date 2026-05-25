@@ -1012,10 +1012,21 @@ Write exactly 5 numbered critiques of this specific plan. Each critique must:
 Do NOT give generic startup advice. Critique the specific decisions in THIS plan.
 Format as a numbered list. Be direct and honest."""
 
-    trimmed = _trim_history_for_agents(conversation_history, max_pairs=3)
-    msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
+    # Use the same model tier as synthesis — NOT the small/fast agent model
     try:
-        content = await _call_fast_llm(system, msgs)
+        if settings.anthropic_api_key:
+            content = await _call_anthropic(system, [], max_tokens=800)
+        elif settings.google_api_key:
+            content = await _call_google(system, [], max_tokens=800)
+        else:
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
+            resp = await client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                max_tokens=800,
+                messages=[{"role": "system", "content": system}],
+            )
+            content = resp.choices[0].message.content or ""
         if not content:
             content = "_Critical review could not be generated. Try again with a new session._"
     except Exception:
@@ -1078,20 +1089,23 @@ SPECIALIST FINDINGS:
 Write a masterplan using the full conversation history and the findings above. Follow every rule below exactly.
 
 SPECIFICITY RULES — violating any of these makes the masterplan worthless:
-- Tech Stack lists tools you BUILD WITH, not competitors. FORBIDDEN: listing Upwork, Fiverr, Toptal, or any marketplace you are competing against. REQUIRED: infrastructure tools like PostgreSQL, Stripe Connect, Railway, Redis, React.
-- Name actual SaaS tools in every recommendation. Not "payment gateway" — say "Stripe Connect". Not "cloud hosting" — say "Railway for MVP, AWS ECS at 10k users". Not "search" — say "Postgres full-text search → Algolia at scale".
-- Name real competitors by name. Not "established players" — say "Upwork, Toptal, and Scale AI already do this — your edge must be X".
-- Use real numbers from the specialist findings. Not "high churn risk" — say "SMB marketplaces average 25-40% annual churn — you need escrow + reviews to create switching cost".
-- Name specific regulations. Not "ensure compliance" — say "1099-NEC required for any contractor earning $600+/year — use Stripe Tax to automate this".
+- Tech Stack lists tools you BUILD WITH, not competitors. FORBIDDEN: listing any marketplace or service that competes with this idea. REQUIRED: infrastructure tools specific to this product (databases, frameworks, APIs, cloud hosting).
+- Name actual SaaS tools in every recommendation relevant to THIS idea. Not "payment gateway" — say the specific tool. Not "cloud hosting" — say the specific provider and when to switch. Use the right tools for this domain.
+- Name real competitors by name relevant to THIS market. Not "established players" — name who actually competes here and what the differentiator must be.
+- Use real numbers from the specialist findings. Not vague risk descriptions — use the percentages, costs, or timelines from the specialist analyses above.
+- Name specific regulations relevant to THIS domain and country/market. Not generic compliance — name the actual laws or standards that apply.
 
-RISK REGISTER RULES — mitigations must be SPECIFIC ACTIONS:
+NOTE: The examples above are FORMAT EXAMPLES ONLY. Do not copy "Stripe Connect escrow", "1099-NEC", "Upwork/Toptal/Scale AI" or any other example content unless it is genuinely relevant to THIS specific idea.
+
+RISK REGISTER RULES — mitigations must be SPECIFIC ACTIONS for THIS idea:
 - FORBIDDEN mitigations: "provide high-quality services", "monitor closely", "build relationships", "invest in security", "stay competitive"
-- REQUIRED format: name the tool or process that prevents the risk. Example: "Off-platform leakage → Stripe Connect escrow holds funds until client approves deliverable, making on-platform safer than off"
+- REQUIRED format: name the specific tool, regulation, or process that prevents each risk for THIS business
+- FORBIDDEN: copying risk mitigations from examples that don't apply (e.g. contractor payment escrow for a non-marketplace product)
 
 FIRST 3 FILES RULE:
-- Must be actual SOURCE CODE files with full paths, not documentation or markdown.
+- Must be actual SOURCE CODE files with full paths relevant to THIS specific product.
 - FORBIDDEN: README.md, business_plan.md, architecture.json, any .md planning file
-- REQUIRED format: `backend/payments/stripe_connect.py` — what it contains (2 sentences max)
+- REQUIRED format: `backend/[module]/[file].py` or `frontend/[path]/[file].tsx` — what it contains (2 sentences max)
 
 STRUCTURE:
 1. **Project Summary** — 2-3 sentences: exact problem, exact customer type, exact mechanism
