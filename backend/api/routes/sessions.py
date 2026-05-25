@@ -54,6 +54,7 @@ def _serialize(session: Session) -> dict:
         "assumptions": [_normalize_assumption(a) for a in (session.assumptions or [])],
         "masterplan": session.masterplan,
         "agent_reports": session.agent_reports or [],
+        "pitch_deck": session.pitch_deck,
         "explanations": get_score_explanation(scores),
     }
 

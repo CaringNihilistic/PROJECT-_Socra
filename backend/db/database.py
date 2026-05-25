@@ -27,6 +27,9 @@ async def init_db():
         await conn.execute(text(
             "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS agent_reports JSONB"
         ))
+        await conn.execute(text(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS pitch_deck JSONB"
+        ))
 
 
 async def get_db():

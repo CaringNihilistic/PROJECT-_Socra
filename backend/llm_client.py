@@ -820,6 +820,68 @@ Always include 3-4 choices that represent the most archetypal user responses to 
         raise ValueError(f"Could not parse LLM response as JSON: {raw[:200]}")
 
 
+async def generate_pitch_deck(
+    conversation_history: list[dict],
+    agent_reports: list[dict],
+    masterplan: str,
+) -> dict:
+    """Generate a 9-slide investor pitch deck as structured JSON."""
+    reports_text = "\n\n".join(
+        f"### {r['title']}\n{r['content']}" for r in agent_reports if r.get("content")
+    )
+    masterplan_excerpt = masterplan[:3000] if len(masterplan) > 3000 else masterplan
+
+    system = f"""You are a startup pitch coach who writes investor-grade pitch decks.
+Based on the analysis and masterplan below, generate exactly 9 slides as valid JSON.
+
+SPECIALIST ANALYSIS:
+{reports_text}
+
+MASTERPLAN:
+{masterplan_excerpt}
+
+Return ONLY valid JSON matching this exact structure — no markdown, no preamble:
+{{
+  "slides": [
+    {{"id": "problem", "title": "The Problem", "headline": "one punchy sentence max 12 words", "bullets": ["specific pain 1", "specific pain 2", "specific pain 3"]}},
+    {{"id": "solution", "title": "Our Solution", "headline": "what you built in one sentence", "bullets": ["capability 1", "capability 2", "capability 3"]}},
+    {{"id": "market", "title": "Market Opportunity", "headline": "$Xbn addressable market", "bullets": ["TAM with source or estimate", "SAM — realistic target segment", "Why now — market timing reason"]}},
+    {{"id": "product", "title": "How It Works", "headline": "the core mechanism in one line", "bullets": ["step or feature 1", "step or feature 2", "step or feature 3"]}},
+    {{"id": "business_model", "title": "Business Model", "headline": "how you make money", "bullets": ["pricing with specific numbers", "unit economics — CAC vs LTV", "revenue milestones"]}},
+    {{"id": "gtm", "title": "Go-to-Market", "headline": "how you reach first 100 customers", "bullets": ["channel 1 with specific tactic", "channel 2", "timeline to first revenue"]}},
+    {{"id": "competition", "title": "Why We Win", "headline": "our defensible edge", "bullets": ["named competitor 1 — their weakness", "named competitor 2 — our advantage", "moat that builds over time"]}},
+    {{"id": "roadmap", "title": "Roadmap", "headline": "3 phases to market leadership", "bullets": ["Phase 1 (0-6mo): specific milestone", "Phase 2 (6-18mo): specific milestone", "Phase 3 (18mo+): specific milestone"]}},
+    {{"id": "ask", "title": "The Ask", "headline": "$Xm to reach [milestone] by [date]", "bullets": ["use of funds item 1 — %", "use of funds item 2 — %", "use of funds item 3 — %"]}}
+  ]
+}}
+
+RULES — violating any makes the deck worthless:
+- Headlines are punchy and specific — no generic phrases like "innovative solution" or "large market"
+- Every bullet has a real number, company name, or concrete claim — no vague statements
+- Market slide must name a specific TAM figure (estimate with reasoning if not known)
+- Competition slide must name real competitors by name
+- Ask slide must have a specific funding amount and concrete use-of-funds breakdown
+- All 9 slides must be present"""
+
+    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history[-4:]]
+
+    try:
+        raw = await _call_real_llm(system, msgs, max_tokens=2000, json_mode=True)
+        result = json.loads(raw)
+        if "slides" not in result or len(result["slides"]) < 9:
+            raise ValueError("incomplete slides")
+        return result
+    except Exception:
+        import re as _re
+        try:
+            m = _re.search(r'\{.*\}', raw, _re.DOTALL)  # type: ignore[name-defined]
+            if m:
+                return json.loads(m.group())
+        except Exception:
+            pass
+        return {"slides": []}
+
+
 async def generate_masterplan(conversation_history: list[dict]) -> str:
     if settings.is_stub:
         await asyncio.sleep(random.uniform(1.5, 2.5))

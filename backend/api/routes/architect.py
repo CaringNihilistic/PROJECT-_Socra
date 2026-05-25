@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
-from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm
+from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck
 from api.routes.sessions import _serialize
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
@@ -234,3 +234,29 @@ async def send_message_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/{session_id}/pitch-deck")
+async def create_pitch_deck(session_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if not session.masterplan:
+        raise HTTPException(400, "Masterplan must be generated before creating a pitch deck")
+
+    # Return cached deck if already generated
+    if session.pitch_deck:
+        return session.pitch_deck
+
+    deck = await generate_pitch_deck(
+        conversation_history=list(session.conversation_history or []),
+        agent_reports=list(session.agent_reports or []),
+        masterplan=session.masterplan,
+    )
+
+    await db.execute(
+        update(Session).where(Session.id == session_id).values(pitch_deck=deck)
+    )
+    await db.commit()
+    return deck

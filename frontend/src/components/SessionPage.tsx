@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { useSessionStore } from '../store/sessionStore'
 import type { AgentReport, Assumption } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
+import { PitchDeckView } from './PitchDeckView'
 
 const PHASE_STEPS = [
   { key: 'intake',      label: 'Intake',      color: '#8a8578' },
@@ -180,10 +181,12 @@ function DevilsAdvocateCard({ report }: { report: AgentReport }) {
 export function SessionPage() {
   const [input, setInput] = useState('')
   const [copied, setCopied] = useState(false)
+  const [deckLoading, setDeckLoading] = useState(false)
+  const [showDeck, setShowDeck] = useState(false)
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching,
-    sendMessage, clearSession,
+    sendMessage, clearSession, generatePitchDeck,
   } = useSessionStore()
 
   const handleShare = () => {
@@ -202,7 +205,7 @@ export function SessionPage() {
 
   if (!session) return null
 
-  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports } = session
+  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports, pitch_deck } = session
 
   const phaseColor = PHASE_COLOR[phase] || '#8a8578'
   const phaseIdx = PHASE_STEPS.findIndex(p => p.key === phase)
@@ -375,6 +378,19 @@ export function SessionPage() {
                 >
                   ↓ Export .md
                 </button>
+                <button
+                  onClick={async () => {
+                    if (pitch_deck) { setShowDeck(v => !v); return }
+                    setDeckLoading(true)
+                    await generatePitchDeck()
+                    setDeckLoading(false)
+                    setShowDeck(true)
+                  }}
+                  disabled={deckLoading}
+                  className="text-[11px] font-mono text-amber-500/50 hover:text-amber-400 border border-amber-500/15 hover:border-amber-500/40 px-3 py-1 rounded-lg transition-all disabled:opacity-40"
+                >
+                  {deckLoading ? '...' : pitch_deck ? (showDeck ? '▲ Pitch Deck' : '▼ Pitch Deck') : '⬡ Pitch Deck'}
+                </button>
               </div>
             </div>
             <div className="px-7 py-7 prose prose-invert max-w-none
@@ -402,6 +418,11 @@ export function SessionPage() {
         {/* Devil's Advocate — appears after masterplan */}
         {masterplan && devilReport && (
           <DevilsAdvocateCard report={devilReport} />
+        )}
+
+        {/* Pitch Deck — generated on demand, toggled by button */}
+        {showDeck && pitch_deck && (
+          <PitchDeckView deck={pitch_deck} idea={session.initial_idea} />
         )}
 
         {/* Conversation */}

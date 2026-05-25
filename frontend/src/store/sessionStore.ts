@@ -35,6 +35,17 @@ export interface Assumption {
   status: 'unknown' | 'validated' | 'disproved'
 }
 
+export interface PitchSlide {
+  id: string
+  title: string
+  headline: string
+  bullets: string[]
+}
+
+export interface PitchDeck {
+  slides: PitchSlide[]
+}
+
 export interface SessionData {
   id: string
   initial_idea: string
@@ -46,6 +57,7 @@ export interface SessionData {
   assumptions: Assumption[]
   masterplan: string | null
   agent_reports: AgentReport[]
+  pitch_deck?: PitchDeck | null
   explanations: ScoreExplanation[]
   latest_response?: string
   refusal?: string | null
@@ -98,6 +110,7 @@ interface SessionStore {
   resumeSession: (sessionId: string) => Promise<void>
   sendMessage: (content: string) => Promise<void>
   updateAssumptionStatus: (index: number, status: Assumption['status']) => Promise<void>
+  generatePitchDeck: () => Promise<void>
   clearSession: () => void
 }
 
@@ -261,6 +274,19 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       // Roll back
       set((s) => ({ session: s.session ? { ...s.session, assumptions: session.assumptions } : null }))
     }
+  },
+
+  generatePitchDeck: async () => {
+    const { session, authToken } = get()
+    if (!session?.masterplan) return
+    try {
+      const { data } = await axios.post<PitchDeck>(
+        `${API_URL}/sessions/${session.id}/pitch-deck`,
+        {},
+        { headers: authHeaders(authToken) },
+      )
+      set((s) => ({ session: s.session ? { ...s.session, pitch_deck: data } : null }))
+    } catch { /* silently fail — pitch deck is optional */ }
   },
 
   clearSession: () => set({
