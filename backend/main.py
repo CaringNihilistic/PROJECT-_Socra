@@ -9,7 +9,12 @@ from core.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import os
     await init_db()
+    # Debug: print raw env values to verify Railway is injecting them
+    _raw_google = os.environ.get("GOOGLE_API_KEY", "")
+    _raw_groq = os.environ.get("GROQ_API_KEY", "")
+    print(f"🔑 ENV check — GOOGLE_API_KEY: {'SET(' + str(len(_raw_google)) + ' chars)' if _raw_google else 'EMPTY'}, GROQ_API_KEY: {'SET' if _raw_groq else 'EMPTY'}, STUB_MODE: {os.environ.get('STUB_MODE', 'not set')}")
     print(f"🧠 Socra started — Stub mode: {settings.is_stub}")
     if settings.is_stub:
         print("⚠️  Running in STUB MODE — no real LLM calls.")
@@ -47,8 +52,17 @@ app.include_router(waitlist.router)
 
 @app.get("/health")
 async def health():
+    import os
     return {
         "status": "ok",
         "stub_mode": settings.is_stub,
-        "version": "0.2.0",
+        "version": "0.2.1",
+        "llm": (
+            "anthropic" if settings.anthropic_api_key else
+            "google" if settings.google_api_key else
+            "groq" if settings.groq_api_key else
+            "none"
+        ),
+        "env_google_key_set": bool(os.environ.get("GOOGLE_API_KEY")),
+        "settings_google_key_set": bool(settings.google_api_key),
     }
