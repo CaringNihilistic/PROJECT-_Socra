@@ -45,39 +45,82 @@ const DIMS = [
 ]
 
 type Dims = { pc: number; sc: number; tc: number; sd: number; ra: number }
+type DemoPhase = 'eval' | 'agents' | 'pitch' | 'debate'
 
 interface DemoState {
-  dims: Dims; total: number; showMsg: boolean; showChallenge: boolean; done: boolean
+  phase: DemoPhase
+  dims: Dims
+  total: number
+  showMsg: boolean
+  showChallenge: boolean
+  searching: boolean
+  agentCount: number
+  showBull: boolean
+  showBear: boolean
+  showVerdict: boolean
 }
 
-const D0: DemoState = { dims: { pc: 0, sc: 0, tc: 0, sd: 0, ra: 0 }, total: 0, showMsg: false, showChallenge: false, done: false }
+const D0: DemoState = {
+  phase: 'eval',
+  dims: { pc: 0, sc: 0, tc: 0, sd: 0, ra: 0 },
+  total: 0,
+  showMsg: false,
+  showChallenge: false,
+  searching: false,
+  agentCount: 0,
+  showBull: false,
+  showBear: false,
+  showVerdict: false,
+}
+
+const DEMO_AGENTS = [
+  { icon: '🌐', title: 'Market Research', color: '#22d3ee',  snippet: 'TAM ~$4.2B globally, growing 18% YoY. India segment underpenetrated — only 3 scaled players.' },
+  { icon: '🏗',  title: 'System Architect', color: '#a78bfa', snippet: 'Next.js frontend, PostgreSQL + PostGIS, Stripe Connect for payouts, Redis for availability cache.' },
+  { icon: '⚠️', title: 'Risk Assessor',   color: '#e85d26', snippet: 'Critical: cold-start liquidity problem. Without 50+ listings at launch, workers churn on day one.' },
+]
+
+const PHASE_TABS: { key: DemoPhase; label: string }[] = [
+  { key: 'eval',   label: '① Eval' },
+  { key: 'agents', label: '② Agents' },
+  { key: 'pitch',  label: '③ Pitch' },
+  { key: 'debate', label: '④ Debate' },
+]
 
 function LiveDemo() {
   const [demo, setDemo] = useState<DemoState>(D0)
-
   const upd = (patch: Partial<DemoState>) => setDemo(s => ({ ...s, ...patch }))
 
   useEffect(() => {
     const ids: ReturnType<typeof setTimeout>[] = []
-    const q = (ms: number, fn: () => void) => { ids.push(setTimeout(fn, ms)); return ms }
+    const at = (ms: number, fn: () => void) => ids.push(setTimeout(fn, ms))
 
     function run() {
-      upd(D0)
-      q(200,  () => upd({ dims: { pc: 20, sc: 0, tc: 0, sd: 0, ra: 0 }, total: 8 }))
-      q(1400, () => upd({ showMsg: true }))
-      q(2600, () => upd({ showChallenge: true }))
-      q(3700, () => upd({ dims: { pc: 65, sc: 0, tc: 0, sd: 0, ra: 0 }, total: 22 }))
-      q(4700, () => upd({ dims: { pc: 65, sc: 40, tc: 0, sd: 0, ra: 0 }, total: 28 }))
-      q(5700, () => upd({ dims: { pc: 65, sc: 40, tc: 50, sd: 0, ra: 0 }, total: 35 }))
-      q(6700, () => upd({ dims: { pc: 80, sc: 40, tc: 50, sd: 0, ra: 0 }, total: 48 }))
-      q(7700, () => upd({ dims: { pc: 80, sc: 40, tc: 50, sd: 60, ra: 0 }, total: 58 }))
-      q(8700, () => upd({ dims: { pc: 80, sc: 40, tc: 50, sd: 60, ra: 50 }, total: 66 }))
-      q(9700, () => upd({ dims: { pc: 80, sc: 80, tc: 50, sd: 60, ra: 50 }, total: 74 }))
-      q(10700, () => upd({ dims: { pc: 80, sc: 80, tc: 85, sd: 60, ra: 50 }, total: 82 }))
-      q(11700, () => upd({ dims: { pc: 80, sc: 80, tc: 85, sd: 90, ra: 50 }, total: 88 }))
-      q(12700, () => upd({ dims: { pc: 80, sc: 80, tc: 85, sd: 90, ra: 80 }, total: 90 }))
-      q(13700, () => upd({ done: true }))
-      ids.push(setTimeout(() => run(), 17000))
+      // ── Phase 1: Eval bar + conversation (0–9s) ──────────────────────────
+      setDemo(D0)
+      at(300,  () => upd({ dims: { pc: 25, sc: 0, tc: 0, sd: 0, ra: 0 }, total: 10 }))
+      at(1200, () => upd({ showMsg: true }))
+      at(2300, () => upd({ showChallenge: true }))
+      at(3400, () => upd({ dims: { pc: 70, sc: 45, tc: 0,  sd: 0,  ra: 0  }, total: 34 }))
+      at(5000, () => upd({ dims: { pc: 70, sc: 45, tc: 60, sd: 55, ra: 0  }, total: 62 }))
+      at(6800, () => upd({ dims: { pc: 80, sc: 80, tc: 85, sd: 80, ra: 75 }, total: 90 }))
+
+      // ── Phase 2: Specialist agents (9–15s) ───────────────────────────────
+      at(9000,  () => upd({ phase: 'agents', searching: true, agentCount: 0 }))
+      at(10300, () => upd({ searching: false, agentCount: 1 }))
+      at(11600, () => upd({ agentCount: 2 }))
+      at(12900, () => upd({ agentCount: 3 }))
+
+      // ── Phase 3: Pitch deck (15–21s) ─────────────────────────────────────
+      at(15500, () => upd({ phase: 'pitch' }))
+
+      // ── Phase 4: Debate (21–27s) ──────────────────────────────────────────
+      at(21000, () => upd({ phase: 'debate' }))
+      at(21600, () => upd({ showBull: true }))
+      at(23000, () => upd({ showBear: true }))
+      at(24800, () => upd({ showVerdict: true }))
+
+      // ── Loop ──────────────────────────────────────────────────────────────
+      ids.push(setTimeout(run, 28000))
     }
 
     run()
@@ -85,11 +128,10 @@ function LiveDemo() {
   }, [])
 
   const statusText =
-    demo.done      ? '✓ masterplan ready'        :
-    demo.total < 40 ? '⟳ gathering context…'     :
-    demo.total < 70 ? '◑ building picture…'       :
-    demo.total < 85 ? '◕ almost there…'           :
-                      '✓ ready to generate'
+    demo.total >= 88 ? '✓ ready to generate'   :
+    demo.total >= 60 ? '◕ almost there…'        :
+    demo.total >= 30 ? '◑ building picture…'    :
+                       '⟳ gathering context…'
 
   return (
     <div className="rounded-2xl border border-ink-800/60 overflow-hidden"
@@ -101,74 +143,202 @@ function LiveDemo() {
         <span className="w-2.5 h-2.5 rounded-full bg-[#e05555]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#e8a030]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#3cba82]" />
-        <span className="ml-2 text-[11px] font-mono text-ink-700">socra — architect session</span>
+        <span className="ml-2 text-[11px] font-mono text-ink-700 flex-1">socra — architect session</span>
+        {/* Phase tabs */}
+        <div className="flex items-center gap-1">
+          {PHASE_TABS.map(t => (
+            <span key={t.key}
+              className="text-[10px] font-mono px-2 py-0.5 rounded-md transition-all duration-500"
+              style={{
+                color: demo.phase === t.key ? '#f59e0b' : 'rgba(255,255,255,0.15)',
+                background: demo.phase === t.key ? 'rgba(245,158,11,0.1)' : 'transparent',
+              }}>
+              {t.label}
+            </span>
+          ))}
+        </div>
       </div>
 
-      <div className="p-5 space-y-5">
-        {/* Eval bar */}
-        <div>
-          <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700 mb-3">Context Score</p>
-          <div className="space-y-2.5 mb-3">
-            {DIMS.map(d => {
-              const val = demo.dims[d.id as keyof Dims]
-              return (
-                <div key={d.id} className="grid items-center gap-3" style={{ gridTemplateColumns: '130px 1fr 32px' }}>
-                  <span className="text-[12px] text-ink-500">{d.label}</span>
-                  <div className="h-1.5 rounded-full bg-ink-800 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-[1200ms] ease-[cubic-bezier(.4,0,.2,1)]"
-                      style={{ width: `${val}%`, background: d.color, boxShadow: val > 0 ? `0 0 8px ${d.color}60` : 'none' }} />
-                  </div>
-                  <span className="text-[11px] font-mono text-ink-600 text-right tabular-nums">{val}%</span>
-                </div>
-              )
-            })}
-          </div>
-          <div className="flex items-center justify-between px-3 py-2.5 rounded-lg"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <span className="text-[12px] text-ink-500">Overall readiness</span>
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-mono text-ink-600">{statusText}</span>
-              <span className="font-display text-xl text-amber-400 tabular-nums">{demo.total}%</span>
-            </div>
-          </div>
-        </div>
+      <div className="p-5 min-h-[320px]">
 
-        {/* Chat */}
-        <div className="space-y-2.5">
-          <div className="flex gap-2.5">
-            <div className="w-6 h-6 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-[10px] font-mono text-blue-400 flex-shrink-0 mt-0.5">U</div>
-            <div className="text-[13px] text-ink-300 px-3 py-2 rounded-xl flex-1"
-              style={{ background: 'rgba(85,144,232,0.07)', border: '1px solid rgba(85,144,232,0.12)' }}>
-              I want to build an app like Airbnb for co-working spaces
-            </div>
-          </div>
-          {demo.showMsg && (
-            <div className="flex gap-2.5 fade-up">
-              <div className="w-6 h-6 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-[10px] font-mono text-amber-400 flex-shrink-0 mt-0.5">S</div>
-              <div className="text-[13px] text-ink-400 leading-relaxed flex-1">
-                <strong className="text-ink-200">Before I touch any model</strong> — who is the primary user?
-                The person looking for a desk, or the office owner listing their space?
-                Your entire data model changes based on that answer.
+        {/* ── Phase 1: Eval + chat ─────────────────────────────────────────── */}
+        {demo.phase === 'eval' && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700 mb-2.5">Context Score</p>
+              <div className="space-y-2 mb-3">
+                {DIMS.map(d => {
+                  const val = demo.dims[d.id as keyof Dims]
+                  return (
+                    <div key={d.id} className="grid items-center gap-3" style={{ gridTemplateColumns: '120px 1fr 28px' }}>
+                      <span className="text-[11px] text-ink-500">{d.label}</span>
+                      <div className="h-1.5 rounded-full bg-ink-800 overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-[1400ms] ease-[cubic-bezier(.4,0,.2,1)]"
+                          style={{ width: `${val}%`, background: d.color, boxShadow: val > 0 ? `0 0 8px ${d.color}60` : 'none' }} />
+                      </div>
+                      <span className="text-[10px] font-mono text-ink-600 text-right tabular-nums">{val}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="text-[11px] text-ink-500">Overall readiness</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-ink-600">{statusText}</span>
+                  <span className="font-display text-lg text-amber-400 tabular-nums">{demo.total}%</span>
+                </div>
               </div>
             </div>
-          )}
-          {demo.showChallenge && (
-            <div className="ml-8 text-[12px] text-ink-500 px-3 py-2.5 rounded-lg leading-relaxed fade-up"
-              style={{ background: 'rgba(224,85,85,0.05)', border: '1px solid rgba(224,85,85,0.12)' }}>
-              <span className="text-[10px] font-mono text-[#e05555] mr-1.5">⚡ CHALLENGE —</span>
-              Airbnb took 10 years and $6B to build marketplace trust. What's your plan for the chicken-and-egg problem on day one?
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="w-6 h-6 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-[10px] font-mono text-blue-400 flex-shrink-0 mt-0.5">U</div>
+                <div className="text-[12px] text-ink-300 px-3 py-2 rounded-xl flex-1"
+                  style={{ background: 'rgba(85,144,232,0.07)', border: '1px solid rgba(85,144,232,0.12)' }}>
+                  I want to build an app like Airbnb for co-working spaces
+                </div>
+              </div>
+              {demo.showMsg && (
+                <div className="flex gap-2 fade-up">
+                  <div className="w-6 h-6 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-[10px] font-mono text-amber-400 flex-shrink-0 mt-0.5">S</div>
+                  <div className="text-[12px] text-ink-400 leading-relaxed flex-1">
+                    <strong className="text-ink-200">Before I touch any model</strong> — who is the primary user? The desk-seeker, or the office owner? Your entire data model changes based on that answer.
+                  </div>
+                </div>
+              )}
+              {demo.showChallenge && (
+                <div className="ml-8 text-[11px] text-ink-500 px-3 py-2 rounded-lg leading-relaxed fade-up"
+                  style={{ background: 'rgba(224,85,85,0.05)', border: '1px solid rgba(224,85,85,0.12)' }}>
+                  <span className="text-[10px] font-mono text-[#e05555] mr-1.5">⚡ CHALLENGE —</span>
+                  Airbnb took 10 years and $6B to build marketplace trust. What's your day-one plan for the chicken-and-egg problem?
+                </div>
+              )}
             </div>
-          )}
-          <div className="flex items-center gap-2 mt-2">
-            <div className="flex-1 text-[13px] text-ink-700 px-3 py-2 rounded-lg border border-ink-800/50">
-              {demo.done
-                ? <span className="text-emerald-500">✓ Masterplan generated — 68% fewer tokens used</span>
-                : 'Both — owners list spaces, workers book them…'}
-            </div>
-            <button className="px-3 py-2 rounded-lg text-[12px] font-semibold text-[#0a0908]"
-              style={{ background: 'linear-gradient(135deg, #f59e0b, #e85d26)' }}>↑</button>
           </div>
-        </div>
+        )}
+
+        {/* ── Phase 2: Specialist agents ───────────────────────────────────── */}
+        {demo.phase === 'agents' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Specialist Analysis</p>
+              <span className="text-[10px] font-mono text-ink-800 tabular-nums">{demo.agentCount} / 3</span>
+            </div>
+            {demo.searching && (
+              <div className="flex items-center gap-2 fade-up">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                <span className="text-[11px] font-mono text-blue-400/80 animate-pulse">Searching the web for market data…</span>
+              </div>
+            )}
+            {DEMO_AGENTS.slice(0, demo.agentCount).map((a) => (
+              <div key={a.title} className="rounded-xl border px-4 py-3 fade-up"
+                style={{ borderColor: `${a.color}22`, background: `${a.color}06` }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-base">{a.icon}</span>
+                  <span className="text-[11px] font-mono font-semibold uppercase tracking-wider"
+                    style={{ color: a.color }}>{a.title}</span>
+                </div>
+                <p className="text-[12px] text-ink-500 leading-relaxed">{a.snippet}</p>
+              </div>
+            ))}
+            {demo.agentCount < 3 && !demo.searching && (
+              <div className="rounded-xl border border-ink-800/40 px-4 py-3 flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border-2 border-ink-700/60 border-t-transparent animate-spin flex-shrink-0" />
+                <span className="text-[11px] font-mono text-ink-800">Analyzing…</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Phase 3: Pitch deck ──────────────────────────────────────────── */}
+        {demo.phase === 'pitch' && (
+          <div className="space-y-3 fade-up">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Pitch Deck</p>
+              <span className="text-[10px] font-mono text-amber-500/50">Slide 01 of 09</span>
+            </div>
+            <div className="rounded-xl border overflow-hidden"
+              style={{ borderColor: 'rgba(245,158,11,0.2)', background: 'rgba(245,158,11,0.03)' }}>
+              <div className="px-4 py-2 border-b flex items-center gap-2"
+                style={{ borderColor: 'rgba(245,158,11,0.1)', background: 'rgba(245,158,11,0.04)' }}>
+                <span className="text-[10px] font-mono text-amber-500/70 uppercase tracking-wider">🏢 The Problem</span>
+              </div>
+              <div className="px-4 py-4">
+                <p className="text-[14px] font-semibold text-ink-100 mb-3 leading-snug">
+                  Co-workers lose 4+ hours per week hunting for flexible workspace
+                </p>
+                <div className="space-y-1.5">
+                  {[
+                    '42M remote workers in India — market is massive and fragmented',
+                    'Avg ₹8,000/month wasted on unused coworking memberships',
+                    'No unified marketplace with real-time availability exists today',
+                  ].map((b) => (
+                    <div key={b} className="flex gap-2 text-[12px] text-ink-500">
+                      <span className="text-amber-500/50 flex-shrink-0 mt-0.5">·</span>{b}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <div key={i} className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: i === 0 ? '#f59e0b' : 'rgba(255,255,255,0.08)' }} />
+                ))}
+              </div>
+              <span className="text-[10px] font-mono text-amber-500/40 border border-amber-500/15 px-2.5 py-0.5 rounded-lg">
+                Export as HTML →
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Phase 4: Debate ──────────────────────────────────────────────── */}
+        {demo.phase === 'debate' && (
+          <div className="space-y-3 fade-up">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-base">⚔️</span>
+              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">AI Debate · Round 1: Opening Arguments</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {demo.showBull && (
+                <div className="rounded-xl border px-3 py-3 fade-up"
+                  style={{ borderColor: 'rgba(52,211,153,0.2)', background: 'rgba(52,211,153,0.04)' }}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-[10px] font-mono text-emerald-400/70 uppercase tracking-wider">Bull</span>
+                  </div>
+                  <p className="text-[12px] text-ink-400 leading-relaxed">
+                    Remote work is permanently mainstream. 300M+ flexible workers need this. The market is fragmented — perfect for a marketplace play.
+                  </p>
+                </div>
+              )}
+              {demo.showBear && (
+                <div className="rounded-xl border px-3 py-3 fade-up"
+                  style={{ borderColor: 'rgba(239,68,68,0.18)', background: 'rgba(239,68,68,0.04)' }}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    <span className="text-[10px] font-mono text-red-400/60 uppercase tracking-wider">Bear</span>
+                  </div>
+                  <p className="text-[12px] text-ink-400 leading-relaxed">
+                    WeWork burned $47B proving space unit economics are brutal. You need 80%+ utilisation before a single location breaks even.
+                  </p>
+                </div>
+              )}
+            </div>
+            {demo.showVerdict && (
+              <div className="rounded-xl border px-3 py-2.5 fade-up"
+                style={{ borderColor: 'rgba(99,102,241,0.18)', background: 'rgba(99,102,241,0.04)' }}>
+                <span className="text-[10px] font-mono text-indigo-400/50 uppercase tracking-wider mr-2">Verdict</span>
+                <span className="text-[12px] text-ink-400">
+                  Timing is right, but validate utilisation economics with 3 pilot locations before scaling.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   )
