@@ -15,9 +15,13 @@ async def lifespan(app: FastAPI):
         print("⚠️  Running in STUB MODE — no real LLM calls.")
         print("    → Set GROQ_API_KEY (free at console.groq.com) or ANTHROPIC_API_KEY + STUB_MODE=false to go live.")
     elif settings.anthropic_api_key:
-        print("✅ Using Anthropic Claude Sonnet 4-6")
+        print("✅ Using Anthropic (Claude Haiku)")
+    elif settings.google_api_key:
+        print("✅ Using Google (Gemini 2.0 Flash)")
     elif settings.groq_api_key:
-        print("✅ Using Groq (LLaMA 3.3 70B)")
+        print("✅ Using Groq (LLaMA 3.3 70B) — rate limits apply")
+    else:
+        print("⚠️  No API key found — all LLM calls will fail")
     yield
 
 
