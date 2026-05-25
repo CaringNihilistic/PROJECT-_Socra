@@ -24,4 +24,5 @@ class Settings(BaseSettings):
 _s = Settings()
 _s.groq_api_key = _s.groq_api_key.strip()
 _s.anthropic_api_key = _s.anthropic_api_key.strip()
+_s.google_api_key = _s.google_api_key.strip()
 settings = _s

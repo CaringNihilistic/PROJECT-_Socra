@@ -998,26 +998,28 @@ Use real company names and real numbers. No generic advice. Keep every section s
 async def run_devils_advocate(masterplan: str, conversation_history: list[dict]) -> dict:
     """Runs after synthesis — critiques the actual masterplan with 5 specific reasons it fails."""
     excerpt = masterplan[:2500] if len(masterplan) > 2500 else masterplan
-    system = f"""You are a brutal devil's advocate. Your job: destroy this specific masterplan.
+    system = f"""You are a critical reviewer stress-testing a startup masterplan.
 
-MASTERPLAN:
+MASTERPLAN TO REVIEW:
 {excerpt}
 
-Write exactly 5 numbered reasons this plan fails. Each reason must:
-- Name a SPECIFIC claim, tool choice, timeline, or number from the masterplan above
-- Explain why that specific thing is wrong or will fail — with a real-world reason
-- Be under 50 words — punchy, not verbose
-- Say "this fails because" or "this is wrong because" — no hedging, no "may", no "consider"
+Write exactly 5 numbered critiques of this specific plan. Each critique must:
+- Reference a SPECIFIC claim, tool choice, timeline, or number from the masterplan above
+- Explain why that specific decision is risky or likely to fail — with a concrete real-world reason
+- Be under 60 words — direct and clear, no hedging
+- Start with the specific thing you are critiquing, then say why it is a problem
 
-Do NOT give generic startup advice. Attack THIS plan's specific decisions.
-Format as a numbered list. Be merciless."""
+Do NOT give generic startup advice. Critique the specific decisions in THIS plan.
+Format as a numbered list. Be direct and honest."""
 
     trimmed = _trim_history_for_agents(conversation_history, max_pairs=3)
     msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
     try:
         content = await _call_fast_llm(system, msgs)
+        if not content:
+            content = "_Critical review could not be generated. Try again with a new session._"
     except Exception:
-        content = "_Devil's advocate unavailable._"
+        content = "_Critical review unavailable — rate limit or API error._"
     return {
         "key": "devils_advocate",
         "title": "Devil's Advocate",
@@ -1213,5 +1215,8 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
 
     # Devil's advocate — critiques the actual masterplan; runs last so it can reference it
     if synthesis_text:
-        devil_report = await run_devils_advocate(synthesis_text, conversation_history)
-        yield {"type": "agent_report", "report": devil_report}
+        try:
+            devil_report = await run_devils_advocate(synthesis_text, conversation_history)
+            yield {"type": "agent_report", "report": devil_report}
+        except Exception:
+            pass  # Don't let devil's advocate failure kill the stream
