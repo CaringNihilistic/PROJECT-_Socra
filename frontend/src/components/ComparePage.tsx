@@ -16,7 +16,7 @@ const DIMENSIONS = [
 
 const AGENT_KEYS = ['finance', 'market', 'competition', 'tech', 'risk']
 
-function AgentPairRow({ keyName, r1, r2 }: { keyName: string; r1?: AgentReport; r2?: AgentReport }) {
+function AgentPairRow({ keyName: _keyName, r1, r2 }: { keyName: string; r1?: AgentReport; r2?: AgentReport }) {
   const [expanded, setExpanded] = useState(false)
   const report = r1 || r2
   if (!report) return null
