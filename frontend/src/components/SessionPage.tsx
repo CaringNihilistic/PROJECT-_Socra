@@ -422,7 +422,12 @@ export function SessionPage() {
 
         {/* Pitch Deck — generated on demand, toggled by button */}
         {showDeck && pitch_deck && (
-          <PitchDeckView deck={pitch_deck} idea={session.initial_idea} />
+          <PitchDeckView
+            deck={pitch_deck}
+            idea={session.initial_idea}
+            sessionId={session.id}
+            devilReport={devilReport}
+          />
         )}
 
         {/* Conversation */}

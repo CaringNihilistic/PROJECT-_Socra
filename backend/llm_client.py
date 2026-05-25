@@ -882,6 +882,56 @@ RULES — violating any makes the deck worthless:
         return {"slides": []}
 
 
+async def generate_pitch_deck_html(
+    deck: dict,
+    devil_content: str,
+    idea: str,
+) -> str:
+    """Ask the LLM to generate a complete interactive HTML pitch deck presentation."""
+    slides_text = ""
+    for i, slide in enumerate(deck.get("slides", []), 1):
+        bullets = "\n".join(f"  • {b}" for b in slide.get("bullets", []))
+        slides_text += f"SLIDE {i}: {slide['title']}\nHeadline: {slide['headline']}\n{bullets}\n\n"
+
+    devil_section = f"SLIDE 10: Devil's Advocate — Critical Risks\n{devil_content}\n\n" if devil_content else ""
+
+    system = f"""You are an expert HTML/CSS/JavaScript developer who creates stunning interactive presentations.
+
+Generate a complete, single-file interactive pitch deck HTML for this startup idea:
+\"{idea[:120]}\"
+
+SLIDE CONTENT:
+{slides_text}{devil_section}
+REQUIREMENTS — implement every single one:
+1. Single HTML file, zero external dependencies (no CDN links, no imports)
+2. Dark theme: #080808 background, white text, colored accents per slide
+3. One slide visible at a time — full viewport
+4. Keyboard navigation: ← → arrow keys, Space to advance
+5. Touch/swipe support for mobile (touchstart/touchend)
+6. Slide counter bottom-right (e.g. "3 / 10")
+7. Progress bar at bottom showing position
+8. Press F to toggle fullscreen (Fullscreen API)
+9. Each slide: large headline in slide accent color, bullet points below
+10. Smooth CSS slide transitions (transform translateX or opacity)
+11. Startup name / idea shown on slide 1 as subtitle
+12. Devil's Advocate slide uses red accent (#ef4444) and shows the critique points
+13. "Press → to begin" hint on first slide
+14. Beautiful, minimal design — no clutter
+15. Font: system-ui or a Google Font loaded inline as base64 (if you include one)
+
+Accent colors to use (one per slide, cycle if needed):
+problem: #ef4444, solution: #34d399, market: #5590e8, product: #22d3ee,
+business_model: #f59e0b, gtm: #a855f7, competition: #f59e0b, roadmap: #34d399, ask: #ef4444,
+devils_advocate: #ef4444
+
+Output ONLY the complete HTML file starting with <!DOCTYPE html>. No explanation, no markdown fences."""
+
+    try:
+        return await _call_real_llm(system, [], max_tokens=5000)
+    except Exception:
+        return ""
+
+
 async def generate_masterplan(conversation_history: list[dict]) -> str:
     if settings.is_stub:
         await asyncio.sleep(random.uniform(1.5, 2.5))

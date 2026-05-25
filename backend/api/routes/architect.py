@@ -1,6 +1,6 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from pydantic import BaseModel
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
-from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck
+from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, generate_pitch_deck_html
 from api.routes.sessions import _serialize
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
@@ -260,3 +260,31 @@ async def create_pitch_deck(session_id: str, db: AsyncSession = Depends(get_db))
     )
     await db.commit()
     return deck
+
+
+@router.post("/{session_id}/pitch-deck/html", response_class=HTMLResponse)
+async def export_pitch_deck_html(session_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if not session.pitch_deck:
+        raise HTTPException(400, "Generate the pitch deck first")
+
+    # Find devil's advocate content from agent reports
+    agent_reports = list(session.agent_reports or [])
+    devil = next((r for r in agent_reports if r.get("key") == "devils_advocate"), None)
+    devil_content = devil.get("content", "") if devil else ""
+
+    html = await generate_pitch_deck_html(
+        deck=session.pitch_deck,
+        devil_content=devil_content,
+        idea=session.initial_idea,
+    )
+
+    if not html:
+        raise HTTPException(503, "HTML generation failed — try again")
+
+    return HTMLResponse(content=html, headers={
+        "Content-Disposition": f'attachment; filename="pitch-deck.html"'
+    })
