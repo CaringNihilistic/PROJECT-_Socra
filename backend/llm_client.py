@@ -638,10 +638,29 @@ async def stream_architect_llm(
             remaining = full_text[yielded_chars:]
             if remaining:
                 yield {"type": "token", "delta": remaining}
+            # Try to parse full_text as JSON (works if model embedded JSON without separator)
             try:
                 result = json.loads(full_text)
             except json.JSONDecodeError:
-                result = _default_result
+                # Separator missing — likely fell back to Groq 8B which outputs plain text.
+                # Run a separate Groq JSON eval call to recover choices and scores.
+                import logging as _logging
+                eval_prompt = _build_groq_eval_prompt(current_scores)
+                eval_msgs = msgs + [{"role": "assistant", "content": full_text}]
+                try:
+                    eval_raw = await _call_groq(eval_prompt, eval_msgs, max_tokens=600, json_mode=True)
+                    result = json.loads(eval_raw)
+                    result.setdefault("eval_delta", {k: 0.10 for k in current_scores})
+                    result.setdefault("new_assumptions", [])
+                    result.setdefault("phase", "intake")
+                    result.setdefault("choices", [])
+                    if not isinstance(result.get("choices"), list):
+                        result["choices"] = []
+                    if turn_number >= 8:
+                        result["eval_delta"] = {k: max(0.0, 1.0 - current_scores[k]) for k in current_scores}
+                except Exception as e:
+                    _logging.getLogger(__name__).error("Fallback eval failed: %s", e)
+                    result = _default_result
         else:
             json_str = full_text.split(SEPARATOR, 1)[1].strip()
             try:
