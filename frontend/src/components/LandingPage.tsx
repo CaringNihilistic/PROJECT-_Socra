@@ -74,9 +74,9 @@ const D0: DemoState = {
 }
 
 const DEMO_AGENTS = [
-  { icon: '🌐', title: 'Market Research', color: '#22d3ee',  snippet: 'TAM ~$4.2B globally, growing 18% YoY. India segment underpenetrated — only 3 scaled players.' },
-  { icon: '🏗',  title: 'System Architect', color: '#a78bfa', snippet: 'Next.js frontend, PostgreSQL + PostGIS, Stripe Connect for payouts, Redis for availability cache.' },
-  { icon: '⚠️', title: 'Risk Assessor',   color: '#e85d26', snippet: 'Critical: cold-start liquidity problem. Without 50+ listings at launch, workers churn on day one.' },
+  { icon: '🔮', title: 'The Oracle',     color: '#22d3ee',  snippet: 'TAM ~$4.2B globally, but India SAM is ~$180M. Only 3 scaled players — WeWork, Awfis, IndiQube.' },
+  { icon: '🔧', title: 'The Builder',    color: '#a78bfa', snippet: 'Next.js + PostgreSQL + PostGIS for geo queries. Redis for availability. Don\'t build real-time booking v1.' },
+  { icon: '🎯', title: 'The Skeptic',   color: '#e85d26', snippet: 'Cold-start kills this. Without 50+ verified listings at launch, every worker churns on day one.' },
 ]
 
 const PHASE_TABS: { key: DemoPhase; label: string }[] = [
@@ -221,8 +221,8 @@ function LiveDemo() {
         {demo.phase === 'agents' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Specialist Analysis</p>
-              <span className="text-[10px] font-mono text-ink-800 tabular-nums">{demo.agentCount} / 3</span>
+              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">The Council</p>
+              <span className="text-[10px] font-mono text-ink-800 tabular-nums">{demo.agentCount} / 3 seats</span>
             </div>
             {demo.searching && (
               <div className="flex items-center gap-2 fade-up">
@@ -435,15 +435,15 @@ export function LandingPage() {
   ]
 
   const features = [
-    { icon: '📊', title: 'Live Evaluation Bar', desc: 'Real-time score across 5 dimensions — problem clarity, scale, tech context, success definition, risk. Masterplan unlocks only when context is sufficient.', tag: 'Core', tc: '#5590e8' },
-    { icon: '🔍', title: 'Assumption Tracker', desc: 'Every hidden assumption surfaced as a clickable chip. Mark each one validated or disproved — the analysis updates accordingly.', tag: 'Core', tc: '#e85d26' },
-    { icon: '🤖', title: '5 Specialist Agents', desc: 'Market analyst, system architect, risk assessor, financial modeler, and growth strategist run in parallel — each with real web research behind them.', tag: 'Core', tc: '#a78bfa' },
-    { icon: '🌐', title: 'Web Research', desc: 'Agents search the web for real competitor data, market sizing, and pricing benchmarks before writing their reports. No hallucinated numbers.', tag: 'Core', tc: '#22d3ee' },
-    { icon: '💀', title: "Devil's Advocate", desc: '5 hard reasons your idea fails — regulatory risk, unit economics, timing, competition, execution. The reality check before you commit.', tag: 'Core', tc: '#e05555' },
-    { icon: '📑', title: 'Investor Pitch Deck', desc: '9 slide-ready cards generated from your masterplan — problem, solution, market, traction, business model, competition, team, financials, and ask. Export as interactive HTML.', tag: 'Output', tc: '#f59e0b' },
-    { icon: '⚔️', title: 'AI Debate Mode', desc: 'Bull (VC optimist) vs Bear (operator skeptic) across 3 structured rounds with a final verdict. See your idea stress-tested from both sides.', tag: 'Output', tc: '#34d399' },
-    { icon: '↔️', title: 'Idea Comparison', desc: 'Compare two masterplans side by side — scores, agent reports, and architecture. Useful when you\'re deciding between two directions.', tag: 'Output', tc: '#f59e0b' },
-    { icon: '🗺️', title: 'Architecture Masterplan', desc: 'Full markdown document: system design, tech stack, data model, API contracts, scaling strategy, and risk register. Exportable as .md or shareable via link.', tag: 'Core', tc: '#34d399' },
+    { icon: '📊', title: 'Live Evaluation Bar', desc: 'Real-time score across 5 dimensions — problem clarity, scale, tech context, success definition, risk. The masterplan only unlocks when context is actually sufficient.', tag: 'Core', tc: '#5590e8' },
+    { icon: '🔍', title: 'Assumption Tracker', desc: 'Every hidden assumption surfaced as a clickable chip. Mark each one validated or disproved — because the ones you haven\'t tested are the ones that kill you.', tag: 'Core', tc: '#e85d26' },
+    { icon: '🏛', title: 'The Council — 5 AI Advisors', desc: 'The Banker, Oracle, Challenger, Builder, and Skeptic — five distinct voices, each looking for a different reason your idea fails. The Chairman synthesizes their verdict.', tag: 'Core', tc: '#a78bfa' },
+    { icon: '🌐', title: 'Live Web Research', desc: 'The council searches for real competitor data, market sizing, and pricing benchmarks before writing their reports. Named companies, real numbers — not hallucinations.', tag: 'Core', tc: '#22d3ee' },
+    { icon: '💀', title: "Devil's Advocate", desc: '5 specific reasons this plan fails — regulatory exposure, unit economics, timing, competitive response, execution gaps. The critique that saves you 6 months of wrong building.', tag: 'Core', tc: '#e05555' },
+    { icon: '📑', title: 'Investor Pitch Deck', desc: '9 slide-ready cards generated from the masterplan — problem, solution, market, model, competition, roadmap, and ask. Export as a fully interactive HTML presentation.', tag: 'Output', tc: '#f59e0b' },
+    { icon: '⚔️', title: 'Bull vs Bear Debate', desc: 'A VC optimist and an operator skeptic argue your idea across 3 structured rounds with a final verdict. The tension between them is where the real insight lives.', tag: 'Output', tc: '#34d399' },
+    { icon: '↔️', title: 'Idea Comparison', desc: 'Compare two sessions side by side — scores, council reports, and architecture. Useful when you\'re deciding between two directions before committing to either.', tag: 'Output', tc: '#f59e0b' },
+    { icon: '📋', title: "Chairman's Masterplan", desc: 'Full markdown verdict: system design, tech stack, data model, scaling strategy, and risk register — synthesized from the council\'s findings. Exportable as .md or shareable via link.', tag: 'Core', tc: '#34d399' },
   ]
 
   return (
@@ -484,21 +484,26 @@ export function LandingPage() {
       <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 text-[11px] font-mono text-amber-400/60 border border-amber-400/15 bg-amber-400/5 px-3.5 py-1.5 rounded-full mb-8">
           <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
-          AI Architect · Private Beta
+          Brutal · Specific · Honest
         </div>
 
-        <h1 className="font-display font-bold leading-[1.04] tracking-[-1px] mb-6 max-w-3xl"
+        <h1 className="font-display font-bold leading-[1.04] tracking-[-1px] mb-5 max-w-3xl"
           style={{ fontSize: 'clamp(40px, 6vw, 70px)' }}>
-          <span className="text-ink-100">The AI that </span>
-          <span className="italic text-amber-400" style={{ textShadow: '0 0 60px rgba(245,158,11,0.35)' }}>argues back</span>
+          <span className="text-ink-100">We kill </span>
+          <span className="italic text-amber-400" style={{ textShadow: '0 0 60px rgba(245,158,11,0.35)' }}>bad ideas</span>
           <br />
-          <span className="text-ink-100">before you </span>
-          <span className="text-ink-400">waste the build.</span>
+          <span className="text-ink-100">before they </span>
+          <span className="text-ink-400">kill you.</span>
         </h1>
 
-        <p className="text-ink-400 leading-relaxed max-w-xl mx-auto mb-10" style={{ fontSize: '17px' }}>
-          Describe your project. Socra interrogates your idea, debates your approach,
-          and stress-tests your assumptions — before a single line of code is written.
+        <p className="text-ink-500 font-mono mb-5 max-w-lg mx-auto" style={{ fontSize: '15px' }}>
+          ChatGPT tells you how to build it. Socra tells you if you should.
+        </p>
+
+        <p className="text-ink-500 leading-relaxed max-w-xl mx-auto mb-10" style={{ fontSize: '16px' }}>
+          Most AI tools are optimized to make you feel good about your idea. Socra isn't.
+          We interrogate your assumptions, stress-test your model, and deliver a verdict —
+          before you bet your career on the wrong foundation.
         </p>
 
         {/* Input card */}
@@ -538,7 +543,7 @@ export function LandingPage() {
 
         {/* Proof row */}
         <div className="flex items-center justify-center gap-5 mb-10 flex-wrap">
-          {['5 specialist AI agents', 'Real web research', 'Investor pitch deck', 'Bull vs Bear debate'].map((t) => (
+          {['The Council — 5 AI advisors', 'Real web research', 'Investor pitch deck', 'Bull vs Bear debate'].map((t) => (
             <div key={t} className="flex items-center gap-1.5">
               <div className="w-1 h-1 rounded-full bg-ink-700" />
               <span className="text-[11px] text-ink-700 font-mono">{t}</span>
@@ -621,7 +626,7 @@ export function LandingPage() {
       <div className="border-y border-ink-800/40 py-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.015)' }}>
         <div className="ticker-track flex gap-0">
           {[...Array(2)].flatMap(() =>
-            ['5 specialist agents', 'Real web research', 'Investor pitch deck', 'Bull vs Bear debate', 'Devil\'s advocate', 'Assumption tracker', 'Architecture masterplan', 'Interactive HTML export', 'Idea comparison', 'Share + export'].map((t) => (
+            ['The Council — 5 AI advisors', 'Real web research', 'Investor pitch deck', 'Bull vs Bear debate', "Devil's advocate", 'Assumption tracker', "Chairman's masterplan", 'Interactive HTML export', 'Idea comparison', 'We say no — with evidence'].map((t) => (
               <span key={t + Math.random()} className="flex items-center gap-2 px-8 text-[12px] font-mono text-ink-700">
                 {t} <span className="text-amber-500/40">◆</span>
               </span>
@@ -636,8 +641,8 @@ export function LandingPage() {
           <div className="text-center mb-10">
             <SectionBadge>Live demo</SectionBadge>
             <SectionHeading>
-              Watch the eval bar fill<br />
-              <em className="text-amber-400 not-italic">as Socra interrogates.</em>
+              Watch the interrogation.<br />
+              <em className="text-amber-400 not-italic">See where the idea breaks.</em>
             </SectionHeading>
           </div>
           <LiveDemo />
@@ -649,19 +654,19 @@ export function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <SectionBadge>The problem</SectionBadge>
           <SectionHeading>
-            Most teams start building before<br />
-            they understand <em className="text-amber-400 not-italic">what</em> they're building.
+            Every AI tool is optimized to say yes.<br />
+            <em className="text-amber-400 not-italic">We're the one that says no</em> — with evidence.
           </SectionHeading>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="rounded-2xl p-6 border" style={{ background: 'rgba(224,85,85,0.04)', borderColor: 'rgba(224,85,85,0.15)' }}>
-              <p className="text-[12px] font-mono font-semibold text-[#e05555] uppercase tracking-wider mb-5">✕ Without Socra</p>
+              <p className="text-[12px] font-mono font-semibold text-[#e05555] uppercase tracking-wider mb-5">✕ Every other tool</p>
               {[
-                'Vague prompt → garbage output → retry 10 times',
-                'Burn ₹40,000 in API credits on trial and error',
-                'Architecture decided in 5 minutes, regretted in 5 months',
-                'Nobody challenged the core assumption before building',
-                'No documentation of why decisions were made',
+                'ChatGPT celebrates your idea — it\'s designed to be agreeable',
+                'Lean Canvas is a template, not a challenge — no pushback, no score',
+                '"Validate your idea" tools return generic output founders immediately discount',
+                'Accelerator feedback is one-way with no real-time interrogation',
+                'Nobody names the assumption that kills this in year 1',
               ].map((t) => (
                 <div key={t} className="flex gap-2.5 text-[13px] text-ink-500 mb-3 leading-snug">
                   <span className="text-ink-700 flex-shrink-0">→</span>{t}
@@ -669,13 +674,13 @@ export function LandingPage() {
               ))}
             </div>
             <div className="rounded-2xl p-6 border" style={{ background: 'rgba(60,186,130,0.04)', borderColor: 'rgba(60,186,130,0.15)' }}>
-              <p className="text-[12px] font-mono font-semibold text-emerald-400 uppercase tracking-wider mb-5">✓ With Socra</p>
+              <p className="text-[12px] font-mono font-semibold text-emerald-400 uppercase tracking-wider mb-5">✓ Socra</p>
               {[
-                '5 specialist agents research your market in parallel — real data, not guesses',
-                'Architecture masterplan with stack, data model, API contracts, and risk register',
-                'Every assumption surfaced and confirmed before a line is written',
-                'Investor pitch deck generated and exported as interactive HTML',
-                'Bull vs Bear debate surfaces the best and worst case before you commit',
+                'Five council advisors with distinct voices — each looking for a different reason this fails',
+                'Specific objections: named competitors, real regulations, actual cost estimates',
+                'Every assumption surfaced and tracked — so you know exactly what you\'re betting on',
+                'A verdict you can trust precisely because Socra has a reputation for saying no',
+                'The one conversation worth having before you quit your job for this',
               ].map((t) => (
                 <div key={t} className="flex gap-2.5 text-[13px] text-ink-400 mb-3 leading-snug">
                   <span className="text-emerald-600 flex-shrink-0">→</span>{t}
@@ -691,8 +696,8 @@ export function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <SectionBadge>What Socra does</SectionBadge>
           <SectionHeading>
-            From raw idea to investor-ready output —<br />
-            <em className="text-amber-400 not-italic">before a line of code is written.</em>
+            Everything needed to find out<br />
+            <em className="text-amber-400 not-italic">if the idea is worth the risk.</em>
           </SectionHeading>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -800,10 +805,10 @@ export function LandingPage() {
         <div className="max-w-lg mx-auto">
           <h2 className="font-display font-bold leading-[1.06] tracking-tight mb-4"
             style={{ fontSize: 'clamp(32px, 4vw, 52px)' }}>
-            Stop building<br /><em className="text-amber-400 not-italic">the wrong thing.</em>
+            Find out if your idea<br /><em className="text-amber-400 not-italic">is worth the risk.</em>
           </h2>
           <p className="text-ink-500 mb-8" style={{ fontSize: '15px' }}>
-            Join 240+ developers getting early access. First 100 get 3 months of Pro free.
+            Join 240+ founders who used Socra before they quit their job.
           </p>
           {waitlistDone ? (
             <div className="px-5 py-4 rounded-xl border border-emerald-500/25 bg-emerald-500/5 text-emerald-400 text-[14px]">
