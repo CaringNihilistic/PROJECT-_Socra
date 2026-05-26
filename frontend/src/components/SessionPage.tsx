@@ -315,7 +315,7 @@ export function SessionPage() {
   const [showDebate, setShowDebate] = useState(false)
   const {
     session, isSending, streamingMessage, currentChoices,
-    currentAgentReports, isAnalyzing, isResearching, paymentRequired, isUnlocking,
+    currentAgentReports, isAnalyzing, isResearching, isUnlocking,
     sendMessage, clearSession, generatePitchDeck, generateDebate,
   } = useSessionStore()
 
