@@ -720,61 +720,78 @@ export function LandingPage() {
 
       {/* ── Pricing ──────────────────────────────────────────────────────────── */}
       <section id="pricing" className="relative z-10 py-20 px-6 text-center">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           <SectionBadge>Pricing</SectionBadge>
-          <SectionHeading>Save more than you spend.</SectionHeading>
-          <p className="text-ink-500 mb-10" style={{ fontSize: '15px' }}>One good session pays for itself in API credits saved.</p>
+          <SectionHeading>One price. No surprises.</SectionHeading>
+          <p className="text-ink-500 mb-10" style={{ fontSize: '15px' }}>
+            The conversation is free. Pay only when your masterplan is ready.
+          </p>
 
-          <div className="grid sm:grid-cols-2 gap-4 text-left mb-4">
+          <div className="grid sm:grid-cols-2 gap-4 text-left mb-6">
             {/* Free */}
             <div className="rounded-2xl p-6 border border-ink-800/50" style={{ background: 'rgba(255,255,255,0.02)' }}>
-              <p className="text-[12px] font-mono font-semibold text-ink-600 uppercase tracking-wider mb-3">Free</p>
+              <p className="text-[12px] font-mono font-semibold text-ink-600 uppercase tracking-wider mb-3">Conversation</p>
               <div className="flex items-end gap-1 mb-1">
-                <span className="font-display text-4xl font-bold text-ink-100">₹0</span>
-                <span className="text-ink-600 mb-1 text-[14px]">/month</span>
+                <span className="font-display text-4xl font-bold text-ink-100">Free</span>
               </div>
-              <p className="text-[13px] text-ink-600 mb-5">For exploring the idea</p>
+              <p className="text-[13px] text-ink-600 mb-5">Always — no account needed</p>
               <div className="space-y-2 mb-6">
-                {['3 architect sessions/month', 'Evaluation bar + debate engine', 'Basic masterplan output'].map(f => (
+                {[
+                  'Full Socratic interrogation',
+                  'Live 5-dimension eval bar',
+                  'Assumption tracker',
+                  'Quick-reply choices',
+                ].map(f => (
                   <div key={f} className="flex gap-2 text-[13px] text-ink-400">
-                    <span className="text-emerald-500">✓</span>{f}
+                    <span className="text-emerald-500/70">✓</span>{f}
                   </div>
                 ))}
-                <div className="flex gap-2 text-[13px] text-ink-700">
-                  <span>✗</span>Memory, diagrams, PRD export
-                </div>
               </div>
-              <button className="w-full py-2.5 rounded-xl text-[13px] font-semibold text-ink-300 border border-ink-700 hover:border-ink-600 transition-all">
-                Start free
-              </button>
+              <a href="#start" className="block w-full py-2.5 rounded-xl text-[13px] font-semibold text-center text-ink-300 border border-ink-700 hover:border-ink-600 transition-all">
+                Start for free
+              </a>
             </div>
 
-            {/* Pro */}
+            {/* Per session */}
             <div className="rounded-2xl p-6 border relative overflow-hidden"
               style={{ borderColor: 'rgba(245,158,11,0.3)', background: 'linear-gradient(135deg, rgba(245,158,11,0.04) 0%, rgba(232,93,38,0.02) 100%)' }}>
               <div className="absolute top-3 right-3 text-[10px] font-mono text-amber-400/70 border border-amber-400/20 bg-amber-400/5 px-2 py-0.5 rounded-full">
-                Most popular
+                One-time
               </div>
-              <p className="text-[12px] font-mono font-semibold text-amber-400/80 uppercase tracking-wider mb-3">Pro</p>
+              <p className="text-[12px] font-mono font-semibold text-amber-400/80 uppercase tracking-wider mb-3">Full Analysis</p>
               <div className="flex items-end gap-1 mb-1">
-                <span className="font-display text-4xl font-bold text-ink-100">₹999</span>
-                <span className="text-ink-600 mb-1 text-[14px]">/month</span>
+                <span className="font-display text-4xl font-bold text-ink-100">₹499</span>
+                <span className="text-ink-600 mb-1 text-[14px]">/session</span>
               </div>
-              <p className="text-[13px] text-ink-600 mb-5">For founders and solo devs</p>
+              <p className="text-[13px] text-ink-600 mb-5">Unlocks when your score is ready</p>
               <div className="space-y-2 mb-6">
-                {['Unlimited architect sessions', 'Cross-session memory', 'Architecture diagrams', 'Cost estimator + risk report', 'Export to PRD', "Devil's advocate mode"].map(f => (
+                {[
+                  '5 specialist AI agents',
+                  'Architecture masterplan',
+                  "Devil's advocate",
+                  'Investor pitch deck',
+                  'Bull vs Bear debate',
+                  'Shareable score card',
+                ].map(f => (
                   <div key={f} className="flex gap-2 text-[13px] text-ink-300">
                     <span className="text-emerald-400">✓</span>{f}
                   </div>
                 ))}
               </div>
-              <button className="w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+              <a href="#start"
+                className="block w-full py-2.5 rounded-xl text-[13px] font-semibold text-center transition-all"
                 style={{ background: 'linear-gradient(135deg,#f59e0b,#e85d26)', color: '#080809', boxShadow: '0 0 24px rgba(245,158,11,0.2)' }}>
-                Get Pro — ₹999/mo
-              </button>
+                Start your analysis →
+              </a>
             </div>
           </div>
-          <p className="text-[12px] text-ink-700">Team plan at ₹3,499/month for up to 5 seats. Enterprise? <a href="#waitlist" className="text-amber-500/60 hover:text-amber-400 transition-colors">Talk to us.</a></p>
+
+          <p className="text-[12px] text-ink-700">
+            Payment via Razorpay — UPI, cards, net banking accepted.{' '}
+            <a href="#waitlist" className="text-amber-500/60 hover:text-amber-400 transition-colors">
+              Need a team plan? Talk to us.
+            </a>
+          </p>
         </div>
       </section>
 
