@@ -377,7 +377,7 @@ export function TribunalPage() {
               role={p.role}
               history={colHistory}
               streamText={streamText}
-              isStreaming={roundInProgress}
+              isStreaming={tribunalStreaming}
               isActive={isActive}
             />
           )
