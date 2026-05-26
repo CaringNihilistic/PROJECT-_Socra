@@ -502,7 +502,7 @@ export function LandingPage() {
         </p>
 
         {/* Input card */}
-        <div className="w-full max-w-[600px] relative group mb-4">
+        <div id="start" className="w-full max-w-[600px] relative group mb-4">
           <div className="absolute -inset-px rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none"
             style={{ background: 'linear-gradient(135deg,rgba(245,158,11,0.3),rgba(232,93,38,0.15))', filter: 'blur(1px)' }} />
           <div className="relative rounded-2xl overflow-hidden border border-ink-700/60 group-focus-within:border-amber-500/30 transition-colors duration-300"
