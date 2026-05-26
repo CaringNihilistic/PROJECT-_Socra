@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
-    razorpay_price_amount: int = 49900  # paise; 49900 = ₹499
+    razorpay_price_amount: int = 49900       # paise; 49900 = ₹499
+    razorpay_tribunal_amount: int = 19900    # paise; 19900 = ₹199
 
     @property
     def is_stub(self) -> bool:

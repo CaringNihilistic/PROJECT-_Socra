@@ -21,6 +21,7 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 class CreateSessionRequest(BaseModel):
     idea: str
+    mode: str = "standard"  # "standard" | "tribunal"
 
 
 class AssumptionUpdateRequest(BaseModel):
@@ -58,6 +59,10 @@ def _serialize(session: Session) -> dict:
         "debate": session.debate,
         "explanations": get_score_explanation(scores),
         "paid": bool(session.paid),
+        "mode": session.mode or "standard",
+        "tribunal_history": session.tribunal_history or [],
+        "tribunal_verdicts": session.tribunal_verdicts,
+        "tribunal_paid": bool(session.tribunal_paid),
     }
 
 
@@ -121,6 +126,7 @@ async def create_session(
         id=str(uuid.uuid4()),
         user_id=user_id,
         initial_idea=req.idea,
+        mode=req.mode,
         conversation_history=initial_history,
         assumptions=llm_response.get("new_assumptions", []),
         problem_clarity=updated_scores["problem_clarity"],

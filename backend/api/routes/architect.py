@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
-from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, generate_pitch_deck_html, generate_debate
+from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, generate_pitch_deck_html, generate_debate, stream_tribunal_turn, generate_tribunal_verdicts
 from api.routes.sessions import _serialize
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
@@ -408,3 +408,91 @@ async def create_debate(session_id: str, db: AsyncSession = Depends(get_db)):
     )
     await db.commit()
     return debate
+
+
+@router.post("/{session_id}/tribunal/message")
+async def send_tribunal_message(
+    session_id: str, req: MessageRequest, db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+
+    tribunal_history = list(session.tribunal_history or [])
+    round_number = len(tribunal_history) // 4 + 1
+
+    if round_number > 4:
+        raise HTTPException(400, "Tribunal complete — use /tribunal/unlock to generate verdicts")
+
+    is_tribunal_paid = bool(getattr(session, "tribunal_paid", False))
+    initial_idea = session.initial_idea
+
+    async def event_stream():
+        updated_history = tribunal_history + [{"role": "user", "content": req.content}]
+
+        async for event in stream_tribunal_turn(tribunal_history, req.content, round_number):
+            if event["type"] == "persona_token":
+                yield f"data: {json.dumps({'type': 'persona_token', 'persona': event['persona'], 'delta': event['delta']})}\n\n"
+            elif event["type"] == "persona_done":
+                updated_history.append({
+                    "role": "assistant",
+                    "persona": event["persona"],
+                    "content": event["content"],
+                })
+                yield f"data: {json.dumps({'type': 'persona_done', 'persona': event['persona'], 'content': event['content']})}\n\n"
+            elif event["type"] == "round_done":
+                await db.execute(
+                    update(Session)
+                    .where(Session.id == session_id)
+                    .values(tribunal_history=updated_history, mode="tribunal")
+                )
+                await db.commit()
+
+                if round_number >= 4:
+                    from core.config import settings as _cfg
+                    billing_enabled = bool(_cfg.razorpay_key_id and _cfg.razorpay_key_secret)
+                    if billing_enabled and not is_tribunal_paid:
+                        yield f"data: {json.dumps({'type': 'payment_required', 'session_id': session_id})}\n\n"
+                        return
+
+                    verdicts = await generate_tribunal_verdicts(updated_history, initial_idea)
+                    await db.execute(
+                        update(Session)
+                        .where(Session.id == session_id)
+                        .values(tribunal_verdicts=verdicts)
+                    )
+                    await db.commit()
+                    yield f"data: {json.dumps({'type': 'tribunal_verdict', 'verdicts': verdicts})}\n\n"
+                    return
+
+                yield f"data: {json.dumps({'type': 'round_complete', 'round': round_number, 'tribunal_history': updated_history})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/{session_id}/tribunal/unlock")
+async def unlock_tribunal_verdicts(session_id: str, db: AsyncSession = Depends(get_db)):
+    """Generate verdicts for a tribunal_paid session (idempotent)."""
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if not session.tribunal_paid:
+        raise HTTPException(402, "Payment required to unlock tribunal verdicts")
+
+    if session.tribunal_verdicts:
+        return {"verdicts": session.tribunal_verdicts}
+
+    verdicts = await generate_tribunal_verdicts(
+        list(session.tribunal_history or []), session.initial_idea
+    )
+    await db.execute(
+        update(Session).where(Session.id == session_id).values(tribunal_verdicts=verdicts)
+    )
+    await db.commit()
+    return {"verdicts": verdicts}

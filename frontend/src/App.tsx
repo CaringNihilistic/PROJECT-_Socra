@@ -3,6 +3,7 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-react'
 import { useSessionStore } from './store/sessionStore'
 import { LandingPage } from './components/LandingPage'
 import { SessionPage } from './components/SessionPage'
+import { TribunalPage } from './components/TribunalPage'
 import { SharePage } from './components/SharePage'
 import { ComparePage } from './components/ComparePage'
 import { CardPage } from './components/CardPage'
@@ -21,14 +22,18 @@ const CARD_SESSION_ID = cardMatch ? cardMatch[1] : null
 const compareMatch = window.location.pathname.match(/^\/compare\/([^/]+)\/([^/]+)$/)
 const COMPARE_IDS = compareMatch ? [compareMatch[1], compareMatch[2]] as const : null
 
-// Detect Razorpay payment return: /?sid=Y&razorpay_payment_link_id=X&razorpay_payment_link_status=paid
+// Detect Razorpay payment return
+// Standard: /?sid=Y&razorpay_payment_link_id=X&razorpay_payment_link_status=paid
+// Tribunal:  /?tribunal_sid=Y&razorpay_payment_link_id=X&razorpay_payment_link_status=paid
 function getPaymentReturn() {
   const p = new URLSearchParams(window.location.search)
   const status = p.get('razorpay_payment_link_status')
   const linkId = p.get('razorpay_payment_link_id')
   const sid = p.get('sid')
-  if (status === 'paid' && linkId && sid) {
-    return { paymentLinkId: linkId, sessionId: sid }
+  const tribunalSid = p.get('tribunal_sid')
+  if (status === 'paid' && linkId) {
+    if (tribunalSid) return { paymentLinkId: linkId, sessionId: tribunalSid, mode: 'tribunal' as const }
+    if (sid) return { paymentLinkId: linkId, sessionId: sid, mode: 'standard' as const }
   }
   return null
 }
@@ -66,19 +71,27 @@ function AppShell() {
   const session = useSessionStore((s) => s.session)
   const loadSessionHistory = useSessionStore((s) => s.loadSessionHistory)
   const verifyAndUnlock = useSessionStore((s) => s.verifyAndUnlock)
+  const verifyAndUnlockTribunal = useSessionStore((s) => s.verifyAndUnlockTribunal)
+  const resumeSession = useSessionStore((s) => s.resumeSession)
 
   useEffect(() => {
     loadSessionHistory()
 
-    // Handle return from Razorpay payment
     if (PAYMENT_RETURN?.paymentLinkId && PAYMENT_RETURN?.sessionId) {
-      // Strip query params from URL so a refresh doesn't re-trigger
       window.history.replaceState({}, '', window.location.pathname)
-      verifyAndUnlock(PAYMENT_RETURN.paymentLinkId, PAYMENT_RETURN.sessionId)
+      if (PAYMENT_RETURN.mode === 'tribunal') {
+        // Load the session first so TribunalPage renders, then unlock verdicts
+        resumeSession(PAYMENT_RETURN.sessionId).then(() => {
+          verifyAndUnlockTribunal(PAYMENT_RETURN!.paymentLinkId, PAYMENT_RETURN!.sessionId)
+        })
+      } else {
+        verifyAndUnlock(PAYMENT_RETURN.paymentLinkId, PAYMENT_RETURN.sessionId)
+      }
     }
   }, [])
 
-  return session ? <SessionPage /> : <LandingPage />
+  if (!session) return <LandingPage />
+  return session.mode === 'tribunal' ? <TribunalPage /> : <SessionPage />
 }
 
 export default function App() {

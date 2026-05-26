@@ -59,6 +59,31 @@ export interface PitchDeck {
   slides: PitchSlide[]
 }
 
+export interface TribunalTurn {
+  role: 'user' | 'assistant'
+  persona?: string
+  content: string
+}
+
+export interface TribunalPersonaVerdict {
+  name: string
+  icon: string
+  color: string
+  role: string
+  pass: boolean
+  score: number
+  verdict: string
+  key_insight: string
+}
+
+export interface TribunalVerdicts {
+  personas: Record<string, TribunalPersonaVerdict>
+  composite_score: number
+  passes: number
+  total: number
+  grade: 'GREENLIT' | 'STRONG' | 'CHALLENGED' | 'REJECTED'
+}
+
 export interface SessionData {
   id: string
   initial_idea: string
@@ -77,6 +102,10 @@ export interface SessionData {
   refusal?: string | null
   choices?: string[]
   paid?: boolean
+  mode?: string
+  tribunal_history?: TribunalTurn[]
+  tribunal_verdicts?: TribunalVerdicts | null
+  tribunal_paid?: boolean
 }
 
 export interface SessionSummary {
@@ -121,16 +150,25 @@ interface SessionStore {
   authToken: string | null
   paymentRequired: boolean
   isUnlocking: boolean
+  // Tribunal-specific state
+  tribunalStreaming: boolean
+  tribunalActivePersona: string | null
+  tribunalPersonaStreams: Record<string, string>
+  tribunalRound: number
+  tribunalPaymentRequired: boolean
   setAuthToken: (token: string | null) => void
   loadSessionHistory: () => Promise<void>
-  createSession: (idea: string) => Promise<void>
+  createSession: (idea: string, mode?: string) => Promise<void>
   resumeSession: (sessionId: string) => Promise<void>
   sendMessage: (content: string) => Promise<void>
+  sendTribunalMessage: (content: string) => Promise<void>
   updateAssumptionStatus: (index: number, status: Assumption['status']) => Promise<void>
   generatePitchDeck: () => Promise<void>
   generateDebate: () => Promise<void>
   createCheckout: () => Promise<string | null>
   verifyAndUnlock: (checkoutId: string, sessionId: string) => Promise<void>
+  createTribunalCheckout: () => Promise<string | null>
+  verifyAndUnlockTribunal: (paymentLinkId: string, sessionId: string) => Promise<void>
   clearSession: () => void
 }
 
@@ -156,6 +194,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   authToken: null,
   paymentRequired: false,
   isUnlocking: false,
+  tribunalStreaming: false,
+  tribunalActivePersona: null,
+  tribunalPersonaStreams: {},
+  tribunalRound: 1,
+  tribunalPaymentRequired: false,
 
   setAuthToken: (token) => set({ authToken: token }),
 
@@ -173,13 +216,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
-  createSession: async (idea: string) => {
+  createSession: async (idea: string, mode = 'standard') => {
     const { authToken } = get()
     set({ isLoading: true, sessionError: null })
     try {
       const { data } = await axios.post<SessionData>(
         `${API_URL}/sessions/`,
-        { idea },
+        { idea, mode },
         { headers: authHeaders(authToken) },
       )
       set({ session: data, currentChoices: data.choices ?? [], sessionError: null })
@@ -208,7 +251,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const { data } = await axios.get<SessionData>(`${API_URL}/sessions/${sessionId}`, {
         headers: authHeaders(authToken),
       })
-      set({ session: data })
+      // Restore tribunal round from history length
+      const tRound = Math.floor((data.tribunal_history?.length ?? 0) / 4) + 1
+      set({ session: data, tribunalRound: tRound })
     } finally {
       set({ isLoading: false })
     }
@@ -255,7 +300,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             set({ isResearching: true })
 
           } else if (payload.type === 'agent_report') {
-            // First report signals we've entered the analysis phase
             set((s) => ({
               isAnalyzing: true,
               isResearching: false,
@@ -264,7 +308,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             }))
 
           } else if (payload.type === 'synthesis_token') {
-            // Synthesis streams like a normal message
             set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
 
           } else if (payload.type === 'done') {
@@ -286,10 +329,98 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
+  sendTribunalMessage: async (content: string) => {
+    const { session, authToken, tribunalRound } = get()
+    if (!session) return
+
+    set({
+      tribunalStreaming: true,
+      tribunalActivePersona: null,
+      tribunalPersonaStreams: {},
+    })
+
+    try {
+      const response = await fetch(`${API_URL}/sessions/${session.id}/tribunal/message`, {
+        method: 'POST',
+        headers: authHeaders(authToken),
+        body: JSON.stringify({ content }),
+      })
+
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const payload = JSON.parse(line.slice(6))
+
+          if (payload.type === 'persona_token') {
+            set((s) => ({
+              tribunalActivePersona: payload.persona,
+              tribunalPersonaStreams: {
+                ...s.tribunalPersonaStreams,
+                [payload.persona]: (s.tribunalPersonaStreams[payload.persona] ?? '') + payload.delta,
+              },
+            }))
+
+          } else if (payload.type === 'persona_done') {
+            // Lock in the final content for this persona
+            set((s) => ({
+              tribunalActivePersona: null,
+              tribunalPersonaStreams: {
+                ...s.tribunalPersonaStreams,
+                [payload.persona]: payload.content,
+              },
+            }))
+
+          } else if (payload.type === 'round_complete') {
+            const updatedHistory: TribunalTurn[] = payload.tribunal_history
+            set((s) => ({
+              tribunalRound: tribunalRound + 1,
+              session: s.session
+                ? { ...s.session, tribunal_history: updatedHistory }
+                : null,
+            }))
+
+          } else if (payload.type === 'payment_required') {
+            // Update history from session before gating
+            const updatedHistory = (session.tribunal_history ?? []).concat(
+              [{ role: 'user' as const, content }],
+            )
+            set((s) => ({
+              tribunalPaymentRequired: true,
+              tribunalRound: tribunalRound + 1,
+              session: s.session
+                ? { ...s.session, tribunal_history: updatedHistory }
+                : null,
+            }))
+
+          } else if (payload.type === 'tribunal_verdict') {
+            set((s) => ({
+              session: s.session
+                ? { ...s.session, tribunal_verdicts: payload.verdicts }
+                : null,
+            }))
+          }
+        }
+      }
+    } finally {
+      set({ tribunalStreaming: false, tribunalActivePersona: null })
+    }
+  },
+
   updateAssumptionStatus: async (index, status) => {
     const { session, authToken } = get()
     if (!session) return
-    // Optimistic update
     const updated = session.assumptions.map((a, i) => i === index ? { ...a, status } : a)
     set((s) => ({ session: s.session ? { ...s.session, assumptions: updated } : null }))
     try {
@@ -299,7 +430,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         { headers: authHeaders(authToken) },
       )
     } catch {
-      // Roll back
       set((s) => ({ session: s.session ? { ...s.session, assumptions: session.assumptions } : null }))
     }
   },
@@ -308,11 +438,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const { session, authToken } = get()
     if (!session) return null
     try {
-      // Razorpay appends its own params to the callback URL
       const successUrl = `${window.location.origin}/?sid=${session.id}`
       const { data } = await axios.post<{ checkout_url?: string; already_paid?: boolean }>(
         `${API_URL}/billing/checkout`,
-        { session_id: session.id, success_url: successUrl },
+        { session_id: session.id, success_url: successUrl, mode: 'standard' },
         { headers: authHeaders(authToken) },
       )
       if (data.already_paid) {
@@ -325,22 +454,39 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
+  createTribunalCheckout: async () => {
+    const { session, authToken } = get()
+    if (!session) return null
+    try {
+      const successUrl = `${window.location.origin}/?tribunal_sid=${session.id}`
+      const { data } = await axios.post<{ checkout_url?: string; already_paid?: boolean }>(
+        `${API_URL}/billing/checkout`,
+        { session_id: session.id, success_url: successUrl, mode: 'tribunal' },
+        { headers: authHeaders(authToken) },
+      )
+      if (data.already_paid) {
+        set({ tribunalPaymentRequired: false })
+        return null
+      }
+      return data.checkout_url ?? null
+    } catch {
+      return null
+    }
+  },
+
   verifyAndUnlock: async (paymentLinkId: string, sessionId: string) => {
     const { authToken } = get()
     set({ isUnlocking: true })
     try {
-      // Verify payment via Razorpay API (fallback in case webhook hasn't fired yet)
       await axios.post(
         `${API_URL}/billing/verify`,
-        { payment_link_id: paymentLinkId, session_id: sessionId },
+        { payment_link_id: paymentLinkId, session_id: sessionId, mode: 'standard' },
         { headers: authHeaders(authToken) },
       )
 
-      // Load the session (now marked paid)
       const { data } = await axios.get(`${API_URL}/sessions/${sessionId}`, { headers: authHeaders(authToken) })
       set({ session: data, paymentRequired: false })
 
-      // Stream the masterplan generation
       const response = await fetch(`${API_URL}/sessions/${sessionId}/unlock`, {
         method: 'POST',
         headers: authHeaders(authToken),
@@ -383,8 +529,36 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           }
         }
       }
-    } catch { /* silent — user remains on session page */ } finally {
+    } catch { /* silent */ } finally {
       set({ isUnlocking: false, isAnalyzing: false })
+    }
+  },
+
+  verifyAndUnlockTribunal: async (paymentLinkId: string, sessionId: string) => {
+    const { authToken } = get()
+    set({ isUnlocking: true })
+    try {
+      await axios.post(
+        `${API_URL}/billing/verify`,
+        { payment_link_id: paymentLinkId, session_id: sessionId, mode: 'tribunal' },
+        { headers: authHeaders(authToken) },
+      )
+
+      // Unlock generates verdicts
+      const { data } = await axios.post(
+        `${API_URL}/sessions/${sessionId}/tribunal/unlock`,
+        {},
+        { headers: authHeaders(authToken) },
+      )
+
+      set((s) => ({
+        tribunalPaymentRequired: false,
+        session: s.session
+          ? { ...s.session, tribunal_paid: true, tribunal_verdicts: data.verdicts }
+          : null,
+      }))
+    } catch { /* silent */ } finally {
+      set({ isUnlocking: false })
     }
   },
 
@@ -411,7 +585,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         { headers: authHeaders(authToken) },
       )
       set((s) => ({ session: s.session ? { ...s.session, pitch_deck: data } : null }))
-    } catch { /* silently fail — pitch deck is optional */ }
+    } catch { /* silently fail */ }
   },
 
   clearSession: () => set({
@@ -423,5 +597,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     isResearching: false,
     paymentRequired: false,
     isUnlocking: false,
+    tribunalStreaming: false,
+    tribunalActivePersona: null,
+    tribunalPersonaStreams: {},
+    tribunalRound: 1,
+    tribunalPaymentRequired: false,
   }),
 }))

@@ -29,6 +29,11 @@ class Session(Base):
 
     paid = Column(Boolean, default=False)
 
+    mode = Column(String, default="standard")       # "standard" | "tribunal"
+    tribunal_history = Column(JSON, default=list)
+    tribunal_verdicts = Column(JSON, nullable=True)
+    tribunal_paid = Column(Boolean, default=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

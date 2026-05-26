@@ -36,6 +36,18 @@ async def init_db():
         await conn.execute(text(
             "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS paid BOOLEAN DEFAULT FALSE"
         ))
+        await conn.execute(text(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS mode VARCHAR DEFAULT 'standard'"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS tribunal_history JSONB DEFAULT '[]'::jsonb"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS tribunal_verdicts JSONB"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS tribunal_paid BOOLEAN DEFAULT FALSE"
+        ))
 
 
 async def get_db():

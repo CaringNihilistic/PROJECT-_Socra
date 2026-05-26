@@ -372,6 +372,7 @@ export function LandingPage() {
   const [waitlistLoading, setWaitlistLoading] = useState(false)
   const [waitlistError, setWaitlistError] = useState('')
   // Compare flow: store the first selected session ID (pre-seeded from ?compare= param)
+  const [mode, setMode] = useState<'standard' | 'tribunal'>('standard')
   const [compareId, setCompareId] = useState<string | null>(() => {
     const p = new URLSearchParams(window.location.search)
     return p.get('compare')
@@ -392,10 +393,10 @@ export function LandingPage() {
     }
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (overrideMode?: 'standard' | 'tribunal') => {
     const trimmed = idea.trim()
     if (!trimmed || isLoading) return
-    await createSession(trimmed)
+    await createSession(trimmed, overrideMode ?? mode)
   }
 
   const handleWaitlist = async () => {
@@ -521,19 +522,49 @@ export function LandingPage() {
               className="w-full bg-transparent px-5 pt-4 pb-3 text-[15px] text-ink-100 placeholder-ink-700 resize-none focus:outline-none leading-relaxed"
               onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) handleSubmit() }}
             />
-            <div className="flex items-center justify-between px-5 py-3.5 border-t border-ink-800/60">
-              <span className="text-[11px] text-ink-800 font-mono">⌘↵ to start</span>
-              <button onClick={handleSubmit} disabled={!idea.trim() || isLoading}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-200 disabled:opacity-30"
-                style={{
-                  background: idea.trim() && !isLoading ? 'linear-gradient(135deg,#f59e0b,#e85d26)' : 'rgba(35,33,28,0.9)',
-                  color: idea.trim() && !isLoading ? '#08070a' : '#4a4840',
-                  boxShadow: idea.trim() && !isLoading ? '0 0 28px rgba(245,158,11,0.25)' : 'none',
-                }}>
-                {isLoading
-                  ? <><div className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin" />Starting…</>
-                  : 'Start session →'}
-              </button>
+            <div className="border-t border-ink-800/60 px-4 py-3">
+              <div className="flex items-center gap-2">
+                {/* Tribunal button */}
+                <button
+                  onClick={() => handleSubmit('tribunal')}
+                  disabled={!idea.trim() || isLoading}
+                  className="flex-1 flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-xl border transition-all duration-200 disabled:opacity-30"
+                  style={{
+                    background: mode === 'tribunal' && idea.trim() ? 'rgba(245,158,11,0.08)' : 'transparent',
+                    borderColor: mode === 'tribunal' && idea.trim() ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.06)',
+                    cursor: idea.trim() && !isLoading ? 'pointer' : 'not-allowed',
+                  }}
+                  onMouseEnter={() => setMode('tribunal')}
+                >
+                  <span className="text-[12px] font-semibold text-amber-400">Quick Tribunal</span>
+                  <span className="text-[10px] font-mono text-ink-700">₹199 · Pass/Fail verdict</span>
+                </button>
+
+                {/* Full analysis button */}
+                <button
+                  onClick={() => handleSubmit('standard')}
+                  disabled={!idea.trim() || isLoading}
+                  className="flex-1 flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-xl border transition-all duration-200 disabled:opacity-30"
+                  style={{
+                    background: mode === 'standard' && idea.trim() ? 'rgba(245,158,11,0.08)' : 'transparent',
+                    borderColor: mode === 'standard' && idea.trim() ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.06)',
+                    cursor: idea.trim() && !isLoading ? 'pointer' : 'not-allowed',
+                  }}
+                  onMouseEnter={() => setMode('standard')}
+                >
+                  <span className="text-[12px] font-semibold" style={{ color: idea.trim() ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.3)' }}>
+                    Full Analysis
+                  </span>
+                  <span className="text-[10px] font-mono text-ink-700">₹499 · Masterplan + deck</span>
+                </button>
+
+                {isLoading && (
+                  <div className="flex items-center gap-1.5 px-3">
+                    <div className="w-3 h-3 rounded-full border-2 border-amber-400/40 border-t-amber-400 animate-spin" />
+                    <span className="text-[11px] text-ink-700 font-mono">Starting…</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           {sessionError && (

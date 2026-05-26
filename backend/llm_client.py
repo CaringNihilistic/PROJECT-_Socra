@@ -1126,6 +1126,170 @@ Be domain-specific. Under 150 words.""",
 SPECIALIST_AGENTS = COUNCIL_SEATS
 
 
+# ---------------------------------------------------------------------------
+# Startup Tribunal — 3 adversarial personas + verdict generation
+# ---------------------------------------------------------------------------
+
+TRIBUNAL_PERSONAS = [
+    {
+        "key": "investor",
+        "name": "The Investor",
+        "icon": "💰",
+        "color": "#34d399",
+        "role": "Series A investor who has passed on 200 ideas like yours",
+        "prompt": """You are a Series A investor who has passed on 200 startup ideas that looked exactly like this one. You are not hostile, but you are completely unconvinced. You care about one thing: is there a real, defensible business here?
+
+Interrogate the founder about market size (real SAM, not TAM fantasy), defensibility (what stops a better-funded competitor in 6 months), unit economics (CAC vs LTV, payback period), why now (what changed in the market), and whether the founder has an unfair advantage to win this specific market.
+
+Rules:
+- Ask maximum 2 sharp, specific questions per round
+- Do not give encouragement or soften your skepticism
+- If an answer is vague, say so and demand a specific number or company name
+- Speak in first person, directly, with authority
+- Under 100 words per response""",
+    },
+    {
+        "key": "customer",
+        "name": "The Customer",
+        "icon": "👤",
+        "color": "#5590e8",
+        "role": "Your first target buyer — only cares about their problem",
+        "prompt": """You are the founder's ideal first customer — the exact person this product is supposedly built for. You do not care about the vision, the technology, or the market opportunity. You care about one thing: does this actually solve your specific problem, today, better than what you already use?
+
+Interrogate the founder about what exactly you would use this for, what you currently use instead (name the actual tool or workaround), why you would switch, what switching would cost you in time and money, and whether you would pay for a half-working version today.
+
+Rules:
+- You are honest but slightly lazy — you won't switch unless the value is completely obvious
+- Ask maximum 2 questions per round, from your first-person perspective as the customer
+- Under 100 words per response""",
+    },
+    {
+        "key": "competitor",
+        "name": "The Competitor",
+        "icon": "⚔️",
+        "color": "#f59e0b",
+        "role": "PM at your best-funded rival",
+        "prompt": """You are the product manager at this startup's best-funded direct competitor. You have 10x their runway, an established user base, and a team twice their size. You are deciding whether to clone their key feature in your next sprint.
+
+Interrogate the founder about what specifically their users would get that yours don't, why your existing users wouldn't just request this feature from you, what their actual distribution advantage is, what the one thing is that makes them genuinely hard to copy, and whether their moat exists at year 1 or only at year 5.
+
+Rules:
+- You are confident, not threatened — you ask from a position of strength
+- Ask maximum 2 questions per round
+- Under 100 words per response""",
+    },
+]
+
+
+async def stream_tribunal_turn(
+    tribunal_history: list[dict],
+    user_message: str,
+    round_number: int,
+):
+    """
+    Async generator for one tribunal round. Runs all 3 personas sequentially.
+    Yields:
+      {"type": "persona_token", "persona": key, "delta": str}
+      {"type": "persona_done", "persona": key, "content": str}
+      {"type": "round_done"}
+    """
+    rounds_remaining = 4 - round_number
+    round_note = (
+        "\n\nThis is your FINAL round (round 4 of 4). Make your last questions count — you will deliver your Pass/Fail verdict after this."
+        if round_number >= 4
+        else f"\n\nThis is round {round_number} of 4. You have {rounds_remaining} round{'s' if rounds_remaining > 1 else ''} remaining."
+    )
+
+    for persona in TRIBUNAL_PERSONAS:
+        # Build per-persona conversation history
+        persona_msgs: list[dict] = []
+        for turn in tribunal_history:
+            if turn["role"] == "user":
+                persona_msgs.append({"role": "user", "content": turn["content"]})
+            elif turn.get("persona") == persona["key"]:
+                persona_msgs.append({"role": "assistant", "content": turn["content"]})
+        persona_msgs.append({"role": "user", "content": user_message})
+
+        system = persona["prompt"] + round_note
+        content = ""
+
+        async for token in _stream_llm_tokens(system, persona_msgs):
+            content += token
+            yield {"type": "persona_token", "persona": persona["key"], "delta": token}
+
+        yield {"type": "persona_done", "persona": persona["key"], "content": content}
+
+    yield {"type": "round_done"}
+
+
+async def generate_tribunal_verdicts(tribunal_history: list[dict], idea: str) -> dict:
+    """Generate Pass/Fail verdicts from all three tribunal personas after 4 rounds."""
+    import logging as _log
+    verdicts: dict = {}
+
+    for persona in TRIBUNAL_PERSONAS:
+        persona_msgs: list[dict] = []
+        for turn in tribunal_history:
+            if turn["role"] == "user":
+                persona_msgs.append({"role": "user", "content": turn["content"]})
+            elif turn.get("persona") == persona["key"]:
+                persona_msgs.append({"role": "assistant", "content": turn["content"]})
+
+        verdict_system = f"""{persona["prompt"]}
+
+You have completed the full interrogation (4 rounds). Based on everything the founder said, deliver your final verdict.
+
+Return ONLY valid JSON — no markdown, no explanation:
+{{
+  "pass": true or false,
+  "score": integer 0-100,
+  "verdict": "One specific sentence referencing a real claim or number from this conversation. Not generic advice.",
+  "key_insight": "One sentence — the single thing that would change your verdict if it were different."
+}}
+
+A pass means you are genuinely convinced. A fail means you are not. Do not pass to be kind."""
+
+        try:
+            raw = await _call_real_llm(verdict_system, persona_msgs, max_tokens=300, json_mode=True)
+            data = json.loads(raw)
+            data.setdefault("pass", False)
+            data.setdefault("score", 50)
+            data.setdefault("verdict", "Insufficient context to form a clear verdict.")
+            data.setdefault("key_insight", "")
+            verdicts[persona["key"]] = {
+                "name": persona["name"],
+                "icon": persona["icon"],
+                "color": persona["color"],
+                "role": persona["role"],
+                **data,
+            }
+        except Exception as e:
+            _log.getLogger(__name__).error("Tribunal verdict failed for %s: %s", persona["key"], e)
+            verdicts[persona["key"]] = {
+                "name": persona["name"],
+                "icon": persona["icon"],
+                "color": persona["color"],
+                "role": persona["role"],
+                "pass": False,
+                "score": 50,
+                "verdict": "Analysis unavailable — API error.",
+                "key_insight": "",
+            }
+
+    scores = [v["score"] for v in verdicts.values()]
+    passes = sum(1 for v in verdicts.values() if v["pass"])
+    composite = round(sum(scores) / len(scores))
+    grade = "GREENLIT" if passes == 3 else "STRONG" if passes == 2 else "CHALLENGED" if passes == 1 else "REJECTED"
+
+    return {
+        "personas": verdicts,
+        "composite_score": composite,
+        "passes": passes,
+        "total": len(TRIBUNAL_PERSONAS),
+        "grade": grade,
+    }
+
+
 async def _call_fast_llm(system: str, messages: list[dict]) -> str:
     """Cheaper/faster model for specialist agents. Falls back Google → Groq on quota errors."""
     if settings.anthropic_api_key:
