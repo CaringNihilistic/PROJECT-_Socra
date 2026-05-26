@@ -499,7 +499,7 @@ export function TribunalPage() {
                 completedRounds === 0 ? 'The tribunal will begin shortly…' :
                 'Your response to all three judges…'
               }
-              disabled={!canSend && !tribunalStreaming}
+              disabled={tribunalStreaming || tribunalPaymentRequired || !!verdicts || completedRounds >= 4}
               rows={2}
               style={{
                 flex: 1,
