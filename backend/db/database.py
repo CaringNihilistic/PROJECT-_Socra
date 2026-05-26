@@ -33,6 +33,9 @@ async def init_db():
         await conn.execute(text(
             "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS debate JSONB"
         ))
+        await conn.execute(text(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS paid BOOLEAN DEFAULT FALSE"
+        ))
 
 
 async def get_db():

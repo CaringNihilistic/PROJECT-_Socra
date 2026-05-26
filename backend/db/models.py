@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Float, Text, Integer, DateTime, JSON, UniqueConstraint
+from sqlalchemy import Column, String, Float, Text, Integer, DateTime, JSON, Boolean, UniqueConstraint
 from sqlalchemy.sql import func
 from db.database import Base
 
@@ -26,6 +26,8 @@ class Session(Base):
     agent_reports = Column(JSON, nullable=True)
     pitch_deck = Column(JSON, nullable=True)
     debate = Column(JSON, nullable=True)
+
+    paid = Column(Boolean, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

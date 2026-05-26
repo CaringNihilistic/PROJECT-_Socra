@@ -103,6 +103,7 @@ async def send_message_stream(
     # Capture all session state before entering the async generator
     initial_idea = session.initial_idea
     turn_number = session.turn_number
+    is_paid = bool(getattr(session, "paid", False))
     original_assumptions = [
         {"text": a, "status": "unknown"} if isinstance(a, str) else a
         for a in (session.assumptions or [])
@@ -177,6 +178,29 @@ async def send_message_stream(
                 new_agent_reports = list(original_agent_reports)
 
                 if new_phase == "masterplan" and not masterplan:
+                    from core.config import settings as _cfg
+                    billing_enabled = bool(_cfg.razorpay_key_id and _cfg.razorpay_key_secret)
+                    if billing_enabled and not is_paid:
+                        # Gate: save progress, emit payment_required, stop
+                        await db.execute(
+                            update(Session)
+                            .where(Session.id == session_id)
+                            .values(
+                                conversation_history=full_history,
+                                problem_clarity=updated_scores["problem_clarity"],
+                                scale_constraints=updated_scores["scale_constraints"],
+                                tech_context=updated_scores["tech_context"],
+                                success_definition=updated_scores["success_definition"],
+                                risk_awareness=updated_scores["risk_awareness"],
+                                phase="masterplan",
+                                turn_number=new_turn_number,
+                                assumptions=new_assumptions,
+                            )
+                        )
+                        await db.commit()
+                        yield f"data: {json.dumps({'type': 'payment_required', 'session_id': session_id})}\n\n"
+                        return
+
                     # Multi-agent pipeline: stream each specialist report as it arrives,
                     # then stream the synthesis tokens
                     async for ma_event in stream_multi_agent_masterplan(full_history):
@@ -288,6 +312,77 @@ async def export_pitch_deck_html(session_id: str, db: AsyncSession = Depends(get
     return HTMLResponse(content=html, headers={
         "Content-Disposition": f'attachment; filename="pitch-deck.html"'
     })
+
+
+@router.post("/{session_id}/unlock")
+async def unlock_masterplan(session_id: str, db: AsyncSession = Depends(get_db)):
+    """Generate masterplan for a session that has been paid for."""
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if not session.paid:
+        raise HTTPException(402, "Payment required to unlock masterplan")
+    if session.masterplan:
+        return _serialize(session)  # Already generated — idempotent
+
+    history = list(session.conversation_history or [])
+    original_agent_reports = list(session.agent_reports or [])
+    initial_idea = session.initial_idea
+    current_scores = {
+        "problem_clarity": session.problem_clarity,
+        "scale_constraints": session.scale_constraints,
+        "tech_context": session.tech_context,
+        "success_definition": session.success_definition,
+        "risk_awareness": session.risk_awareness,
+    }
+    assumptions = [
+        {"text": a, "status": "unknown"} if isinstance(a, str) else a
+        for a in (session.assumptions or [])
+    ]
+    turn_number = session.turn_number
+
+    async def unlock_stream():
+        new_agent_reports = list(original_agent_reports)
+        masterplan = None
+
+        async for ma_event in stream_multi_agent_masterplan(history):
+            if ma_event["type"] == "agent_report":
+                new_agent_reports.append(ma_event["report"])
+                yield f"data: {json.dumps({'type': 'agent_report', 'report': ma_event['report']})}\n\n"
+            elif ma_event["type"] == "synthesis_token":
+                yield f"data: {json.dumps({'type': 'synthesis_token', 'delta': ma_event['delta']})}\n\n"
+            elif ma_event["type"] == "synthesis_done":
+                masterplan = ma_event["text"]
+
+        await db.execute(
+            update(Session)
+            .where(Session.id == session_id)
+            .values(masterplan=masterplan, agent_reports=new_agent_reports, phase="masterplan")
+        )
+        await db.commit()
+
+        from eval_bar import compute_total_score, get_score_explanation
+        serialized = {
+            "id": session_id,
+            "initial_idea": initial_idea,
+            "scores": current_scores,
+            "total_score": compute_total_score(current_scores),
+            "phase": "masterplan",
+            "turn_number": turn_number,
+            "conversation_history": history,
+            "assumptions": assumptions,
+            "masterplan": masterplan,
+            "agent_reports": new_agent_reports,
+            "explanations": get_score_explanation(current_scores),
+        }
+        yield f"data: {json.dumps({'type': 'done', 'session': serialized})}\n\n"
+
+    return StreamingResponse(
+        unlock_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/{session_id}/debate")

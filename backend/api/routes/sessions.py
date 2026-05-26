@@ -57,6 +57,7 @@ def _serialize(session: Session) -> dict:
         "pitch_deck": session.pitch_deck,
         "debate": session.debate,
         "explanations": get_score_explanation(scores),
+        "paid": bool(session.paid),
     }
 
 

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from db.database import init_db
-from api.routes import sessions, architect, waitlist
+from api.routes import sessions, architect, waitlist, billing
 from core.config import settings
 
 
@@ -48,6 +48,7 @@ app.add_middleware(
 app.include_router(sessions.router)
 app.include_router(architect.router)
 app.include_router(waitlist.router)
+app.include_router(billing.router)
 
 
 @app.get("/health")

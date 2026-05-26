@@ -76,6 +76,7 @@ export interface SessionData {
   latest_response?: string
   refusal?: string | null
   choices?: string[]
+  paid?: boolean
 }
 
 export interface SessionSummary {
@@ -118,6 +119,8 @@ interface SessionStore {
   isResearching: boolean
   sessionError: string | null
   authToken: string | null
+  paymentRequired: boolean
+  isUnlocking: boolean
   setAuthToken: (token: string | null) => void
   loadSessionHistory: () => Promise<void>
   createSession: (idea: string) => Promise<void>
@@ -126,6 +129,8 @@ interface SessionStore {
   updateAssumptionStatus: (index: number, status: Assumption['status']) => Promise<void>
   generatePitchDeck: () => Promise<void>
   generateDebate: () => Promise<void>
+  createCheckout: () => Promise<string | null>
+  verifyAndUnlock: (checkoutId: string, sessionId: string) => Promise<void>
   clearSession: () => void
 }
 
@@ -149,6 +154,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   isResearching: false,
   sessionError: null,
   authToken: null,
+  paymentRequired: false,
+  isUnlocking: false,
 
   setAuthToken: (token) => set({ authToken: token }),
 
@@ -238,6 +245,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           if (payload.type === 'token') {
             set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
 
+          } else if (payload.type === 'payment_required') {
+            set({ paymentRequired: true })
+
           } else if (payload.type === 'choices') {
             set({ currentChoices: payload.choices })
 
@@ -294,6 +304,90 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
+  createCheckout: async () => {
+    const { session, authToken } = get()
+    if (!session) return null
+    try {
+      // Razorpay appends its own params to the callback URL
+      const successUrl = `${window.location.origin}/?sid=${session.id}`
+      const { data } = await axios.post<{ checkout_url?: string; already_paid?: boolean }>(
+        `${API_URL}/billing/checkout`,
+        { session_id: session.id, success_url: successUrl },
+        { headers: authHeaders(authToken) },
+      )
+      if (data.already_paid) {
+        set({ paymentRequired: false })
+        return null
+      }
+      return data.checkout_url ?? null
+    } catch {
+      return null
+    }
+  },
+
+  verifyAndUnlock: async (paymentLinkId: string, sessionId: string) => {
+    const { authToken } = get()
+    set({ isUnlocking: true })
+    try {
+      // Verify payment via Razorpay API (fallback in case webhook hasn't fired yet)
+      await axios.post(
+        `${API_URL}/billing/verify`,
+        { payment_link_id: paymentLinkId, session_id: sessionId },
+        { headers: authHeaders(authToken) },
+      )
+
+      // Load the session (now marked paid)
+      const { data } = await axios.get(`${API_URL}/sessions/${sessionId}`, { headers: authHeaders(authToken) })
+      set({ session: data, paymentRequired: false })
+
+      // Stream the masterplan generation
+      const response = await fetch(`${API_URL}/sessions/${sessionId}/unlock`, {
+        method: 'POST',
+        headers: authHeaders(authToken),
+      })
+      if (!response.ok || !response.body) return
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      set({ isAnalyzing: true, streamingMessage: '', currentAgentReports: [] })
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const payload = JSON.parse(line.slice(6))
+          if (payload.type === 'agent_report') {
+            set((s) => ({
+              isAnalyzing: true,
+              currentAgentReports: [...s.currentAgentReports, payload.report],
+            }))
+          } else if (payload.type === 'synthesis_token') {
+            set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
+          } else if (payload.type === 'done') {
+            const updated = payload.session
+            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false })
+            saveToLocalStorage({
+              id: updated.id,
+              initial_idea: updated.initial_idea,
+              phase: updated.phase,
+              total_score: updated.total_score,
+              has_masterplan: !!updated.masterplan,
+              created_at: new Date().toISOString(),
+            })
+          }
+        }
+      }
+    } catch { /* silent — user remains on session page */ } finally {
+      set({ isUnlocking: false, isAnalyzing: false })
+    }
+  },
+
   generateDebate: async () => {
     const { session, authToken } = get()
     if (!session?.masterplan) return
@@ -327,5 +421,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     currentAgentReports: [],
     isAnalyzing: false,
     isResearching: false,
+    paymentRequired: false,
+    isUnlocking: false,
   }),
 }))

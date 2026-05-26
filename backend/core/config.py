@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     google_api_key: str = ""
     tavily_api_key: str = ""
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+    razorpay_price_amount: int = 49900  # paise; 49900 = ₹499
 
     @property
     def is_stub(self) -> bool:

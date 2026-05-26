@@ -219,6 +219,93 @@ function DevilsAdvocateCard({ report }: { report: AgentReport }) {
   )
 }
 
+const BILLING_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID
+
+function PaywallModal() {
+  const { session, createCheckout, paymentRequired } = useSessionStore()
+  const [loading, setLoading] = useState(false)
+
+  if (!paymentRequired || !session) return null
+
+  const handlePay = async () => {
+    setLoading(true)
+    const url = await createCheckout()
+    if (url) {
+      window.location.href = url
+    } else {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ background: 'rgba(8,8,9,0.85)', backdropFilter: 'blur(12px)' }}>
+      <div className="max-w-md w-full rounded-2xl border overflow-hidden fade-up"
+        style={{ borderColor: 'rgba(52,211,153,0.2)', background: 'rgba(10,10,11,0.97)' }}>
+        {/* Header */}
+        <div className="px-7 pt-7 pb-5 border-b" style={{ borderColor: 'rgba(52,211,153,0.1)' }}>
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-2 h-2 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 8px #34d399' }} />
+            <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-emerald-400/70">Analysis ready</span>
+          </div>
+          <h2 className="text-[22px] font-display font-bold text-ink-50 leading-tight mb-2">
+            Unlock your masterplan
+          </h2>
+          <p className="text-[13px] text-ink-500 leading-relaxed">
+            Socra has finished interrogating your idea. Your full analysis is ready to generate.
+          </p>
+        </div>
+
+        {/* What you get */}
+        <div className="px-7 py-5 flex flex-col gap-2.5">
+          {[
+            { icon: '🏗', label: '5 specialist AI agents', sub: 'Market, finance, tech, risk, competition' },
+            { icon: '📄', label: 'Architecture masterplan', sub: '2,000+ word technical & strategic plan' },
+            { icon: '💡', label: 'Devil\'s advocate', sub: 'The 5 reasons this fails' },
+            { icon: '🎤', label: 'Investor pitch deck', sub: '10-slide narrative, exportable HTML' },
+            { icon: '⚔', label: 'Bull vs Bear debate', sub: '3-round AI debate on your idea' },
+          ].map(({ icon, label, sub }) => (
+            <div key={label} className="flex items-start gap-3">
+              <span className="text-base flex-shrink-0 mt-0.5">{icon}</span>
+              <div>
+                <div className="text-[13px] text-ink-200 font-medium">{label}</div>
+                <div className="text-[11px] text-ink-600 font-mono mt-0.5">{sub}</div>
+              </div>
+              <div className="ml-auto flex-shrink-0 mt-1">
+                <div className="w-4 h-4 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)' }}>
+                  <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className="px-7 pb-7 pt-2">
+          <button
+            onClick={handlePay}
+            disabled={loading}
+            className="w-full py-3.5 rounded-xl font-display font-bold text-[15px] transition-all duration-200 disabled:opacity-50"
+            style={{
+              background: loading ? 'rgba(52,211,153,0.3)' : 'linear-gradient(135deg, #34d399, #10b981)',
+              color: '#08070a',
+              boxShadow: loading ? 'none' : '0 4px 24px rgba(52,211,153,0.25)',
+            }}
+          >
+            {loading ? 'Redirecting to payment…' : 'Unlock for ₹499 →'}
+          </button>
+          <p className="text-center text-[11px] font-mono text-ink-700 mt-3">
+            One-time payment · Secure checkout via Stripe · No subscription
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function SessionPage() {
   const [input, setInput] = useState('')
   const [copied, setCopied] = useState(false)
@@ -228,7 +315,7 @@ export function SessionPage() {
   const [showDebate, setShowDebate] = useState(false)
   const {
     session, isSending, streamingMessage, currentChoices,
-    currentAgentReports, isAnalyzing, isResearching,
+    currentAgentReports, isAnalyzing, isResearching, paymentRequired, isUnlocking,
     sendMessage, clearSession, generatePitchDeck, generateDebate,
   } = useSessionStore()
 
@@ -277,6 +364,20 @@ export function SessionPage() {
         background: '#080809',
         backgroundImage: `radial-gradient(ellipse at 50% 0%, ${phaseColor}08 0%, transparent 55%)`,
       }}>
+
+      {/* Paywall modal — shown when billing is enabled and masterplan is locked */}
+      {BILLING_ENABLED && <PaywallModal />}
+
+      {/* Unlock in-progress overlay */}
+      {isUnlocking && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center"
+          style={{ background: 'rgba(8,8,9,0.7)', backdropFilter: 'blur(8px)' }}>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 rounded-full border-2 border-emerald-400/60 border-t-emerald-400 animate-spin" />
+            <span className="text-[13px] font-mono text-emerald-400/80">Generating your masterplan…</span>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="sticky top-0 z-20 border-b border-ink-800/50 px-6 relative overflow-hidden"
