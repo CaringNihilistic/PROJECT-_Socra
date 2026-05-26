@@ -537,7 +537,8 @@ async def _stream_groq_tokens(system: str, messages: list[dict], model: str = "l
 
 
 async def _stream_llm_tokens(system: str, messages: list[dict]):
-    """Async generator yielding raw text tokens. Falls back Google → Groq on quota errors."""
+    """Async generator yielding raw text tokens. Falls back Google → Groq on quota errors or empty response."""
+    import logging as _log
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
@@ -551,17 +552,16 @@ async def _stream_llm_tokens(system: str, messages: list[dict]):
                 yield text
         return
     if settings.google_api_key:
-        google_failed = False
+        yielded = 0
         try:
             async for token in _stream_google_tokens(system, messages):
+                yielded += 1
                 yield token
-            return
-        except Exception:
-            google_failed = True
-        if google_failed:
-            async for token in _stream_groq_tokens(system, messages):
-                yield token
-            return
+        except Exception as e:
+            _log.getLogger(__name__).warning("Google streaming failed: %s", e)
+        if yielded > 0:
+            return  # Google worked — don't fall through
+        _log.getLogger(__name__).warning("Google returned empty stream — falling back to Groq")
     async for token in _stream_groq_tokens(system, messages):
         yield token
 
@@ -1363,7 +1363,8 @@ Format as clean Markdown. Be opinionated. If there is a clearly better choice, s
 
 
 async def _stream_synthesis_tokens(system: str, messages: list[dict]):
-    """Stream synthesis using the best available model. Falls back Google → Groq on quota errors."""
+    """Stream synthesis using the best available model. Falls back Google → Groq on empty response or error."""
+    import logging as _log
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
@@ -1377,17 +1378,16 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
                 yield text
         return
     if settings.google_api_key:
-        google_failed = False
+        yielded = 0
         try:
             async for token in _stream_google_tokens(system, messages, max_tokens=3000):
+                yielded += 1
                 yield token
+        except Exception as e:
+            _log.getLogger(__name__).warning("Google synthesis streaming failed: %s", e)
+        if yielded > 0:
             return
-        except Exception:
-            google_failed = True
-        if google_failed:
-            async for token in _stream_groq_tokens(system, messages, model="llama-3.3-70b-versatile", max_tokens=3000):
-                yield token
-            return
+        _log.getLogger(__name__).warning("Google synthesis returned empty — falling back to Groq")
     async for token in _stream_groq_tokens(system, messages, model="llama-3.3-70b-versatile", max_tokens=3000):
         yield token
 
