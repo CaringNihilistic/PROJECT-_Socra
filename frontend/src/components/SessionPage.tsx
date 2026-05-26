@@ -319,11 +319,21 @@ export function SessionPage() {
     sendMessage, clearSession, generatePitchDeck, generateDebate,
   } = useSessionStore()
 
+  const [cardCopied, setCardCopied] = useState(false)
+
   const handleShare = () => {
     const url = `${window.location.origin}/share/${session?.id}`
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const handleShareCard = () => {
+    const url = `${window.location.origin}/card/${session?.id}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCardCopied(true)
+      setTimeout(() => setCardCopied(false), 2000)
     })
   }
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -505,6 +515,18 @@ export function SessionPage() {
                   }}
                 >
                   {copied ? '✓ Copied' : '↗ Share'}
+                </button>
+                <button
+                  onClick={handleShareCard}
+                  className="text-[11px] font-mono border px-3 py-1 rounded-lg transition-all"
+                  style={cardCopied ? {
+                    color: '#f59e0b', borderColor: 'rgba(245,158,11,0.4)',
+                  } : {
+                    color: 'rgba(245,158,11,0.4)', borderColor: 'rgba(245,158,11,0.15)',
+                  }}
+                  title="Copy shareable score card link"
+                >
+                  {cardCopied ? '✓ Card copied' : '🃏 Score Card'}
                 </button>
                 <a
                   href={`/?compare=${session.id}`}

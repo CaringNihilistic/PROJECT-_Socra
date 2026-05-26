@@ -5,12 +5,17 @@ import { LandingPage } from './components/LandingPage'
 import { SessionPage } from './components/SessionPage'
 import { SharePage } from './components/SharePage'
 import { ComparePage } from './components/ComparePage'
+import { CardPage } from './components/CardPage'
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 
 // Detect share route: /share/<sessionId>
 const shareMatch = window.location.pathname.match(/^\/share\/([^/]+)$/)
 const SHARE_SESSION_ID = shareMatch ? shareMatch[1] : null
+
+// Detect card route: /card/<sessionId>
+const cardMatch = window.location.pathname.match(/^\/card\/([^/]+)$/)
+const CARD_SESSION_ID = cardMatch ? cardMatch[1] : null
 
 // Detect compare route: /compare/<id1>/<id2>
 const compareMatch = window.location.pathname.match(/^\/compare\/([^/]+)\/([^/]+)$/)
@@ -80,6 +85,11 @@ export default function App() {
   // Share page is a public read-only view — no auth or store needed
   if (SHARE_SESSION_ID) {
     return <SharePage sessionId={SHARE_SESSION_ID} />
+  }
+
+  // Verdict card — public shareable score card
+  if (CARD_SESSION_ID) {
+    return <CardPage sessionId={CARD_SESSION_ID} />
   }
 
   // Compare page is a public read-only view — no auth or store needed
