@@ -173,7 +173,6 @@ export function TribunalPage() {
   const tribunalStreaming = useSessionStore((s) => s.tribunalStreaming)
   const tribunalActivePersona = useSessionStore((s) => s.tribunalActivePersona)
   const tribunalPersonaStreams = useSessionStore((s) => s.tribunalPersonaStreams)
-  const tribunalRound = useSessionStore((s) => s.tribunalRound)
   const tribunalPaymentRequired = useSessionStore((s) => s.tribunalPaymentRequired)
   const isUnlocking = useSessionStore((s) => s.isUnlocking)
   const sendTribunalMessage = useSessionStore((s) => s.sendTribunalMessage)
@@ -367,10 +366,6 @@ export function TribunalPage() {
           )
           const streamText = tribunalPersonaStreams[p.key] ?? ''
           const isActive = tribunalActivePersona === p.key
-          // show waiting dots for personas that haven't gone yet this round
-          const roundInProgress = tribunalStreaming
-          const hasStreamedThisRound = streamText.length > 0 && tribunalStreaming
-          const isWaiting = roundInProgress && !isActive && !hasStreamedThisRound && tribunalActivePersona !== null
 
           return (
             <PersonaColumn
