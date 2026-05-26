@@ -17,7 +17,9 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Phase:', d.get\\('phase'\\)\\); print\\('Response:', d.get\\('conversation_history',[]\\)[1]['content'][:120] if len\\(d.get\\('conversation_history',[]\\)\\) > 1 else 'EMPTY'\\)\")",
       "Bash(curl -s -N -X POST https://socra-backend-production.up.railway.app/sessions/37f67b2d-d1e5-4927-b053-33f8c2d4ec58/message/stream -H \"Content-Type: application/json\" -d \"{\\\\\"content\\\\\": \\\\\"I want students to never miss deadlines\\\\\"}\" --max-time 25)",
       "Bash(python -c ' *)",
-      "Bash(curl -s -N -X POST \"https://socra-backend-production.up.railway.app/sessions/37f67b2d-d1e5-4927-b053-33f8c2d4ec58/message/stream\" -H \"Content-Type: application/json\" -d \"{\\\\\"content\\\\\": \\\\\"students want deadline reminders\\\\\"}\" --max-time 30)"
+      "Bash(curl -s -N -X POST \"https://socra-backend-production.up.railway.app/sessions/37f67b2d-d1e5-4927-b053-33f8c2d4ec58/message/stream\" -H \"Content-Type: application/json\" -d \"{\\\\\"content\\\\\": \\\\\"students want deadline reminders\\\\\"}\" --max-time 30)",
+      "Bash(timeout 120 bash -c \"until curl -s https://socra-production.up.railway.app/ | grep -q 'No surprises' 2>/dev/null; do sleep 10; done\")",
+      "Bash(curl -s https://socra-production.up.railway.app/)"
     ]
   }
 }
