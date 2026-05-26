@@ -259,8 +259,8 @@ function PaywallModal() {
         {/* What you get */}
         <div className="px-7 py-5 flex flex-col gap-2.5">
           {[
-            { icon: '🏗', label: '5 specialist AI agents', sub: 'Market, finance, tech, risk, competition' },
-            { icon: '📄', label: 'Architecture masterplan', sub: '2,000+ word technical & strategic plan' },
+            { icon: '🏛', label: 'The Council — 5 AI advisors', sub: 'The Banker, Oracle, Challenger, Builder, Skeptic' },
+            { icon: '📄', label: "Chairman's Masterplan", sub: '2,000+ word strategic & technical verdict' },
             { icon: '💡', label: 'Devil\'s advocate', sub: 'The 5 reasons this fails' },
             { icon: '🎤', label: 'Investor pitch deck', sub: '10-slide narrative, exportable HTML' },
             { icon: '⚔', label: 'Bull vs Bear debate', sub: '3-round AI debate on your idea' },
@@ -384,7 +384,7 @@ export function SessionPage() {
           style={{ background: 'rgba(8,8,9,0.7)', backdropFilter: 'blur(8px)' }}>
           <div className="flex flex-col items-center gap-4">
             <div className="w-8 h-8 rounded-full border-2 border-emerald-400/60 border-t-emerald-400 animate-spin" />
-            <span className="text-[13px] font-mono text-emerald-400/80">Generating your masterplan…</span>
+            <span className="text-[13px] font-mono text-emerald-400/80">The Council is deliberating…</span>
           </div>
         </div>
       )}
@@ -465,16 +465,19 @@ export function SessionPage() {
           </div>
         )}
 
-        {/* Multi-agent analysis section */}
+        {/* Council section */}
         {(specialistReports.length > 0 || isAnalyzing) && (
           <div>
             <div className="flex items-center gap-3 mb-3">
-              <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">
-                Specialist analysis
-              </span>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400/60" style={{ boxShadow: '0 0 6px rgba(245,158,11,0.4)' }} />
+                <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-600">
+                  The Council
+                </span>
+              </div>
               <div className="flex-1 h-px bg-ink-800/60" />
               <span className="text-[10px] font-mono text-ink-800 tabular-nums">
-                {specialistReports.length} / {TOTAL_AGENTS}
+                {specialistReports.length} / {TOTAL_AGENTS} seats
               </span>
             </div>
             <div className="flex flex-col gap-2">
@@ -501,7 +504,7 @@ export function SessionPage() {
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 6px #34d399' }} />
                 <span className="text-[11px] font-mono uppercase tracking-[0.15em] text-emerald-400/80">
-                  Architecture masterplan
+                  Chairman's Masterplan
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -690,7 +693,7 @@ export function SessionPage() {
                 </div>
               ) : isAnalyzing ? (
                 <div className="flex items-center gap-2 pt-2">
-                  <span className="text-[12px] text-ink-600 font-mono">Synthesizing masterplan</span>
+                  <span className="text-[12px] text-ink-600 font-mono">The Chairman deliberates</span>
                   {[0, 120, 240].map((delay) => (
                     <div key={delay} className="w-1 h-1 rounded-full bg-emerald-500/60 animate-bounce"
                       style={{ animationDelay: `${delay}ms` }} />
