@@ -2,7 +2,22 @@
   "permissions": {
     "allow": [
       "Bash(git push *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(curl -s https://socra-production.up.railway.app/health)",
+      "Bash(curl -s https://socra-production.up.railway.app/openapi.json)",
+      "Bash(python -c \"import sys,json; routes=[r['path'] for r in json.load\\(sys.stdin\\)['paths']]; [print\\(r\\) for r in routes if 'billing' in r or 'unlock' in r]\")",
+      "Bash(curl -s https://socra-production-backend.up.railway.app/health)",
+      "Bash(curl -s https://socra-backend-production.up.railway.app/health)",
+      "Bash(curl -s https://socra-backend-production.up.railway.app/openapi.json)",
+      "Bash(python -c \"import sys,json; paths=list\\(json.load\\(sys.stdin\\)['paths'].keys\\(\\)\\); [print\\(p\\) for p in paths if 'billing' in p or 'unlock' in p]\")",
+      "Bash(python -c \"import sys,json; [print\\(p\\) for p in json.load\\(sys.stdin\\)['paths'].keys\\(\\)]\")",
+      "Bash(timeout 90 bash -c \"until curl -s https://socra-backend-production.up.railway.app/openapi.json | python -c \\\\\"import sys,json; paths=list\\(json.load\\(sys.stdin\\)['paths'].keys\\(\\)\\); exit\\(0 if any\\('billing' in p for p in paths\\) else 1\\)\\\\\" 2>/dev/null; do sleep 8; done\")",
+      "Bash(python -c \"import sys,json; [print\\(p\\) for p in json.load\\(sys.stdin\\)['paths'].keys\\(\\) if 'billing' in p or 'unlock' in p]\")",
+      "Bash(curl -s -X POST https://socra-backend-production.up.railway.app/sessions/ -H \"Content-Type: application/json\" -d \"{\\\\\"idea\\\\\": \\\\\"test\\\\\"}\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Phase:', d.get\\('phase'\\)\\); print\\('Response:', d.get\\('conversation_history',[]\\)[1]['content'][:120] if len\\(d.get\\('conversation_history',[]\\)\\) > 1 else 'EMPTY'\\)\")",
+      "Bash(curl -s -N -X POST https://socra-backend-production.up.railway.app/sessions/37f67b2d-d1e5-4927-b053-33f8c2d4ec58/message/stream -H \"Content-Type: application/json\" -d \"{\\\\\"content\\\\\": \\\\\"I want students to never miss deadlines\\\\\"}\" --max-time 25)",
+      "Bash(python -c ' *)",
+      "Bash(curl -s -N -X POST \"https://socra-backend-production.up.railway.app/sessions/37f67b2d-d1e5-4927-b053-33f8c2d4ec58/message/stream\" -H \"Content-Type: application/json\" -d \"{\\\\\"content\\\\\": \\\\\"students want deadline reminders\\\\\"}\" --max-time 30)"
     ]
   }
 }
