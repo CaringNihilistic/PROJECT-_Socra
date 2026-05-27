@@ -1,21 +1,22 @@
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.responses import StreamingResponse, HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
 from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, generate_pitch_deck_html, generate_debate, stream_tribunal_turn, generate_tribunal_verdicts
-from api.routes.sessions import _serialize
+from api.routes.sessions import _serialize, _check_session_access
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
 
 
 class MessageRequest(BaseModel):
-    content: str
+    content: str = Field(..., min_length=1, max_length=2000)
 
 
 async def _process_message(session, req_content: str, db: AsyncSession):
@@ -80,12 +81,16 @@ async def _generate_masterplan_sync(conversation_history: list) -> str:
 
 @router.post("/{session_id}/message")
 async def send_message(
-    session_id: str, req: MessageRequest, db: AsyncSession = Depends(get_db)
+    session_id: str,
+    req: MessageRequest,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
 ):
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
 
     serialized, message_text, refusal, _choices = await _process_message(session, req.content, db)
     return {**serialized, "latest_response": message_text, "refusal": refusal}
@@ -93,12 +98,16 @@ async def send_message(
 
 @router.post("/{session_id}/message/stream")
 async def send_message_stream(
-    session_id: str, req: MessageRequest, db: AsyncSession = Depends(get_db)
+    session_id: str,
+    req: MessageRequest,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
 ):
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
 
     # Capture all session state before entering the async generator
     initial_idea = session.initial_idea
@@ -261,11 +270,16 @@ async def send_message_stream(
 
 
 @router.post("/{session_id}/pitch-deck")
-async def create_pitch_deck(session_id: str, db: AsyncSession = Depends(get_db)):
+async def create_pitch_deck(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
     if not session.masterplan:
         raise HTTPException(400, "Masterplan must be generated before creating a pitch deck")
 
@@ -287,11 +301,16 @@ async def create_pitch_deck(session_id: str, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/{session_id}/pitch-deck/html", response_class=HTMLResponse)
-async def export_pitch_deck_html(session_id: str, db: AsyncSession = Depends(get_db)):
+async def export_pitch_deck_html(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
     if not session.pitch_deck:
         raise HTTPException(400, "Generate the pitch deck first")
 
@@ -315,12 +334,17 @@ async def export_pitch_deck_html(session_id: str, db: AsyncSession = Depends(get
 
 
 @router.post("/{session_id}/unlock")
-async def unlock_masterplan(session_id: str, db: AsyncSession = Depends(get_db)):
+async def unlock_masterplan(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
     """Generate masterplan for a session that has been paid for."""
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
     if not session.paid:
         raise HTTPException(402, "Payment required to unlock masterplan")
     if session.masterplan:
@@ -386,11 +410,16 @@ async def unlock_masterplan(session_id: str, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/{session_id}/debate")
-async def create_debate(session_id: str, db: AsyncSession = Depends(get_db)):
+async def create_debate(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
     if not session.masterplan:
         raise HTTPException(400, "Masterplan must be generated before running a debate")
 
@@ -412,12 +441,16 @@ async def create_debate(session_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/{session_id}/tribunal/message")
 async def send_tribunal_message(
-    session_id: str, req: MessageRequest, db: AsyncSession = Depends(get_db)
+    session_id: str,
+    req: MessageRequest,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
 ):
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
 
     tribunal_history = list(session.tribunal_history or [])
     round_number = len(tribunal_history) // 4 + 1
@@ -476,12 +509,17 @@ async def send_tribunal_message(
 
 
 @router.post("/{session_id}/tribunal/unlock")
-async def unlock_tribunal_verdicts(session_id: str, db: AsyncSession = Depends(get_db)):
+async def unlock_tribunal_verdicts(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
     """Generate verdicts for a tribunal_paid session (idempotent)."""
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
     if not session.tribunal_paid:
         raise HTTPException(402, "Payment required to unlock tribunal verdicts")
 

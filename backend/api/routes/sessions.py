@@ -1,9 +1,9 @@
 import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Header
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, update
-from pydantic import BaseModel
 
 from db.database import get_db
 from db.models import Session
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
 class CreateSessionRequest(BaseModel):
-    idea: str
+    idea: str = Field(..., min_length=1, max_length=2000)
     mode: str = "standard"  # "standard" | "tribunal"
 
 
@@ -30,7 +30,6 @@ class AssumptionUpdateRequest(BaseModel):
 
 
 def _normalize_assumption(a) -> dict:
-    """Ensure assumption is always {text, status} — handles legacy string format."""
     if isinstance(a, str):
         return {"text": a, "status": "unknown"}
     return a
@@ -88,6 +87,16 @@ def _serialize_summary(session: Session) -> dict:
     }
 
 
+async def _check_session_access(session: Session, authorization: Optional[str]) -> None:
+    """Raise 403 if an authenticated session is accessed by a different user.
+    Anonymous sessions (user_id=None) are accessible by anyone who knows the UUID."""
+    if not session.user_id:
+        return
+    requesting_user = await get_user_id(authorization)
+    if requesting_user != session.user_id:
+        raise HTTPException(403, "Access denied")
+
+
 @router.get("/")
 async def list_sessions(
     db: AsyncSession = Depends(get_db),
@@ -113,7 +122,6 @@ async def create_session(
 ):
     user_id = await get_user_id(authorization)
 
-    # Tribunal sessions skip the Socratic LLM — TribunalPage drives the flow
     if req.mode == "tribunal":
         session = Session(
             id=str(uuid.uuid4()),
@@ -165,22 +173,32 @@ async def create_session(
 
 
 @router.get("/{session_id}")
-async def get_session(session_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Session).where(Session.id == session_id))
-    session = result.scalar_one_or_none()
-    if not session:
-        raise HTTPException(404, "Session not found")
-    return _serialize(session)
-
-
-@router.patch("/{session_id}/assumptions")
-async def update_assumption_status(
-    session_id: str, req: AssumptionUpdateRequest, db: AsyncSession = Depends(get_db)
+async def get_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
 ):
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
+    return _serialize(session)
+
+
+@router.patch("/{session_id}/assumptions")
+async def update_assumption_status(
+    session_id: str,
+    req: AssumptionUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
+
     if req.status not in ("unknown", "validated", "disproved"):
         raise HTTPException(400, "Invalid status")
 

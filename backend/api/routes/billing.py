@@ -1,5 +1,6 @@
 import hmac
 import hashlib
+from urllib.parse import urlparse
 import razorpay
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,12 @@ from pydantic import BaseModel
 from db.database import get_db
 from db.models import Session
 from core.config import settings
+
+_ALLOWED_CALLBACK_HOSTS = {
+    "localhost",
+    "127.0.0.1",
+    "socra-production.up.railway.app",
+}
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -25,8 +32,19 @@ class CheckoutRequest(BaseModel):
     mode: str = "standard"  # "standard" | "tribunal"
 
 
+def _validate_callback_url(url: str) -> None:
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname or ""
+    except Exception:
+        raise HTTPException(400, "Invalid success_url")
+    if host not in _ALLOWED_CALLBACK_HOSTS:
+        raise HTTPException(400, "Invalid success_url domain")
+
+
 @router.post("/checkout")
 async def create_checkout(req: CheckoutRequest, db: AsyncSession = Depends(get_db)):
+    _validate_callback_url(req.success_url)
     result = await db.execute(select(Session).where(Session.id == req.session_id))
     session = result.scalar_one_or_none()
     if not session:

@@ -1,5 +1,6 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Header
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from datetime import datetime, timedelta, timezone
@@ -8,12 +9,13 @@ import httpx
 from db.database import get_db
 from db.models import Session as DBSession
 from core.config import settings
+from api.routes.sessions import _check_session_access
 
 router = APIRouter(tags=["followup"])
 
 
 class FollowUpEmailRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 
 @router.post("/sessions/{session_id}/follow-up")
@@ -21,12 +23,14 @@ async def save_follow_up_email(
     session_id: str,
     req: FollowUpEmailRequest,
     db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
 ):
     result = await db.execute(select(DBSession).where(DBSession.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    session.follow_up_email = req.email
+    await _check_session_access(session, authorization)
+    session.follow_up_email = str(req.email)
     await db.commit()
     return {"ok": True}
 
