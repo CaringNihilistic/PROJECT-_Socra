@@ -48,6 +48,12 @@ async def init_db():
         await conn.execute(text(
             "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS tribunal_paid BOOLEAN DEFAULT FALSE"
         ))
+        await conn.execute(text(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS follow_up_email VARCHAR(320)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS follow_up_sent BOOLEAN DEFAULT FALSE"
+        ))
 
 
 async def get_db():

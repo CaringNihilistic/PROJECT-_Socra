@@ -8,6 +8,7 @@ import type { AgentReport, Assumption } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
 import { PitchDeckView } from './PitchDeckView'
 import { DebateView } from './DebateView'
+import { FollowUpEmailCapture } from './FollowUpEmailCapture'
 import { CLERK_ENABLED } from '../lib/auth'
 
 function SessionAuthButton() {
@@ -604,6 +605,11 @@ export function SessionPage() {
         {/* Devil's Advocate — appears after masterplan */}
         {masterplan && devilReport && (
           <DevilsAdvocateCard report={devilReport} />
+        )}
+
+        {/* 90-day follow-up email capture — shown after masterplan is unlocked */}
+        {masterplan && (
+          <FollowUpEmailCapture sessionId={session.id} />
         )}
 
         {/* Pitch Deck — generated on demand, toggled by button */}

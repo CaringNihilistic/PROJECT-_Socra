@@ -172,6 +172,7 @@ interface SessionStore {
   verifyAndUnlock: (checkoutId: string, sessionId: string) => Promise<void>
   createTribunalCheckout: () => Promise<string | null>
   verifyAndUnlockTribunal: (paymentLinkId: string, sessionId: string) => Promise<void>
+  saveFollowUpEmail: (sessionId: string, email: string) => Promise<void>
   clearSession: () => void
 }
 
@@ -586,6 +587,15 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       )
       set((s) => ({ session: s.session ? { ...s.session, pitch_deck: data } : null }))
     } catch { /* silently fail */ }
+  },
+
+  saveFollowUpEmail: async (sessionId: string, email: string) => {
+    const { authToken } = get()
+    await fetch(`${API_URL}/sessions/${sessionId}/follow-up`, {
+      method: 'POST',
+      headers: authHeaders(authToken),
+      body: JSON.stringify({ email }),
+    })
   },
 
   clearSession: () => set({

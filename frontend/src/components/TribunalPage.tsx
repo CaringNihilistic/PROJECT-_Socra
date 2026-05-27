@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSessionStore, type TribunalTurn } from '../store/sessionStore'
 import { TribunalCard } from './TribunalCard'
+import { FollowUpEmailCapture } from './FollowUpEmailCapture'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
@@ -257,6 +258,10 @@ export function TribunalPage() {
           </div>
 
           <TribunalCard idea={session.initial_idea} verdicts={verdicts} sessionId={session.id} />
+
+          <div style={{ width: '100%', maxWidth: '600px' }}>
+            <FollowUpEmailCapture sessionId={session.id} />
+          </div>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'center' }}>
             <a

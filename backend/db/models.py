@@ -34,6 +34,9 @@ class Session(Base):
     tribunal_verdicts = Column(JSON, nullable=True)
     tribunal_paid = Column(Boolean, default=False)
 
+    follow_up_email = Column(String(320), nullable=True)
+    follow_up_sent = Column(Boolean, default=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
