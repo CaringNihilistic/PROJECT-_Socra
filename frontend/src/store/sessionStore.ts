@@ -386,23 +386,15 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             const updatedHistory: TribunalTurn[] = payload.tribunal_history
             set((s) => ({
               tribunalRound: tribunalRound + 1,
+              tribunalPersonaStreams: {},
               session: s.session
                 ? { ...s.session, tribunal_history: updatedHistory }
                 : null,
             }))
 
           } else if (payload.type === 'payment_required') {
-            // Update history from session before gating
-            const updatedHistory = (session.tribunal_history ?? []).concat(
-              [{ role: 'user' as const, content }],
-            )
-            set((s) => ({
-              tribunalPaymentRequired: true,
-              tribunalRound: tribunalRound + 1,
-              session: s.session
-                ? { ...s.session, tribunal_history: updatedHistory }
-                : null,
-            }))
+            // round_complete already fired — history is up to date in session state
+            set({ tribunalPaymentRequired: true })
 
           } else if (payload.type === 'tribunal_verdict') {
             set((s) => ({

@@ -449,6 +449,9 @@ async def send_tribunal_message(
                 )
                 await db.commit()
 
+                # Always emit round_complete so frontend has the full history
+                yield f"data: {json.dumps({'type': 'round_complete', 'round': round_number, 'tribunal_history': updated_history})}\n\n"
+
                 if round_number >= 4:
                     from core.config import settings as _cfg
                     billing_enabled = bool(_cfg.razorpay_key_id and _cfg.razorpay_key_secret)
@@ -464,9 +467,6 @@ async def send_tribunal_message(
                     )
                     await db.commit()
                     yield f"data: {json.dumps({'type': 'tribunal_verdict', 'verdicts': verdicts})}\n\n"
-                    return
-
-                yield f"data: {json.dumps({'type': 'round_complete', 'round': round_number, 'tribunal_history': updated_history})}\n\n"
 
     return StreamingResponse(
         event_stream(),

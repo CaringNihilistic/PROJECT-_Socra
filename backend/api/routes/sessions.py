@@ -109,6 +109,23 @@ async def create_session(
 ):
     user_id = await get_user_id(authorization)
 
+    # Tribunal sessions skip the Socratic LLM — TribunalPage drives the flow
+    if req.mode == "tribunal":
+        session = Session(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            initial_idea=req.idea,
+            mode="tribunal",
+            conversation_history=[],
+            assumptions=[],
+            phase="intake",
+            turn_number=0,
+        )
+        db.add(session)
+        await db.commit()
+        await db.refresh(session)
+        return {**_serialize(session), "choices": []}
+
     initial_history = [{"role": "user", "content": req.idea}]
     initial_scores = {k: 0.0 for k in ("problem_clarity", "scale_constraints", "tech_context", "success_definition", "risk_awareness")}
 
