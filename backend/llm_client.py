@@ -1602,9 +1602,15 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
     # Phase 2: run specialist agents
     agent_reports: list[dict] = []
     if settings.anthropic_api_key or settings.google_api_key:
-        # Anthropic/Google have no TPM concern — run each agent individually for best quality
-        for agent_cfg in SPECIALIST_AGENTS:
-            report = await run_specialist_agent(agent_cfg, conversation_history, web_context=web_context)
+        # Run all 5 agents concurrently — yield each report as it finishes
+        tasks = [
+            asyncio.create_task(
+                run_specialist_agent(agent_cfg, conversation_history, web_context=web_context)
+            )
+            for agent_cfg in SPECIALIST_AGENTS
+        ]
+        for coro in asyncio.as_completed(tasks):
+            report = await coro
             agent_reports.append(report)
             yield {"type": "agent_report", "report": report}
     else:
