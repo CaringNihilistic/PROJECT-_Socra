@@ -615,28 +615,55 @@ export function LandingPage() {
             <div className="flex flex-col gap-1.5">
               {sessionHistory.slice(0, 6).map((s) => {
                 const isSelected = s.id === compareId
+                const isTribunal = s.mode === 'tribunal'
+                const gradeColor: Record<string, string> = {
+                  GREENLIT: '#34d399', STRONG: '#f59e0b', CHALLENGED: '#e85d26', REJECTED: '#dc2626',
+                }
+                const tColor = s.tribunal_verdict_grade ? gradeColor[s.tribunal_verdict_grade] ?? '#f59e0b' : '#f59e0b'
                 return (
                   <div key={s.id}
                     className="group flex items-center gap-2 rounded-xl border transition-all"
                     style={{
-                      borderColor: isSelected ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.06)',
+                      borderColor: isSelected ? 'rgba(245,158,11,0.35)' : isTribunal ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.06)',
                       background: isSelected ? 'rgba(245,158,11,0.05)' : 'transparent',
                     }}>
                     <button onClick={() => resumeSession(s.id)} disabled={isLoading}
                       className="flex-1 text-left px-4 py-3 flex items-center gap-3 min-w-0">
+                      {isTribunal && (
+                        <span className="text-[9px] font-mono font-bold tracking-widest px-1.5 py-0.5 rounded border flex-shrink-0"
+                          style={{ color: '#f59e0b', borderColor: 'rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.06)' }}>
+                          ⚖️
+                        </span>
+                      )}
                       <p className="flex-1 text-[13px] text-ink-600 group-hover:text-ink-400 transition-colors truncate leading-relaxed">{s.initial_idea}</p>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {s.has_masterplan && <span className="text-[10px] font-mono text-emerald-500/60">✓</span>}
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border" style={{
-                          color: PHASE_COLORS[s.phase] ?? '#55545c',
-                          borderColor: `${PHASE_COLORS[s.phase] ?? '#55545c'}30`,
-                          background: `${PHASE_COLORS[s.phase] ?? '#55545c'}08`,
-                        }}>
-                          {Math.round(s.total_score * 100)}%
-                        </span>
+                        {isTribunal ? (
+                          s.tribunal_verdict_grade ? (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border" style={{
+                              color: tColor, borderColor: `${tColor}35`, background: `${tColor}10`,
+                            }}>
+                              {s.tribunal_verdict_grade}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono text-amber-500/50">
+                              {s.tribunal_rounds_done ?? 0}/4 rounds
+                            </span>
+                          )
+                        ) : (
+                          <>
+                            {s.has_masterplan && <span className="text-[10px] font-mono text-emerald-500/60">✓</span>}
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border" style={{
+                              color: PHASE_COLORS[s.phase] ?? '#55545c',
+                              borderColor: `${PHASE_COLORS[s.phase] ?? '#55545c'}30`,
+                              background: `${PHASE_COLORS[s.phase] ?? '#55545c'}08`,
+                            }}>
+                              {Math.round(s.total_score * 100)}%
+                            </span>
+                          </>
+                        )}
                       </div>
                     </button>
-                    {s.has_masterplan && (
+                    {!isTribunal && s.has_masterplan && (
                       <button
                         onClick={() => handleCompareClick(s.id)}
                         title={isSelected ? 'Deselect' : compareId ? 'Compare with selected' : 'Select to compare'}

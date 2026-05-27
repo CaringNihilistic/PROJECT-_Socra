@@ -74,6 +74,7 @@ def _serialize_summary(session: Session) -> dict:
         "success_definition": session.success_definition,
         "risk_awareness": session.risk_awareness,
     }
+    tribunal_history = session.tribunal_history or []
     return {
         "id": session.id,
         "initial_idea": session.initial_idea,
@@ -81,6 +82,9 @@ def _serialize_summary(session: Session) -> dict:
         "total_score": compute_total_score(scores),
         "has_masterplan": session.masterplan is not None,
         "created_at": session.created_at.isoformat() if session.created_at else None,
+        "mode": session.mode or "standard",
+        "tribunal_rounds_done": len(tribunal_history) // 4,
+        "tribunal_verdict_grade": (session.tribunal_verdicts or {}).get("grade"),
     }
 
 

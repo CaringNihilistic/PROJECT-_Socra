@@ -115,6 +115,9 @@ export interface SessionSummary {
   total_score: number
   has_masterplan: boolean
   created_at: string | null
+  mode?: string
+  tribunal_rounds_done?: number
+  tribunal_verdict_grade?: string | null
 }
 
 const LS_KEY = 'socra_recent_sessions'
@@ -233,6 +236,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         total_score: data.total_score,
         has_masterplan: !!data.masterplan,
         created_at: new Date().toISOString(),
+        mode: data.mode ?? 'standard',
+        tribunal_rounds_done: Math.floor((data.tribunal_history?.length ?? 0) / 4),
+        tribunal_verdict_grade: data.tribunal_verdicts?.grade ?? null,
       }
       saveToLocalStorage(summary)
       set((s) => ({ sessionHistory: [summary, ...s.sessionHistory.filter((x) => x.id !== data.id)] }))
@@ -320,6 +326,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
               total_score: updated.total_score,
               has_masterplan: !!updated.masterplan,
               created_at: new Date().toISOString(),
+              mode: updated.mode ?? 'standard',
             })
           }
         }
@@ -517,6 +524,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
               total_score: updated.total_score,
               has_masterplan: !!updated.masterplan,
               created_at: new Date().toISOString(),
+              mode: updated.mode ?? 'standard',
             })
           }
         }
