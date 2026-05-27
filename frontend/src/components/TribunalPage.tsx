@@ -2,6 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { useSessionStore, type TribunalTurn } from '../store/sessionStore'
 import { TribunalCard } from './TribunalCard'
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isMobile
+}
+
 const PERSONAS = [
   { key: 'investor',   name: 'The Investor',   icon: '💰', color: '#34d399', role: 'Series A investor' },
   { key: 'customer',   name: 'The Customer',   icon: '👤', color: '#5590e8', role: 'Your first buyer' },
@@ -182,7 +192,9 @@ export function TribunalPage() {
   const [input, setInput] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [autoSent, setAutoSent] = useState(false)
+  const [selectedTab, setSelectedTab] = useState(0)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const isMobile = useIsMobile()
 
   const tribunalHistory: TribunalTurn[] = session?.tribunal_history ?? []
   const verdicts = session?.tribunal_verdicts ?? null
@@ -194,6 +206,13 @@ export function TribunalPage() {
     setAutoSent(true)
     sendTribunalMessage(session.initial_idea)
   }, [session?.id])
+
+  // On mobile: auto-advance tab to whichever persona is actively streaming
+  useEffect(() => {
+    if (!isMobile || !tribunalActivePersona) return
+    const idx = PERSONAS.findIndex((p) => p.key === tribunalActivePersona)
+    if (idx !== -1) setSelectedTab(idx)
+  }, [isMobile, tribunalActivePersona])
 
   const canSend = !tribunalStreaming && !tribunalPaymentRequired && !verdicts && completedRounds < 4 && input.trim()
 
@@ -291,7 +310,7 @@ export function TribunalPage() {
 
       {/* Header */}
       <div style={{
-        padding: '20px 32px',
+        padding: isMobile ? '14px 16px' : '20px 32px',
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexShrink: 0,
@@ -337,7 +356,7 @@ export function TribunalPage() {
 
       {/* Idea banner */}
       <div style={{
-        padding: '12px 32px',
+        padding: isMobile ? '10px 16px' : '12px 32px',
         borderBottom: '1px solid rgba(255,255,255,0.04)',
         background: 'rgba(255,255,255,0.015)',
         flexShrink: 0,
@@ -352,20 +371,57 @@ export function TribunalPage() {
         </p>
       </div>
 
-      {/* Persona columns */}
+      {/* Mobile: persona tab switcher */}
+      {isMobile && (
+        <div style={{
+          display: 'flex', gap: '8px', padding: '12px 16px 0',
+          flexShrink: 0, overflowX: 'auto',
+        }}>
+          {PERSONAS.map((p, i) => {
+            const isActive = tribunalActivePersona === p.key
+            const isSelected = selectedTab === i
+            return (
+              <button
+                key={p.key}
+                onClick={() => setSelectedTab(i)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '8px 14px', borderRadius: '10px', border: '1px solid',
+                  borderColor: isSelected ? `${p.color}50` : 'rgba(255,255,255,0.08)',
+                  background: isSelected ? `${p.color}12` : 'transparent',
+                  color: isSelected ? p.color : 'rgba(255,255,255,0.35)',
+                  fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span>{p.icon}</span>
+                <span>{p.name.replace('The ', '')}</span>
+                {isActive && (
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: p.color, boxShadow: `0 0 6px ${p.color}` }} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Persona columns — desktop: 3-up, mobile: single selected */}
       <div style={{
         flex: 1,
-        padding: '24px 24px 0',
+        padding: isMobile ? '12px 12px 0' : '24px 24px 0',
         display: 'flex',
         gap: '16px',
         overflow: 'hidden',
       }}>
-        {PERSONAS.map((p) => {
+        {PERSONAS.map((p, i) => {
           const colHistory = tribunalHistory.filter(
             (t) => t.role === 'user' || t.persona === p.key
           )
           const streamText = tribunalPersonaStreams[p.key] ?? ''
           const isActive = tribunalActivePersona === p.key
+
+          if (isMobile && i !== selectedTab) return null
 
           return (
             <PersonaColumn
@@ -486,7 +542,7 @@ export function TribunalPage() {
             </p>
           )}
 
-          <div style={{ display: 'flex', gap: '10px', maxWidth: '900px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', gap: '8px', maxWidth: '900px', margin: '0 auto' }}>
             <textarea
               ref={inputRef}
               value={input}
