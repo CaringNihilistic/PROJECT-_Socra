@@ -85,7 +85,7 @@ async def send_follow_up_emails(
                     "Content-Type": "application/json",
                 },
                 json={
-                    "from": "Socra <noreply@socra.app>",
+                    "from": "Socra <onboarding@resend.dev>",
                     "to": [sess.follow_up_email],
                     "subject": "90 days later — what happened to your idea?",
                     "html": html,
