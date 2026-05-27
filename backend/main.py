@@ -52,22 +52,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    import os
     await init_db()
-    _raw_google = os.environ.get("GOOGLE_API_KEY", "")
-    _raw_groq = os.environ.get("GROQ_API_KEY", "")
-    print(f"🔑 ENV check — GOOGLE_API_KEY: {'SET(' + str(len(_raw_google)) + ' chars)' if _raw_google else 'EMPTY'}, GROQ_API_KEY: {'SET' if _raw_groq else 'EMPTY'}, STUB_MODE: {os.environ.get('STUB_MODE', 'not set')}")
-    print(f"🧠 Socra started — Stub mode: {settings.is_stub}")
     if settings.is_stub:
-        print("⚠️  Running in STUB MODE — no real LLM calls.")
+        print("⚠️  Socra: STUB MODE — no real LLM calls")
     elif settings.anthropic_api_key:
-        print("✅ Using Anthropic (Claude Haiku)")
+        print("✅ Socra: LLM ready (Anthropic)")
     elif settings.google_api_key:
-        print("✅ Using Google (Gemini 2.0 Flash)")
+        print("✅ Socra: LLM ready (Google)")
     elif settings.groq_api_key:
-        print("✅ Using Groq (LLaMA 3.3 70B) — rate limits apply")
+        print("✅ Socra: LLM ready (Groq)")
     else:
-        print("⚠️  No API key found — all LLM calls will fail")
+        print("⚠️  Socra: no LLM API key set — calls will fail")
     yield
 
 
@@ -121,7 +116,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ---------------------------------------------------------------------------
 @app.get("/health")
 async def health():
-    import os
     from sqlalchemy import text
 
     db_ok = False
@@ -135,14 +129,5 @@ async def health():
     return {
         "status": "ok" if db_ok else "degraded",
         "db": "ok" if db_ok else "error",
-        "stub_mode": settings.is_stub,
         "version": "0.2.2",
-        "llm": (
-            "anthropic" if settings.anthropic_api_key else
-            "google" if settings.google_api_key else
-            "groq" if settings.groq_api_key else
-            "none"
-        ),
-        "env_google_key_set": bool(os.environ.get("GOOGLE_API_KEY")),
-        "settings_google_key_set": bool(settings.google_api_key),
     }
