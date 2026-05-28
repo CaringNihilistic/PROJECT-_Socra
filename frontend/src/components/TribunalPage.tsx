@@ -138,8 +138,8 @@ function PersonaColumn({
           return null
         })}
 
-        {/* Streaming text */}
-        {isStreaming && isActive && streamText && (
+        {/* Streaming text — visible while active AND after persona_done (before round_complete clears it) */}
+        {streamText && (
           <div style={{ alignSelf: 'flex-start', maxWidth: '95%' }}>
             <div style={{
               padding: '10px 14px',
@@ -151,13 +151,13 @@ function PersonaColumn({
               fontFamily: "'Instrument Sans', sans-serif",
             }}>
               {streamText}
-              <span style={{ opacity: 0.5, animation: 'blink 1s step-start infinite' }}>▋</span>
+              {isActive && <span style={{ opacity: 0.5, animation: 'blink 1s step-start infinite' }}>▋</span>}
             </div>
           </div>
         )}
 
-        {/* Waiting indicator */}
-        {isStreaming && !isActive && !streamText && (
+        {/* Waiting indicator — only show for the next persona in line, not all at once */}
+        {isStreaming && isActive && !streamText && (
           <div style={{
             alignSelf: 'flex-start',
             padding: '10px 14px',

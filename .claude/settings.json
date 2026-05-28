@@ -35,7 +35,13 @@
       "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/systematic-debugging/SKILL.md\" > \"c:/PROJECT _STARTUP/.claude/commands/systematic-debugging.md\" && echo \"ok\")",
       "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/brainstorming/SKILL.md\" > \"c:/PROJECT _STARTUP/.claude/commands/brainstorming.md\" && echo \"ok\")",
       "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/requesting-code-review/SKILL.md\" > \"c:/PROJECT _STARTUP/.claude/commands/requesting-code-review.md\" && echo \"ok\")",
-      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/verification-before-completion/SKILL.md\" > \"c:/PROJECT _STARTUP/.claude/commands/verification-before-completion.md\" && echo \"ok\")"
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/verification-before-completion/SKILL.md\" > \"c:/PROJECT _STARTUP/.claude/commands/verification-before-completion.md\" && echo \"ok\")",
+      "WebFetch(domain:socra-production.up.railway.app)",
+      "Bash(curl -s \"https://socra-production.up.railway.app/sessions/76895d92-ecaf-4ceb-8805-564c24f73e6b\")",
+      "Bash(curl -s \"https://socra-production.up.railway.app/sessions/76895d92-ecaf-4ceb-8805-564c24f73e6b\" -H \"Accept: application/json\" -H \"Content-Type: application/json\")",
+      "Bash(curl -s \"https://socra-production.up.railway.app/assets/index-325itTAO.js\")",
+      "Bash(curl -s \"https://socra-backend-production.up.railway.app/sessions/76895d92-ecaf-4ceb-8805-564c24f73e6b\")",
+      "Bash(python3 -m json.tool)"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",

@@ -1229,7 +1229,19 @@ async def generate_tribunal_verdicts(tribunal_history: list[dict], idea: str) ->
     import logging as _log
     verdicts: dict = {}
 
+    # Build the full cross-panel transcript once — all judges see all questions and answers
+    full_transcript = []
+    for turn in tribunal_history:
+        if turn["role"] == "user":
+            full_transcript.append(f"FOUNDER: {turn['content']}")
+        else:
+            pname = next((p["name"] for p in TRIBUNAL_PERSONAS if p["key"] == turn.get("persona")), "Judge")
+            full_transcript.append(f"{pname.upper()}: {turn['content']}")
+    transcript_text = "\n\n".join(full_transcript)
+
     for persona in TRIBUNAL_PERSONAS:
+        # Each judge still gets their own dialogue as the conversation thread (for role context)
+        # but also sees the full cross-panel transcript for deliberation
         persona_msgs: list[dict] = []
         for turn in tribunal_history:
             if turn["role"] == "user":
@@ -1239,25 +1251,46 @@ async def generate_tribunal_verdicts(tribunal_history: list[dict], idea: str) ->
 
         verdict_system = f"""{persona["prompt"]}
 
-You have completed the full interrogation (4 rounds). Based on everything the founder said, deliver your final verdict.
+You have completed the full 4-round interrogation. Before delivering your verdict, review the complete transcript below — including what the other judges asked and what the founder answered to them. Use all of it as evidence.
 
-Return ONLY valid JSON — no markdown, no explanation:
+FULL TRIBUNAL TRANSCRIPT:
+{transcript_text}
+
+Now deliver your verdict.
+
+SCORING RUBRIC (apply strictly):
+- 80–100: Exceptionally convincing. Specific numbers, clear moat, obvious why now. PASS.
+- 65–79: Solid but gaps remain. More good than bad. PASS.
+- 50–64: Mixed. Real potential but unresolved risks. FAIL.
+- 35–49: Weak. Vague answers, no defensibility, unclear path. FAIL.
+- 0–34: Unconvincing. No evidence, generic claims, major red flags. FAIL.
+
+RULES:
+- Score and pass/fail MUST be consistent: score >= 65 → pass: true, score < 65 → pass: false
+- Base your score on the actual answers, not the idea itself
+- If the founder gave specific numbers (CAC, LTV, market size), that raises the score
+- If answers were vague or dodged questions, that lowers the score
+
+Think through your reasoning first, then return ONLY valid JSON:
 {{
   "pass": true or false,
   "score": integer 0-100,
-  "verdict": "One specific sentence referencing a real claim or number from this conversation. Not generic advice.",
-  "key_insight": "One sentence — the single thing that would change your verdict if it were different."
-}}
-
-A pass means you are genuinely convinced. A fail means you are not. Do not pass to be kind."""
+  "verdict": "One sentence referencing a specific claim or number the founder made. Not generic.",
+  "key_insight": "One sentence — the single thing that would flip your verdict if it were different."
+}}"""
 
         try:
-            raw = await _call_real_llm(verdict_system, persona_msgs, max_tokens=300, json_mode=True)
+            raw = await _call_real_llm(verdict_system, persona_msgs, max_tokens=500, json_mode=True)
             data = json.loads(raw)
             data.setdefault("pass", False)
             data.setdefault("score", 50)
             data.setdefault("verdict", "Insufficient context to form a clear verdict.")
             data.setdefault("key_insight", "")
+            # Enforce score/pass consistency: pass requires score >= 60, fail caps at 59
+            if data["pass"] and data["score"] < 60:
+                data["score"] = 60
+            elif not data["pass"] and data["score"] >= 60:
+                data["score"] = 59
             verdicts[persona["key"]] = {
                 "name": persona["name"],
                 "icon": persona["icon"],
