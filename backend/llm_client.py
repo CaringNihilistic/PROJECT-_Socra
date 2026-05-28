@@ -1670,7 +1670,7 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
     if settings.google_api_key:
         yielded = 0
         try:
-            async for token in _stream_google_tokens(system, messages, max_tokens=3000):
+            async for token in _stream_google_tokens(system, safe_msgs, max_tokens=3000):
                 yielded += 1
                 yield token
         except Exception as e:
@@ -1678,8 +1678,7 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
         if yielded > 0:
             return
         _log.getLogger(__name__).warning("Google synthesis returned empty — falling back to Groq")
-    messages = safe_msgs  # use sanitized messages for Groq too
-    async for token in _stream_groq_tokens(system, messages, model="llama-3.3-70b-versatile", max_tokens=3000):
+    async for token in _stream_groq_tokens(system, safe_msgs, model="llama-3.3-70b-versatile", max_tokens=3000):
         yield token
 
 
