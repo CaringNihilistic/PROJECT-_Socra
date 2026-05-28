@@ -224,7 +224,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   createSession: async (idea: string, mode = 'standard') => {
     const { authToken } = get()
-    set({ isLoading: true, sessionError: null })
+    set({ isLoading: true, sessionError: null, paymentRequired: false, tribunalPaymentRequired: false, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isUnlocking: false })
     try {
       const { data } = await axios.post<SessionData>(
         `${API_URL}/sessions/`,
@@ -255,7 +255,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   resumeSession: async (sessionId: string) => {
     const { authToken } = get()
-    set({ isLoading: true })
+    set({ isLoading: true, paymentRequired: false, tribunalPaymentRequired: false, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isResearching: false, isUnlocking: false })
     try {
       const { data } = await axios.get<SessionData>(`${API_URL}/sessions/${sessionId}`, {
         headers: authHeaders(authToken),
