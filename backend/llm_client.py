@@ -351,6 +351,7 @@ async def _call_groq(system: str, messages: list[dict], max_tokens: int, json_mo
 
 async def _call_anthropic(system: str, messages: list[dict], max_tokens: int) -> str:
     import anthropic
+    import logging as _log
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     response = await client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -358,10 +359,16 @@ async def _call_anthropic(system: str, messages: list[dict], max_tokens: int) ->
         system=system,
         messages=messages,
     )
+    u = response.usage
+    cost = (u.input_tokens * 0.80 + u.output_tokens * 4.00) / 1_000_000
+    _log.getLogger("usage").info(
+        "anthropic | in=%d out=%d cost=$%.5f", u.input_tokens, u.output_tokens, cost
+    )
     return response.content[0].text
 
 
 async def _call_google(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
+    import logging as _log
     from openai import AsyncOpenAI
     client = AsyncOpenAI(
         api_key=settings.google_api_key,
@@ -375,6 +382,12 @@ async def _call_google(system: str, messages: list[dict], max_tokens: int, json_
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
     response = await client.chat.completions.create(**kwargs)
+    u = response.usage
+    if u:
+        cost = (u.prompt_tokens * 0.075 + u.completion_tokens * 0.30) / 1_000_000
+        _log.getLogger("usage").info(
+            "google | in=%d out=%d cost=$%.5f", u.prompt_tokens, u.completion_tokens, cost
+        )
     return response.choices[0].message.content or ""
 
 
