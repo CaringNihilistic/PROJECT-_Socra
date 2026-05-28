@@ -638,7 +638,7 @@ export function SessionPage() {
 
         {/* Conversation */}
         <div className="flex flex-col gap-6">
-          {conversation_history.map((msg, i) => (
+          {conversation_history.filter(msg => msg.content?.trim()).map((msg, i) => (
             <div key={i} className={`flex gap-4 fade-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {msg.role === 'assistant' && (
                 <div className="flex-shrink-0 mt-1">
