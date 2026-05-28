@@ -733,7 +733,7 @@ export function SessionPage() {
         {/* Quick reply choices */}
         {currentChoices.length > 0 && !isSending && !masterplan && (
           <div className="flex flex-col gap-2.5">
-            <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Quick reply — click to pre-fill, edit &amp; send</span>
+            <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Suggested answers — click to pre-fill, then edit &amp; send</span>
             <div className="flex flex-wrap gap-2">
               {currentChoices.map((choice, i) => (
                 <button

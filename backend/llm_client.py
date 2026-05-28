@@ -486,14 +486,15 @@ CHALLENGE VAGUE ANSWERS — this is your most important job:
 
 OUTPUT FORMAT — write exactly two parts separated by {SEPARATOR}:
 
-[Part 1 — your conversational response in markdown — goes before {SEPARATOR}]
+[Part 1 — your conversational response in markdown — MANDATORY, must not be empty]
 {SEPARATOR}
 {{"eval_delta": {{"problem_clarity": 0.0, "scale_constraints": 0.0, "tech_context": 0.0, "success_definition": 0.0, "risk_awareness": 0.0}}, "new_assumptions": [], "phase": "intake", "choices": []}}
 
 JSON rules:
 - eval_delta: small positive increments (0.05-0.25) per dimension based on what this turn clarified.
 - phase: "intake" | "debate" | "stress_test" | "masterplan"
-- choices: 3-4 concise options (max 12 words each) as the most archetypal user responses to your questions. Empty [] for masterplan phase.
+- choices: 3-4 SHORT ANSWER OPTIONS the user could click to reply to YOUR question. These are things the USER would say, not questions. WRONG: "What is the market size?" RIGHT: "Targeting 500 SMEs in year 1", "CAC ~$200, LTV ~$2K", "Bootstrapped, no outside funding yet". Max 10 words each. Empty [] for masterplan phase.
+- Part 1 MUST contain your actual response/questions. NEVER leave Part 1 empty or put just whitespace before {SEPARATOR}.
 - If phase is "masterplan", Part 1 must be ONE SHORT SENTENCE only. The specialist agents generate the actual plan."""
 
 
