@@ -177,6 +177,7 @@ interface SessionStore {
   verifyAndUnlockTribunal: (paymentLinkId: string, sessionId: string) => Promise<void>
   devUnlock: () => Promise<void>
   devUnlockTribunal: () => Promise<void>
+  devRerunMasterplan: () => Promise<void>
   saveFollowUpEmail: (sessionId: string, email: string) => Promise<void>
   clearSession: () => void
 }
@@ -666,6 +667,51 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       alert(`Dev unlock failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       set({ isUnlocking: false })
+    }
+  },
+
+  devRerunMasterplan: async () => {
+    const { session, authToken } = get()
+    if (!session) return
+    set({ isUnlocking: true, currentAgentReports: [] })
+    try {
+      await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, { headers: authHeaders(authToken) })
+      set({ paymentRequired: false })
+
+      const response = await fetch(`${API_URL}/sessions/${session.id}/unlock`, {
+        method: 'POST', headers: authHeaders(authToken),
+      })
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      set({ isAnalyzing: true, streamingMessage: '' })
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() ?? ''
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue
+          const payload = JSON.parse(part.slice(6))
+          if (payload.type === 'agent_report') {
+            set((s) => ({ isAnalyzing: true, currentAgentReports: [...s.currentAgentReports, payload.report] }))
+          } else if (payload.type === 'synthesis_token') {
+            set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
+          } else if (payload.type === 'done') {
+            const updated = payload.session
+            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false })
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[devRerunMasterplan] failed:', err)
+      alert(`Re-run failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      set({ isUnlocking: false, isAnalyzing: false })
     }
   },
 

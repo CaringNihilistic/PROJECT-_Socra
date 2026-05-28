@@ -320,7 +320,7 @@ export function SessionPage() {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching, isUnlocking,
     streamError, savedFlash, lastSentMessage,
-    sendMessage, clearSession, generatePitchDeck,
+    sendMessage, clearSession, generatePitchDeck, devUnlock, devRerunMasterplan,
   } = useSessionStore()
 
   const [cardCopied, setCardCopied] = useState(false)
@@ -460,13 +460,25 @@ export function SessionPage() {
               <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-700 mb-1">The Council</div>
               <div className="text-[18px] font-display font-bold text-ink-100">Specialist Analysis</div>
             </div>
-            <button
-              onClick={() => setView('masterplan')}
-              className="px-5 py-2.5 rounded-xl font-mono text-[12px] font-semibold transition-all"
-              style={{ background: 'linear-gradient(135deg, #34d399, #10b981)', color: '#08070a' }}
-            >
-              Masterplan →
-            </button>
+            <div className="flex items-center gap-2">
+              {!BILLING_ENABLED && (
+                <button
+                  onClick={() => devRerunMasterplan()}
+                  disabled={isUnlocking || isAnalyzing}
+                  className="px-3 py-2 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
+                  style={{ background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.2)', color: 'rgba(255,200,0,0.65)' }}
+                >
+                  {isUnlocking || isAnalyzing ? '…' : '[DEV] Re-run'}
+                </button>
+              )}
+              <button
+                onClick={() => setView('masterplan')}
+                className="px-5 py-2.5 rounded-xl font-mono text-[12px] font-semibold transition-all"
+                style={{ background: 'linear-gradient(135deg, #34d399, #10b981)', color: '#08070a' }}
+              >
+                Masterplan →
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -590,6 +602,18 @@ export function SessionPage() {
               Searching the web...
             </span>
           </div>
+        )}
+
+        {/* Dev shortcut: skip straight to masterplan from any turn */}
+        {!BILLING_ENABLED && !masterplan && !isAnalyzing && !isSending && (
+          <button
+            onClick={() => devUnlock()}
+            disabled={isUnlocking}
+            className="self-start px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
+            style={{ background: 'rgba(255,200,0,0.05)', border: '1px solid rgba(255,200,0,0.15)', color: 'rgba(255,200,0,0.5)' }}
+          >
+            {isUnlocking ? '…' : '[DEV] Skip to masterplan'}
+          </button>
         )}
 
         {/* Council streaming indicator (agents loading, no masterplan yet) */}
