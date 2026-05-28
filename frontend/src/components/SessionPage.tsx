@@ -7,7 +7,7 @@ import { useSessionStore } from '../store/sessionStore'
 import type { AgentReport, Assumption } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
 import { PitchDeckView } from './PitchDeckView'
-import { DebateView } from './DebateView'
+
 import { FollowUpEmailCapture } from './FollowUpEmailCapture'
 import { CLERK_ENABLED } from '../lib/auth'
 
@@ -174,14 +174,6 @@ function AgentReportCard({ report, isNew }: { report: AgentReport; isNew?: boole
   )
 }
 
-function AgentReportSkeleton() {
-  return (
-    <div className="rounded-xl border border-ink-800/40 px-4 py-3 flex items-center gap-3">
-      <div className="w-4 h-4 rounded-full border-2 border-ink-700/60 border-t-transparent animate-spin flex-shrink-0" />
-      <span className="text-[11px] font-mono text-ink-800">Analyzing...</span>
-    </div>
-  )
-}
 
 function DevilsAdvocateCard({ report }: { report: AgentReport }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -265,7 +257,6 @@ function PaywallModal() {
             { icon: '📄', label: "Chairman's Masterplan", sub: '2,000+ word strategic & technical verdict' },
             { icon: '💡', label: 'Devil\'s advocate', sub: 'The 5 reasons this fails' },
             { icon: '🎤', label: 'Investor pitch deck', sub: '10-slide narrative, exportable HTML' },
-            { icon: '⚔', label: 'Bull vs Bear debate', sub: '3-round AI debate on your idea' },
           ].map(({ icon, label, sub }) => (
             <div key={label} className="flex items-start gap-3">
               <span className="text-base flex-shrink-0 mt-0.5">{icon}</span>
@@ -323,14 +314,13 @@ export function SessionPage() {
   const [copied, setCopied] = useState(false)
   const [deckLoading, setDeckLoading] = useState(false)
   const [showDeck, setShowDeck] = useState(false)
-  const [debateLoading, setDebateLoading] = useState(false)
-  const [showDebate, setShowDebate] = useState(false)
+
   const [view, setView] = useState<'chat' | 'council' | 'masterplan'>('chat')
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching, isUnlocking,
     streamError, savedFlash, lastSentMessage,
-    sendMessage, clearSession, generatePitchDeck, generateDebate,
+    sendMessage, clearSession, generatePitchDeck,
   } = useSessionStore()
 
   const [cardCopied, setCardCopied] = useState(false)
@@ -364,7 +354,7 @@ export function SessionPage() {
 
   if (!session) return null
 
-  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports, pitch_deck, debate } = session
+  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports, pitch_deck } = session
 
   const phaseColor = PHASE_COLOR[phase] || '#8a8578'
   const phaseIdx = PHASE_STEPS.findIndex(p => p.key === phase)
@@ -373,7 +363,6 @@ export function SessionPage() {
   const displayReports = agent_reports?.length ? agent_reports : currentAgentReports
   const specialistReports = displayReports.filter(r => r.key !== 'devils_advocate')
   const devilReport = displayReports.find(r => r.key === 'devils_advocate')
-  const pendingAgentCount = isAnalyzing ? Math.max(0, TOTAL_AGENTS - specialistReports.length) : 0
 
   const handleSend = async () => {
     const trimmed = input.trim()
@@ -576,16 +565,6 @@ export function SessionPage() {
             </div>
           </div>
 
-          <button
-            onClick={async () => {
-              if (debate) { setShowDebate(v => !v); return }
-              setDebateLoading(true); await generateDebate(); setDebateLoading(false); setShowDebate(true)
-            }}
-            disabled={debateLoading}
-            className="text-[11px] font-mono text-indigo-400/50 hover:text-indigo-300 border border-indigo-500/15 hover:border-indigo-500/40 px-3 py-2 rounded-lg transition-all self-start disabled:opacity-40"
-          >{debateLoading ? '…' : debate ? (showDebate ? '▲ Hide Debate' : '▼ Bull vs Bear Debate') : '⚔ Generate Bull vs Bear Debate'}</button>
-
-          {showDebate && debate && <DebateView debate={debate} />}
 
           <div className="h-6" />
         </div>
