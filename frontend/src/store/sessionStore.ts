@@ -172,6 +172,8 @@ interface SessionStore {
   verifyAndUnlock: (checkoutId: string, sessionId: string) => Promise<void>
   createTribunalCheckout: () => Promise<string | null>
   verifyAndUnlockTribunal: (paymentLinkId: string, sessionId: string) => Promise<void>
+  devUnlock: () => Promise<void>
+  devUnlockTribunal: () => Promise<void>
   saveFollowUpEmail: (sessionId: string, email: string) => Promise<void>
   clearSession: () => void
 }
@@ -552,6 +554,71 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         { headers: authHeaders(authToken) },
       )
 
+      set((s) => ({
+        tribunalPaymentRequired: false,
+        session: s.session
+          ? { ...s.session, tribunal_paid: true, tribunal_verdicts: data.verdicts }
+          : null,
+      }))
+    } catch { /* silent */ } finally {
+      set({ isUnlocking: false })
+    }
+  },
+
+  devUnlock: async () => {
+    const { session, authToken } = get()
+    if (!session) return
+    set({ isUnlocking: true })
+    try {
+      await axios.post(`${API_URL}/sessions/${session.id}/dev-paid`, {}, { headers: authHeaders(authToken) })
+      set({ paymentRequired: false })
+
+      const response = await fetch(`${API_URL}/sessions/${session.id}/unlock`, {
+        method: 'POST',
+        headers: authHeaders(authToken),
+      })
+      if (!response.ok || !response.body) return
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      set({ isAnalyzing: true, streamingMessage: '', currentAgentReports: [] })
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() ?? ''
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue
+          const payload = JSON.parse(part.slice(6))
+          if (payload.type === 'agent_report') {
+            set((s) => ({ isAnalyzing: true, currentAgentReports: [...s.currentAgentReports, payload.report] }))
+          } else if (payload.type === 'synthesis_token') {
+            set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
+          } else if (payload.type === 'done') {
+            const updated = payload.session
+            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false })
+          }
+        }
+      }
+    } catch { /* silent */ } finally {
+      set({ isUnlocking: false, isAnalyzing: false })
+    }
+  },
+
+  devUnlockTribunal: async () => {
+    const { session, authToken } = get()
+    if (!session) return
+    set({ isUnlocking: true })
+    try {
+      await axios.post(`${API_URL}/sessions/${session.id}/dev-paid`, {}, { headers: authHeaders(authToken) })
+      const { data } = await axios.post(
+        `${API_URL}/sessions/${session.id}/tribunal/unlock`,
+        {},
+        { headers: authHeaders(authToken) },
+      )
       set((s) => ({
         tribunalPaymentRequired: false,
         session: s.session

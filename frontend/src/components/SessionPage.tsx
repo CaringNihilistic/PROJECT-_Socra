@@ -223,8 +223,9 @@ function DevilsAdvocateCard({ report }: { report: AgentReport }) {
 const BILLING_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID
 
 function PaywallModal() {
-  const { session, createCheckout, paymentRequired } = useSessionStore()
+  const { session, createCheckout, paymentRequired, devUnlock } = useSessionStore()
   const [loading, setLoading] = useState(false)
+  const [devLoading, setDevLoading] = useState(false)
 
   if (!paymentRequired || !session) return null
 
@@ -298,6 +299,16 @@ function PaywallModal() {
           >
             {loading ? 'Redirecting to payment…' : 'Unlock for ₹499 →'}
           </button>
+          {!BILLING_ENABLED && (
+            <button
+              onClick={async () => { setDevLoading(true); await devUnlock(); setDevLoading(false) }}
+              disabled={devLoading}
+              className="w-full py-2.5 rounded-xl text-[12px] font-mono transition-all duration-200 disabled:opacity-50 mt-2"
+              style={{ background: 'rgba(255,200,0,0.08)', border: '1px solid rgba(255,200,0,0.2)', color: 'rgba(255,200,0,0.7)' }}
+            >
+              {devLoading ? 'Unlocking…' : '[DEV] Skip payment & unlock'}
+            </button>
+          )}
           <p className="text-center text-[11px] font-mono text-ink-700 mt-3">
             One-time payment · Secure checkout via Stripe · No subscription
           </p>

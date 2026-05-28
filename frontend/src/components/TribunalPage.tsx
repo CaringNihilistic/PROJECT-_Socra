@@ -13,6 +13,8 @@ function useIsMobile() {
   return isMobile
 }
 
+const BILLING_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID
+
 const PERSONAS = [
   { key: 'investor',   name: 'The Investor',   icon: '💰', color: '#34d399', role: 'Series A investor' },
   { key: 'customer',   name: 'The Customer',   icon: '👤', color: '#5590e8', role: 'Your first buyer' },
@@ -188,10 +190,12 @@ export function TribunalPage() {
   const isUnlocking = useSessionStore((s) => s.isUnlocking)
   const sendTribunalMessage = useSessionStore((s) => s.sendTribunalMessage)
   const createTribunalCheckout = useSessionStore((s) => s.createTribunalCheckout)
+  const devUnlockTribunal = useSessionStore((s) => s.devUnlockTribunal)
   const clearSession = useSessionStore((s) => s.clearSession)
 
   const [input, setInput] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [devUnlockLoading, setDevUnlockLoading] = useState(false)
   const [autoSent, setAutoSent] = useState(false)
   const [selectedTab, setSelectedTab] = useState(0)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -503,6 +507,26 @@ export function TribunalPage() {
             >
               {checkoutLoading ? 'Redirecting…' : 'Unlock Verdict →'}
             </button>
+
+            {!BILLING_ENABLED && (
+              <button
+                onClick={async () => { setDevUnlockLoading(true); await devUnlockTribunal(); setDevUnlockLoading(false) }}
+                disabled={devUnlockLoading}
+                style={{
+                  width: '100%', padding: '12px',
+                  marginTop: '10px',
+                  background: 'rgba(255,200,0,0.06)',
+                  border: '1px solid rgba(255,200,0,0.2)',
+                  borderRadius: '10px',
+                  color: 'rgba(255,200,0,0.65)',
+                  fontSize: '12px', fontFamily: "'DM Mono', monospace",
+                  cursor: devUnlockLoading ? 'not-allowed' : 'pointer',
+                  opacity: devUnlockLoading ? 0.6 : 1,
+                }}
+              >
+                {devUnlockLoading ? 'Unlocking…' : '[DEV] Skip payment & unlock'}
+              </button>
+            )}
 
             <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginTop: '16px', lineHeight: 1.5 }}>
               Secure payment via Razorpay. Instant unlock after payment.

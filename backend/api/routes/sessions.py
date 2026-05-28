@@ -186,6 +186,32 @@ async def get_session(
     return _serialize(session)
 
 
+@router.post("/{session_id}/dev-paid")
+async def dev_mark_paid(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
+    """Dev-only: mark a session as fully paid (standard + tribunal).
+    Only works when Razorpay keys are not configured — safe no-op in production."""
+    from core.config import settings as _cfg
+    if _cfg.razorpay_key_id and _cfg.razorpay_key_secret:
+        raise HTTPException(403, "Not available in production")
+
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
+
+    await db.execute(
+        update(Session).where(Session.id == session_id).values(paid=True, tribunal_paid=True)
+    )
+    await db.commit()
+    await db.refresh(session)
+    return {"ok": True, "paid": True, "tribunal_paid": True, "session_id": session_id}
+
+
 @router.patch("/{session_id}/assumptions")
 async def update_assumption_status(
     session_id: str,
