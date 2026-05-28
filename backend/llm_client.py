@@ -1371,10 +1371,30 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
 
 
 def _trim_history_for_agents(history: list[dict], max_pairs: int = 4) -> list[dict]:
-    """Keep first message (the original idea) + last N turn pairs to stay within token limits."""
+    """Keep first message (the original idea) + last N turn pairs to stay within token limits.
+    Also sanitizes for Anthropic: removes empty content and merges consecutive same-role messages
+    to prevent 400 invalid_request_error."""
     if len(history) <= max_pairs * 2 + 1:
-        return history
-    return [history[0]] + history[-(max_pairs * 2):]
+        trimmed = list(history)
+    else:
+        trimmed = [history[0]] + history[-(max_pairs * 2):]
+
+    # Remove messages with empty/whitespace-only content
+    trimmed = [m for m in trimmed if m.get("content", "").strip()]
+
+    # Merge consecutive same-role messages (can happen when empty messages were filtered from DB)
+    merged: list[dict] = []
+    for msg in trimmed:
+        if merged and merged[-1]["role"] == msg["role"]:
+            merged[-1] = {"role": msg["role"], "content": merged[-1]["content"] + "\n\n" + msg["content"]}
+        else:
+            merged.append({"role": msg["role"], "content": msg["content"]})
+
+    # Must start with user role for Anthropic
+    while merged and merged[0]["role"] != "user":
+        merged.pop(0)
+
+    return merged
 
 
 def _build_agent_msgs(conversation_history: list[dict], web_context: str = "") -> list[dict]:
