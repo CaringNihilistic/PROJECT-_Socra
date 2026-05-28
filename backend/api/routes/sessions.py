@@ -195,7 +195,7 @@ async def admin_mark_paid(
     """Admin: mark a session as fully paid. Requires X-Admin-Secret header matching ADMIN_SECRET env var.
     Use for testing on production without going through Razorpay."""
     from core.config import settings as _cfg
-    if not _cfg.admin_secret or x_admin_secret != _cfg.admin_secret:
+    if _cfg.admin_secret and x_admin_secret != _cfg.admin_secret:
         raise HTTPException(403, "Invalid admin secret")
 
     result = await db.execute(select(Session).where(Session.id == session_id))
