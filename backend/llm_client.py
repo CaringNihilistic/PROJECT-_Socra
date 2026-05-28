@@ -1366,8 +1366,8 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
             _log.getLogger("usage").info("anthropic/agent | in=%d out=%d cost=$%.5f", u.input_tokens, u.output_tokens, cost)
             return response.content[0].text
         except anthropic.BadRequestError as e:
-            _log.getLogger(__name__).error("Anthropic agent 400: %s | msgs=%s", e, [m["role"] for m in safe_msgs])
-            raise
+            _log.getLogger(__name__).error("Anthropic agent 400 — falling through to Google: %s | roles=%s", e, [m["role"] for m in safe_msgs])
+            # Fall through to Google/Groq rather than surfacing the error
     if settings.google_api_key:
         try:
             return await _call_google(system, messages, max_tokens=900)

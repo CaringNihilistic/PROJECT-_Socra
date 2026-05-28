@@ -325,7 +325,7 @@ export function SessionPage() {
   const [showDeck, setShowDeck] = useState(false)
   const [debateLoading, setDebateLoading] = useState(false)
   const [showDebate, setShowDebate] = useState(false)
-  const [masterplanTab, setMasterplanTab] = useState<'council' | 'plan'>('council')
+  const [view, setView] = useState<'chat' | 'council' | 'masterplan'>('chat')
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching, isUnlocking,
@@ -357,9 +357,9 @@ export function SessionPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [session?.conversation_history.length, isSending, currentAgentReports.length])
 
-  // Auto-switch to plan tab when masterplan first arrives
+  // Auto-navigate to council view when masterplan first arrives
   useEffect(() => {
-    if (session?.masterplan) setMasterplanTab('plan')
+    if (session?.masterplan) setView('council')
   }, [!!session?.masterplan])
 
   if (!session) return null
@@ -463,7 +463,136 @@ export function SessionPage() {
         </div>
       </div>
 
-      <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
+      {/* ── VIEW: COUNCIL ─────────────────────────────────────── */}
+      {view === 'council' && masterplan && (
+        <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-700 mb-1">The Council</div>
+              <div className="text-[18px] font-display font-bold text-ink-100">Specialist Analysis</div>
+            </div>
+            <button
+              onClick={() => setView('masterplan')}
+              className="px-5 py-2.5 rounded-xl font-mono text-[12px] font-semibold transition-all"
+              style={{ background: 'linear-gradient(135deg, #34d399, #10b981)', color: '#08070a' }}
+            >
+              Masterplan →
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {specialistReports.map((report) => (
+              <AgentReportCard key={report.key} report={report} isNew={false} />
+            ))}
+          </div>
+
+          {devilReport && <DevilsAdvocateCard report={devilReport} />}
+
+          <button
+            onClick={() => setView('masterplan')}
+            className="w-full py-3.5 rounded-xl font-mono text-[12px] tracking-[0.1em] uppercase transition-all"
+            style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)', color: 'rgba(52,211,153,0.7)' }}
+          >
+            Continue to Masterplan →
+          </button>
+
+          <FollowUpEmailCapture sessionId={session.id} />
+        </div>
+      )}
+
+      {/* ── VIEW: MASTERPLAN ───────────────────────────────────── */}
+      {view === 'masterplan' && masterplan && (
+        <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <button onClick={() => setView('council')} className="text-[10px] font-mono text-ink-700 hover:text-ink-400 mb-1 transition-colors">← Back to Council</button>
+              <div className="text-[18px] font-display font-bold text-ink-100">Chairman's Masterplan</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={handleShare} className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all">{copied ? '✓ Copied' : '↗ Share'}</button>
+              <button onClick={handleShareCard} className="text-[10px] font-mono text-ink-700 hover:text-amber-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all">{cardCopied ? '✓ Copied' : '🃏 Card'}</button>
+              <a href={`/?compare=${session.id}`} className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all">↔ Compare</a>
+            </div>
+          </div>
+
+          {/* Pitch deck CTA */}
+          <div className="rounded-xl p-5 flex items-center justify-between gap-4"
+            style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.12)' }}>
+            <div>
+              <div className="text-[12px] font-mono text-amber-400/80 uppercase tracking-[0.1em] mb-1">Investor Pitch Deck</div>
+              <div className="text-[12px] text-ink-500">10-slide narrative — exportable as HTML</div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => {
+                  const slug = session.initial_idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+                  const blob = new Blob([masterplan], { type: 'text/markdown' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a'); a.href = url; a.download = `socra-${slug}.md`; a.click()
+                  URL.revokeObjectURL(url)
+                }}
+                className="px-3 py-2 rounded-lg text-[11px] font-mono transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.35)' }}
+              >↓ .md</button>
+              <button
+                onClick={async () => {
+                  if (pitch_deck) { setShowDeck(v => !v); return }
+                  setDeckLoading(true); await generatePitchDeck(); setDeckLoading(false); setShowDeck(true)
+                }}
+                disabled={deckLoading}
+                className="px-4 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#08070a' }}
+              >{deckLoading ? 'Generating…' : pitch_deck ? (showDeck ? '▲ Hide Deck' : '▼ View Deck') : '⬡ Generate Pitch Deck'}</button>
+            </div>
+          </div>
+
+          {showDeck && pitch_deck && (
+            <PitchDeckView deck={pitch_deck} idea={session.initial_idea} sessionId={session.id} devilReport={devilReport} />
+          )}
+
+          {/* Masterplan body */}
+          <div className="rounded-2xl border overflow-hidden"
+            style={{ borderColor: 'rgba(52,211,153,0.15)', background: 'rgba(52,211,153,0.02)' }}>
+            <div className="flex items-center gap-2 px-5 py-3 border-b" style={{ borderColor: 'rgba(52,211,153,0.1)' }}>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 6px #34d399' }} />
+              <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-emerald-400/70">Full Strategic Analysis</span>
+            </div>
+            <div className="px-7 py-7 prose prose-invert max-w-none
+              prose-headings:font-display prose-headings:tracking-tight
+              prose-h1:text-[20px] prose-h1:text-ink-50 prose-h1:font-bold prose-h1:mb-3
+              prose-h2:text-[11px] prose-h2:font-semibold prose-h2:uppercase prose-h2:tracking-[0.14em] prose-h2:text-emerald-400/70 prose-h2:mt-9 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-emerald-500/15
+              prose-h3:text-[14px] prose-h3:text-ink-200 prose-h3:font-semibold prose-h3:mt-5 prose-h3:mb-2
+              prose-p:text-ink-400 prose-p:leading-7 prose-p:text-[14px] prose-p:my-2
+              prose-li:text-ink-400 prose-li:text-[14px] prose-li:leading-6 prose-li:my-1
+              prose-ul:my-2 prose-ol:my-2 prose-strong:text-ink-200 prose-strong:font-semibold
+              prose-code:text-amber-300 prose-code:bg-amber-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
+              prose-pre:bg-ink-900/80 prose-pre:border prose-pre:border-ink-800/60 prose-pre:rounded-xl prose-pre:p-4
+              prose-table:text-[13px] prose-table:w-full prose-thead:border-b prose-thead:border-ink-700/50
+              prose-th:text-ink-500 prose-th:font-mono prose-th:text-[10px] prose-th:uppercase prose-th:tracking-wider prose-th:py-2.5 prose-th:px-4 prose-th:font-medium prose-th:bg-ink-900/40
+              prose-td:text-ink-400 prose-td:py-2.5 prose-td:px-4 prose-td:border-b prose-td:border-ink-800/40 prose-td:align-top prose-td:text-[13px] prose-td:leading-relaxed
+              prose-hr:border-ink-800/50 prose-hr:my-6
+              prose-blockquote:border-l-2 prose-blockquote:border-amber-500/30 prose-blockquote:text-ink-500 prose-blockquote:pl-4 prose-blockquote:not-italic">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{masterplan}</ReactMarkdown>
+            </div>
+          </div>
+
+          <button
+            onClick={async () => {
+              if (debate) { setShowDebate(v => !v); return }
+              setDebateLoading(true); await generateDebate(); setDebateLoading(false); setShowDebate(true)
+            }}
+            disabled={debateLoading}
+            className="text-[11px] font-mono text-indigo-400/50 hover:text-indigo-300 border border-indigo-500/15 hover:border-indigo-500/40 px-3 py-2 rounded-lg transition-all self-start disabled:opacity-40"
+          >{debateLoading ? '…' : debate ? (showDebate ? '▲ Hide Debate' : '▼ Bull vs Bear Debate') : '⚔ Generate Bull vs Bear Debate'}</button>
+
+          {showDebate && debate && <DebateView debate={debate} />}
+
+          <div className="h-6" />
+        </div>
+      )}
+
+      {/* ── VIEW: CHAT (default) ───────────────────────────────── */}
+      {view === 'chat' && <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
 
         {/* Eval bar */}
         <EvalBar scores={scores} totalScore={total_score} phase={phase} explanations={explanations} />
@@ -484,186 +613,15 @@ export function SessionPage() {
           </div>
         )}
 
-        {/* Streaming council (before masterplan is ready) */}
+        {/* Council streaming indicator (agents loading, no masterplan yet) */}
         {!masterplan && (specialistReports.length > 0 || isAnalyzing) && (
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400/60" style={{ boxShadow: '0 0 6px rgba(245,158,11,0.4)' }} />
-                <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-600">The Council</span>
-              </div>
-              <div className="flex-1 h-px bg-ink-800/60" />
-              <span className="text-[10px] font-mono text-ink-800 tabular-nums">{specialistReports.length} / {TOTAL_AGENTS} seats</span>
-            </div>
-            <div className="flex flex-col gap-2">
-              {specialistReports.map((report) => (
-                <AgentReportCard key={report.key} report={report} isNew={!agent_reports?.length} />
-              ))}
-              {Array.from({ length: pendingAgentCount }).map((_, i) => (
-                <AgentReportSkeleton key={i} />
-              ))}
-            </div>
+          <div className="flex items-center gap-3 py-3 px-4 rounded-xl" style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.1)' }}>
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" style={{ boxShadow: '0 0 6px rgba(245,158,11,0.6)' }} />
+            <span className="text-[12px] font-mono text-amber-400/70">
+              The Council is analysing your idea… {specialistReports.length}/{TOTAL_AGENTS} advisors done
+            </span>
           </div>
         )}
-
-        {/* Tabbed masterplan view — activates once masterplan is ready */}
-        {masterplan && (
-          <div className="flex flex-col gap-0">
-
-            {/* Tab nav */}
-            <div className="flex items-center gap-1 border-b mb-6" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-              {([
-                { key: 'council', label: 'The Council', color: '#f59e0b' },
-                { key: 'plan',    label: 'Masterplan',  color: '#34d399' },
-              ] as const).map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setMasterplanTab(tab.key)}
-                  className="px-4 py-2.5 text-[11px] font-mono uppercase tracking-[0.12em] transition-all border-b-2 -mb-px"
-                  style={{
-                    color: masterplanTab === tab.key ? tab.color : 'rgba(255,255,255,0.2)',
-                    borderColor: masterplanTab === tab.key ? tab.color : 'transparent',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-              {/* Share / export actions pinned to the right */}
-              <div className="ml-auto flex items-center gap-2 pb-1">
-                <button onClick={handleShare} className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 hover:border-ink-700 px-2.5 py-1 rounded-lg transition-all">
-                  {copied ? '✓ Copied' : '↗ Share'}
-                </button>
-                <button onClick={handleShareCard} className="text-[10px] font-mono text-ink-700 hover:text-amber-400 border border-ink-800/50 hover:border-amber-500/30 px-2.5 py-1 rounded-lg transition-all">
-                  {cardCopied ? '✓ Card copied' : '🃏 Card'}
-                </button>
-                <a href={`/?compare=${session.id}`} className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 hover:border-ink-700 px-2.5 py-1 rounded-lg transition-all">↔ Compare</a>
-              </div>
-            </div>
-
-            {/* Tab: Council */}
-            {masterplanTab === 'council' && (
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  {specialistReports.map((report) => (
-                    <AgentReportCard key={report.key} report={report} isNew={false} />
-                  ))}
-                </div>
-                {devilReport && <DevilsAdvocateCard report={devilReport} />}
-                <button
-                  onClick={() => setMasterplanTab('plan')}
-                  className="w-full py-3.5 rounded-xl font-mono text-[12px] tracking-[0.1em] uppercase transition-all mt-2"
-                  style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)', color: 'rgba(52,211,153,0.7)' }}
-                >
-                  View Masterplan →
-                </button>
-              </div>
-            )}
-
-            {/* Tab: Masterplan */}
-            {masterplanTab === 'plan' && (
-              <div className="flex flex-col gap-6">
-                {/* Pitch deck CTA */}
-                <div className="rounded-xl p-5 flex items-center justify-between gap-4"
-                  style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.12)' }}>
-                  <div>
-                    <div className="text-[12px] font-mono text-amber-400/80 uppercase tracking-[0.1em] mb-1">Investor Pitch Deck</div>
-                    <div className="text-[12px] text-ink-500">10-slide narrative, exportable as HTML</div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => {
-                        const slug = session.initial_idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-                        const blob = new Blob([masterplan], { type: 'text/markdown' })
-                        const url = URL.createObjectURL(blob)
-                        const a = document.createElement('a')
-                        a.href = url; a.download = `socra-${slug}.md`; a.click()
-                        URL.revokeObjectURL(url)
-                      }}
-                      className="px-3 py-2 rounded-lg text-[11px] font-mono transition-all"
-                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.35)' }}
-                    >
-                      ↓ .md
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (pitch_deck) { setShowDeck(v => !v); return }
-                        setDeckLoading(true)
-                        await generatePitchDeck()
-                        setDeckLoading(false)
-                        setShowDeck(true)
-                      }}
-                      disabled={deckLoading}
-                      className="px-4 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all disabled:opacity-50"
-                      style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#08070a' }}
-                    >
-                      {deckLoading ? 'Generating…' : pitch_deck ? (showDeck ? '▲ Hide Deck' : '▼ View Deck') : '⬡ Generate Pitch Deck'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Masterplan body */}
-                <div className="rounded-2xl border overflow-hidden"
-                  style={{ borderColor: 'rgba(52,211,153,0.15)', background: 'rgba(52,211,153,0.02)' }}>
-                  <div className="flex items-center gap-2 px-5 py-3 border-b" style={{ borderColor: 'rgba(52,211,153,0.1)' }}>
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 6px #34d399' }} />
-                    <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-emerald-400/70">Chairman's Masterplan</span>
-                  </div>
-                  <div className="px-7 py-7 prose prose-invert max-w-none
-                    prose-headings:font-display prose-headings:tracking-tight
-                    prose-h1:text-[20px] prose-h1:text-ink-50 prose-h1:font-bold prose-h1:mb-3
-                    prose-h2:text-[11px] prose-h2:font-semibold prose-h2:uppercase prose-h2:tracking-[0.14em] prose-h2:text-emerald-400/70 prose-h2:mt-9 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-emerald-500/15
-                    prose-h3:text-[14px] prose-h3:text-ink-200 prose-h3:font-semibold prose-h3:mt-5 prose-h3:mb-2
-                    prose-p:text-ink-400 prose-p:leading-7 prose-p:text-[14px] prose-p:my-2
-                    prose-li:text-ink-400 prose-li:text-[14px] prose-li:leading-6 prose-li:my-1
-                    prose-ul:my-2 prose-ol:my-2
-                    prose-strong:text-ink-200 prose-strong:font-semibold
-                    prose-code:text-amber-300 prose-code:bg-amber-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
-                    prose-pre:bg-ink-900/80 prose-pre:border prose-pre:border-ink-800/60 prose-pre:rounded-xl prose-pre:p-4
-                    prose-table:text-[13px] prose-table:w-full
-                    prose-thead:border-b prose-thead:border-ink-700/50
-                    prose-th:text-ink-500 prose-th:font-mono prose-th:text-[10px] prose-th:uppercase prose-th:tracking-wider prose-th:py-2.5 prose-th:px-4 prose-th:font-medium prose-th:bg-ink-900/40
-                    prose-td:text-ink-400 prose-td:py-2.5 prose-td:px-4 prose-td:border-b prose-td:border-ink-800/40 prose-td:align-top prose-td:text-[13px] prose-td:leading-relaxed
-                    prose-hr:border-ink-800/50 prose-hr:my-6
-                    prose-blockquote:border-l-2 prose-blockquote:border-amber-500/30 prose-blockquote:text-ink-500 prose-blockquote:pl-4 prose-blockquote:not-italic">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{masterplan}</ReactMarkdown>
-                  </div>
-                </div>
-
-                {/* Debate */}
-                <button
-                  onClick={async () => {
-                    if (debate) { setShowDebate(v => !v); return }
-                    setDebateLoading(true)
-                    await generateDebate()
-                    setDebateLoading(false)
-                    setShowDebate(true)
-                  }}
-                  disabled={debateLoading}
-                  className="text-[11px] font-mono text-indigo-400/50 hover:text-indigo-300 border border-indigo-500/15 hover:border-indigo-500/40 px-3 py-2 rounded-lg transition-all self-start disabled:opacity-40"
-                >
-                  {debateLoading ? '...' : debate ? (showDebate ? '▲ Hide Bull vs Bear Debate' : '▼ Bull vs Bear Debate') : '⚔ Generate Bull vs Bear Debate'}
-                </button>
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {/* Follow-up email capture */}
-        {masterplan && <FollowUpEmailCapture sessionId={session.id} />}
-
-        {/* Pitch Deck — rendered below tabs */}
-        {showDeck && pitch_deck && (
-          <PitchDeckView
-            deck={pitch_deck}
-            idea={session.initial_idea}
-            sessionId={session.id}
-            devilReport={devilReport}
-          />
-        )}
-
-        {/* Debate — generated on demand, toggled by button */}
-        {showDebate && debate && <DebateView debate={debate} />}
 
         {/* Conversation */}
         <div className="flex flex-col gap-6">
@@ -897,7 +855,7 @@ export function SessionPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   )
 }
