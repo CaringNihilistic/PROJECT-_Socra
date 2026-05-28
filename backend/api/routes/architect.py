@@ -142,7 +142,8 @@ async def send_message_stream(
                     message_text += event["delta"]
                     yield f"data: {json.dumps({'type': 'token', 'delta': event['delta']})}\n\n"
                 elif event["type"] == "result":
-                    full_history = history + ([{"role": "assistant", "content": message_text}] if message_text.strip() else [])
+                    _clean = message_text.strip().replace("*", "").replace("#", "").replace("-", "").strip()
+                    full_history = history + ([{"role": "assistant", "content": message_text}] if len(_clean) > 15 else [])
                     await db.execute(
                         update(Session)
                         .where(Session.id == session_id)
@@ -172,7 +173,9 @@ async def send_message_stream(
 
             elif event["type"] == "result":
                 llm_response = event["data"]
-                full_history = history + ([{"role": "assistant", "content": message_text}] if message_text.strip() else [])
+                # Only save if response is substantive — guards against truncated streams (e.g. "**")
+                _clean = message_text.strip().replace("*", "").replace("#", "").replace("-", "").strip()
+                full_history = history + ([{"role": "assistant", "content": message_text}] if len(_clean) > 15 else [])
                 updated_scores = apply_delta(current_scores, llm_response.get("eval_delta", {}))
                 total = compute_total_score(updated_scores)
                 new_phase = get_phase(total)

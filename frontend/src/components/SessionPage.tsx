@@ -638,7 +638,7 @@ export function SessionPage() {
 
         {/* Conversation */}
         <div className="flex flex-col gap-6">
-          {conversation_history.filter(msg => msg.content?.trim()).map((msg, i) => (
+          {conversation_history.filter(msg => (msg.content?.replace(/[*#\-_>\s]/g, '') ?? '').length > 5).map((msg, i) => (
             <div key={i} className={`flex gap-4 fade-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {msg.role === 'assistant' && (
                 <div className="flex-shrink-0 mt-1">
@@ -733,12 +733,12 @@ export function SessionPage() {
         {/* Quick reply choices */}
         {currentChoices.length > 0 && !isSending && !masterplan && (
           <div className="flex flex-col gap-2.5">
-            <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Quick reply</span>
+            <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Quick reply — click to pre-fill, edit &amp; send</span>
             <div className="flex flex-wrap gap-2">
               {currentChoices.map((choice, i) => (
                 <button
                   key={i}
-                  onClick={() => sendMessage(choice)}
+                  onClick={() => { setInput(choice); setTimeout(() => document.querySelector('textarea')?.focus(), 50) }}
                   className="text-[13px] text-ink-400 border border-ink-800/70 hover:border-amber-500/40 hover:text-ink-100 hover:bg-amber-500/5 px-4 py-2 rounded-full transition-all duration-200 text-left"
                 >
                   {choice}
