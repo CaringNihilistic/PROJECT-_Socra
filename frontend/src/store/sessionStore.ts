@@ -153,6 +153,9 @@ interface SessionStore {
   authToken: string | null
   paymentRequired: boolean
   isUnlocking: boolean
+  streamError: 'timeout' | 'network' | null
+  savedFlash: boolean
+  lastSentMessage: string
   // Tribunal-specific state
   tribunalStreaming: boolean
   tribunalActivePersona: string | null
@@ -200,6 +203,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   authToken: null,
   paymentRequired: false,
   isUnlocking: false,
+  streamError: null,
+  savedFlash: false,
+  lastSentMessage: '',
   tribunalStreaming: false,
   tribunalActivePersona: null,
   tribunalPersonaStreams: {},
@@ -271,7 +277,19 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   sendMessage: async (content: string) => {
     const { session, authToken } = get()
     if (!session) return
-    set({ isSending: true, streamingMessage: '', currentChoices: [], currentAgentReports: [], isAnalyzing: false, isResearching: false })
+    set({ isSending: true, streamingMessage: '', currentChoices: [], currentAgentReports: [], isAnalyzing: false, isResearching: false, streamError: null, lastSentMessage: content })
+
+    const TOKEN_TIMEOUT_MS = 20000
+    let tokenTimer: ReturnType<typeof setTimeout> | null = null
+    let timedOut = false
+
+    const resetTimer = (reader: ReadableStreamDefaultReader) => {
+      if (tokenTimer) clearTimeout(tokenTimer)
+      tokenTimer = setTimeout(() => {
+        timedOut = true
+        reader.cancel()
+      }, TOKEN_TIMEOUT_MS)
+    }
 
     try {
       const response = await fetch(`${API_URL}/sessions/${session.id}/message/stream`, {
@@ -285,10 +303,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      resetTimer(reader)
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
+        resetTimer(reader)
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() ?? ''
@@ -321,7 +341,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
           } else if (payload.type === 'done') {
             const updated: SessionData = payload.session
-            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isResearching: false })
+            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isResearching: false, savedFlash: true })
+            setTimeout(() => set({ savedFlash: false }), 2000)
             saveToLocalStorage({
               id: updated.id,
               initial_idea: updated.initial_idea,
@@ -334,7 +355,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           }
         }
       }
+
+      if (timedOut) set({ streamError: 'timeout' })
+    } catch {
+      if (timedOut) set({ streamError: 'timeout' })
+      else set({ streamError: 'network' })
     } finally {
+      if (tokenTimer) clearTimeout(tokenTimer)
       set({ isSending: false, streamingMessage: '', isAnalyzing: false, isResearching: false })
     }
   },
@@ -686,6 +713,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     isResearching: false,
     paymentRequired: false,
     isUnlocking: false,
+    streamError: null,
+    savedFlash: false,
+    lastSentMessage: '',
     tribunalStreaming: false,
     tribunalActivePersona: null,
     tribunalPersonaStreams: {},

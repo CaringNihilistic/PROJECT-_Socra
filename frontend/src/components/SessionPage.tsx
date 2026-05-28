@@ -328,6 +328,7 @@ export function SessionPage() {
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching, isUnlocking,
+    streamError, savedFlash, lastSentMessage,
     sendMessage, clearSession, generatePitchDeck, generateDebate,
   } = useSessionStore()
 
@@ -747,7 +748,7 @@ export function SessionPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Quick reply choices */}
+        {/* Suggested answer chips — stay visible while user types, clear only on send */}
         {currentChoices.length > 0 && !isSending && !masterplan && (
           <div className="flex flex-col gap-2.5">
             <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Suggested answers — click to pre-fill, then edit &amp; send</span>
@@ -765,10 +766,47 @@ export function SessionPage() {
           </div>
         )}
 
+        {/* Saved flash */}
+        {savedFlash && (
+          <div className="flex items-center gap-2 text-[11px] font-mono text-emerald-500/60 fade-up">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            Saved
+          </div>
+        )}
+
+        {/* Stream error + retry */}
+        {streamError && !isSending && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] font-mono"
+            style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)' }}>
+            <span className="text-red-400/80">
+              {streamError === 'timeout' ? 'Response timed out — the server took too long.' : 'Connection dropped.'}
+            </span>
+            {lastSentMessage && (
+              <button
+                onClick={() => { useSessionStore.getState().sendMessage(lastSentMessage) }}
+                className="ml-auto px-3 py-1 rounded-lg text-[11px] font-mono text-red-300/80 hover:text-red-200 transition-colors"
+                style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.2)' }}>
+                Retry →
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Progress hint toward masterplan */}
+        {!masterplan && total_score > 0 && total_score < 0.85 && !isSending && (
+          <div className="text-[10px] font-mono text-ink-700 text-center">
+            {total_score < 0.4
+              ? `${Math.round((0.4 - total_score) / 0.05)} more specific answers needed to unlock analysis`
+              : total_score < 0.7
+              ? 'Good progress — keep adding detail to each dimension'
+              : 'Almost there — one or two more strong answers'}
+          </div>
+        )}
+
         {/* Refusal notice */}
         {refusal && (
-          <div className="px-4 py-3 rounded-xl text-[12px] text-amber-500/70 font-mono leading-relaxed"
-            style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.1)' }}>
+          <div className="px-4 py-3 rounded-xl text-[12px] text-ink-600 font-mono leading-relaxed"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             {refusal}
           </div>
         )}

@@ -123,8 +123,7 @@ def get_refusal_message(total_score: float) -> str | None:
     """
     if total_score < 0.40:
         return (
-            "I'm not generating output yet. The evaluation bar is below 40% — "
-            "I don't have enough context to give you useful architecture. "
-            "Answer the questions above and I'll keep filling the bar."
+            "Keep going — answer the questions above to unlock your full analysis. "
+            "Each specific answer moves the bar closer to your masterplan."
         )
     return None
