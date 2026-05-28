@@ -685,8 +685,10 @@ async def stream_architect_llm(
         except Exception:
             pass
 
-        # If the model explicitly declared analysis complete, skip eval and force masterplan scores
-        if "activating specialist analysis" in message_text.lower():
+        # If the model explicitly declared analysis complete, skip eval and force masterplan scores.
+        # Require turn_number >= 2 so a user who tricks the LLM into echoing the phrase on turn 1
+        # can't bypass the Socratic phase entirely.
+        if "activating specialist analysis" in message_text.lower() and turn_number >= 2:
             yield {"type": "result", "data": {
                 "eval_delta": {k: max(0.0, 1.0 - current_scores[k]) for k in current_scores},
                 "new_assumptions": [],
@@ -1324,13 +1326,22 @@ def _trim_history_for_agents(history: list[dict], max_pairs: int = 4) -> list[di
     return [history[0]] + history[-(max_pairs * 2):]
 
 
-async def run_specialist_agent(agent_cfg: dict, conversation_history: list[dict], web_context: str = "") -> dict:
-    """Run a single specialist agent with optional live web research context."""
+def _build_agent_msgs(conversation_history: list[dict], web_context: str = "") -> list[dict]:
+    """Build pre-trimmed messages for specialist agents.
+    Injects web context into the first user message so the messages prefix is identical
+    across all parallel agent calls, enabling provider-side caching (Google implicit cache,
+    Anthropic cache_control). Each agent's system prompt is its persona only."""
     trimmed = _trim_history_for_agents(conversation_history)
     msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
-    system = f"{web_context}\n\n{agent_cfg['prompt']}" if web_context else agent_cfg["prompt"]
+    if web_context and msgs:
+        msgs[0] = {"role": "user", "content": f"[Web Research Context]\n{web_context}\n\n{msgs[0]['content']}"}
+    return msgs
+
+
+async def run_specialist_agent(agent_cfg: dict, msgs: list[dict]) -> dict:
+    """Run a single specialist agent. msgs should be pre-built via _build_agent_msgs."""
     try:
-        content = await _call_fast_llm(system, msgs)
+        content = await _call_fast_llm(agent_cfg["prompt"], msgs)
     except Exception as e:
         content = f"_Analysis unavailable ({str(e)[:80]})_"
     return {
@@ -1602,11 +1613,10 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
     # Phase 2: run specialist agents
     agent_reports: list[dict] = []
     if settings.anthropic_api_key or settings.google_api_key:
-        # Run all 5 agents concurrently — yield each report as it finishes
+        # Build shared messages once — identical prefix across all agents enables provider caching
+        shared_msgs = _build_agent_msgs(conversation_history, web_context)
         tasks = [
-            asyncio.create_task(
-                run_specialist_agent(agent_cfg, conversation_history, web_context=web_context)
-            )
+            asyncio.create_task(run_specialist_agent(agent_cfg, shared_msgs))
             for agent_cfg in SPECIALIST_AGENTS
         ]
         for coro in asyncio.as_completed(tasks):
@@ -1621,9 +1631,10 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
             yield {"type": "agent_report", "report": report}
             await asyncio.sleep(0.4)  # stagger reveals for UI effect
 
-    # Phase 2: stream synthesis — use the larger model for better masterplan quality
+    # Phase 3: stream synthesis — trim conversation to last 4 pairs (same as agents)
     synthesis_system = _build_synthesis_prompt(agent_reports)
-    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
+    trimmed_conv = _trim_history_for_agents(conversation_history)
+    msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed_conv]
     synthesis_text = ""
 
     try:

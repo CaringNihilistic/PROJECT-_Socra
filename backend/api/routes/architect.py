@@ -66,16 +66,18 @@ async def _process_message(session, req_content: str, db: AsyncSession):
 
 async def _generate_masterplan_sync(conversation_history: list) -> str:
     """Fallback for the non-streaming route: collect all agent reports then synthesize."""
-    from llm_client import run_all_agents_combined, run_specialist_agent, SPECIALIST_AGENTS, _build_synthesis_prompt, _call_real_llm
+    from llm_client import run_all_agents_combined, run_specialist_agent, SPECIALIST_AGENTS, _build_synthesis_prompt, _call_real_llm, _build_agent_msgs, _trim_history_for_agents
     from core.config import settings
     if settings.anthropic_api_key or settings.google_api_key:
         import asyncio
-        tasks = [run_specialist_agent(a, conversation_history) for a in SPECIALIST_AGENTS]
+        shared_msgs = _build_agent_msgs(conversation_history)
+        tasks = [run_specialist_agent(a, shared_msgs) for a in SPECIALIST_AGENTS]
         reports = list(await asyncio.gather(*tasks))
     else:
         reports = await run_all_agents_combined(conversation_history)
     system = _build_synthesis_prompt(reports)
-    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
+    trimmed_conv = _trim_history_for_agents(conversation_history)
+    msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed_conv]
     return await _call_real_llm(system, msgs, max_tokens=3000)
 
 
@@ -174,8 +176,10 @@ async def send_message_stream(
                 updated_scores = apply_delta(current_scores, llm_response.get("eval_delta", {}))
                 total = compute_total_score(updated_scores)
                 new_phase = get_phase(total)
-                # Server-side override: if model said analysis is ready or turn limit hit, force masterplan
-                if "activating specialist analysis" in message_text.lower() or (turn_number + 1) >= 9:
+                # Server-side override: if model said analysis is ready or turn limit hit, force masterplan.
+                # Phrase check requires turn_number >= 2 to prevent a 1-turn LLM echo bypass.
+                phrase_trigger = "activating specialist analysis" in message_text.lower() and turn_number >= 2
+                if phrase_trigger or (turn_number + 1) >= 9:
                     new_phase = "masterplan"
                 new_assumptions = original_assumptions + [
                     {"text": a, "status": "unknown"} if isinstance(a, str) else a
