@@ -548,7 +548,7 @@ export function SessionPage() {
           </div>
 
           {showDeck && pitch_deck && (
-            <PitchDeckView deck={pitch_deck} idea={session.initial_idea} sessionId={session.id} devilReport={devilReport} />
+            <PitchDeckView deck={pitch_deck} devilReport={devilReport} />
           )}
 
           {/* Masterplan body */}

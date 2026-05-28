@@ -1,7 +1,4 @@
-import { useState } from 'react'
 import { PitchDeck, PitchSlide, AgentReport } from '../store/sessionStore'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const SLIDE_ACCENTS: Record<string, { border: string; dot: string; label: string }> = {
   problem:        { border: 'rgba(239,68,68,0.2)',   dot: '#ef4444', label: '01' },
@@ -81,48 +78,19 @@ function DevilSlideCard({ report, index, total }: { report: AgentReport; index: 
 
 interface Props {
   deck: PitchDeck
-  idea: string
-  sessionId: string
+
+
   devilReport?: AgentReport | null
 }
 
-export function PitchDeckView({ deck, idea, sessionId, devilReport }: Props) {
-  const [exporting, setExporting] = useState(false)
+export function PitchDeckView({ deck, devilReport }: Props) {
   const total = deck.slides.length + (devilReport ? 1 : 0)
-
-  const handleExport = async () => {
-    setExporting(true)
-    try {
-      const resp = await fetch(`${API_URL}/sessions/${sessionId}/pitch-deck/html`, { method: 'POST' })
-      if (!resp.ok) throw new Error('failed')
-      const html = await resp.text()
-      const blob = new Blob([html], { type: 'text/html' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      const slug = idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-      a.href = url; a.download = `pitch-deck-${slug}.html`; a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      // silently fail
-    } finally {
-      setExporting(false)
-    }
-  }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-white/40">Pitch Deck</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="text-[11px] font-mono text-white/30 hover:text-white/60 border border-white/10 hover:border-white/25 px-3 py-1 rounded-lg transition-all ml-4 disabled:opacity-40"
-        >
-          {exporting ? '⏳ Generating...' : '↓ Export Interactive HTML'}
-        </button>
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-white/40">Pitch Deck</span>
+        <div className="flex-1 h-px bg-white/10" />
       </div>
       <div className="flex flex-col gap-3">
         {deck.slides.map((slide, i) => (
