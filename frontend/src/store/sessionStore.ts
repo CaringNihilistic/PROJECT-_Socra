@@ -603,7 +603,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           }
         }
       }
-    } catch { /* silent */ } finally {
+    } catch (err) {
+      console.error('[devUnlock] failed:', err)
+      alert(`Dev unlock failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
       set({ isUnlocking: false, isAnalyzing: false })
     }
   },
@@ -625,7 +628,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           ? { ...s.session, tribunal_paid: true, tribunal_verdicts: data.verdicts }
           : null,
       }))
-    } catch { /* silent */ } finally {
+    } catch (err) {
+      console.error('[devUnlockTribunal] failed:', err)
+      alert(`Dev unlock failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
       set({ isUnlocking: false })
     }
   },
