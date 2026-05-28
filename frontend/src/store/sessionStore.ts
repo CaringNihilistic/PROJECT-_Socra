@@ -570,7 +570,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (!session) return
     set({ isUnlocking: true })
     try {
-      await axios.post(`${API_URL}/sessions/${session.id}/dev-paid`, {}, { headers: authHeaders(authToken) })
+      const adminSecret = import.meta.env.VITE_ADMIN_SECRET ?? ''
+      await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, {
+        headers: { ...authHeaders(authToken), 'X-Admin-Secret': adminSecret },
+      })
       set({ paymentRequired: false })
 
       const response = await fetch(`${API_URL}/sessions/${session.id}/unlock`, {
@@ -616,7 +619,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (!session) return
     set({ isUnlocking: true })
     try {
-      await axios.post(`${API_URL}/sessions/${session.id}/dev-paid`, {}, { headers: authHeaders(authToken) })
+      const adminSecret = import.meta.env.VITE_ADMIN_SECRET ?? ''
+      await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, {
+        headers: { ...authHeaders(authToken), 'X-Admin-Secret': adminSecret },
+      })
       const { data } = await axios.post(
         `${API_URL}/sessions/${session.id}/tribunal/unlock`,
         {},

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     razorpay_tribunal_amount: int = 19900    # paise; 19900 = ₹199
     resend_api_key: str = ""
     frontend_origin: str = "http://localhost:5173"
+    admin_secret: str = ""  # Set in Railway env; enables /sessions/{id}/admin-mark-paid
 
     @property
     def is_stub(self) -> bool:

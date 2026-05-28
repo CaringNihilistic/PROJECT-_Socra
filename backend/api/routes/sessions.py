@@ -186,27 +186,27 @@ async def get_session(
     return _serialize(session)
 
 
-@router.post("/{session_id}/dev-paid")
-async def dev_mark_paid(
+@router.post("/{session_id}/admin-mark-paid")
+async def admin_mark_paid(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    authorization: Optional[str] = Header(None),
+    x_admin_secret: Optional[str] = Header(None),
 ):
-    """Dev-only: mark a session as fully paid (standard + tribunal).
-    Protected on the frontend by VITE_RAZORPAY_KEY_ID presence; session access
-    check below prevents touching another user's session."""
+    """Admin: mark a session as fully paid. Requires X-Admin-Secret header matching ADMIN_SECRET env var.
+    Use for testing on production without going through Razorpay."""
+    from core.config import settings as _cfg
+    if not _cfg.admin_secret or x_admin_secret != _cfg.admin_secret:
+        raise HTTPException(403, "Invalid admin secret")
 
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
-    await _check_session_access(session, authorization)
 
     await db.execute(
         update(Session).where(Session.id == session_id).values(paid=True, tribunal_paid=True)
     )
     await db.commit()
-    await db.refresh(session)
     return {"ok": True, "paid": True, "tribunal_paid": True, "session_id": session_id}
 
 
