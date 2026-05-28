@@ -1,12 +1,12 @@
 # Socra — Security & Production Hardening
 
-> Written after full audit of all backend routes. Every item below is already implemented and deployed. This document exists so future contributors understand *why* each guard is there and what breaks if it's removed.
+> Written after full audit of all backend routes and a dedicated API key leak audit. Every item below is already implemented and deployed. This document exists so future contributors understand *why* each guard is there and what breaks if it's removed.
 
 ---
 
 ## What Was Audited
 
-All five backend route files (`sessions.py`, `architect.py`, `billing.py`, `followup.py`, `waitlist.py`), the auth layer (`core/auth.py`), the database engine (`db/database.py`), and the app entrypoint (`main.py`).
+All five backend route files (`sessions.py`, `architect.py`, `billing.py`, `followup.py`, `waitlist.py`), the auth layer (`core/auth.py`), the database engine (`db/database.py`), the app entrypoint (`main.py`), all frontend `VITE_` env vars, the entire git history for committed secrets, and the Docker build context.
 
 ---
 
@@ -214,6 +214,90 @@ create_async_engine(
 ```
 
 Supports 30 concurrent DB operations before queuing, with a 30-second timeout before raising `TimeoutError` instead of hanging indefinitely.
+
+---
+
+## API Key Leak Audit (commit `d436df2`)
+
+A dedicated audit of every path through which API keys could be exposed — git history, browser source, Docker image, logs, and public endpoints.
+
+### Finding 1: `/health` exposed configuration details
+
+**What it was:**
+```json
+{
+  "status": "ok",
+  "stub_mode": false,
+  "llm": "google",
+  "env_google_key_set": true,
+  "settings_google_key_set": true
+}
+```
+No key *values* were exposed, but the endpoint told any visitor: which LLM provider is configured, whether keys are present, and whether the app is in production or demo mode. This is a targeted attack primer — an attacker now knows exactly which API to attempt to steal or exhaust.
+
+**The fix:** Stripped to only what a health check needs:
+```json
+{ "status": "ok", "db": "ok", "version": "0.2.2" }
+```
+
+---
+
+### Finding 2: Startup log printed key lengths
+
+**What it was:**
+```
+🔑 ENV check — GOOGLE_API_KEY: SET(39 chars), GROQ_API_KEY: SET, STUB_MODE: false
+```
+This went to Railway logs on every deploy. Key length narrows brute-force search space and confirms which keys are active. Anyone with Railway log access (a compromised account, a contractor) could see it.
+
+**The fix:** Startup now logs only the provider name, never key presence or length:
+```
+✅ Socra: LLM ready (Google)
+```
+
+---
+
+### Finding 3: No `.dockerignore` in backend
+
+**What it was:** `backend/Dockerfile` runs `COPY . .` with no `.dockerignore`. If anyone ever created a `backend/.env` file (easy mistake when debugging locally), it would be silently baked into the Docker image — then extractable from any container artifact, CI cache, or Railway build log.
+
+**The fix:** Created `backend/.dockerignore`:
+```
+.env
+.env.*
+__pycache__/
+*.py[cod]
+...
+```
+
+---
+
+### Finding 4: `.env` file has real keys locally
+
+**Status: Safe — not in git.** Verified with `git log --all -S "<key_value>"` for every key in `.env`. No key values appear anywhere in the git history.
+
+**How it stays safe:** `.gitignore` has `.env` and `.env.*` excluded. The `backend/.dockerignore` (new) prevents it entering Docker images. Railway reads keys from environment variables, never from a file.
+
+**Risk that remains:** The `.env` file exists on the developer's local machine with real keys. If that machine is compromised or the file is accidentally shared (zip, email, screenshot), keys are exposed. Mitigation: use a password manager or secret vault (1Password, Doppler) for local dev keys instead of a plaintext file.
+
+---
+
+### What's visible via browser F12 (source code search)
+
+Searched every `VITE_` env var in the frontend bundle:
+
+| Variable in bundle | Value type | Dangerous? |
+|--------------------|-----------|------------|
+| `VITE_API_URL` | Backend URL (`https://socra-production.up.railway.app`) | No — already public |
+| `VITE_CLERK_PUBLISHABLE_KEY` | `pk_test_...` | No — publishable keys are *designed* to be public. Identifies the app, grants no access. |
+| `VITE_RAZORPAY_KEY_ID` | `rzp_live_...` (if set) | No — Razorpay key IDs are public, equivalent to Stripe's `pk_live_`. The secret lives in backend only. |
+
+**Keys that never reach the browser:**
+`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `GROQ_API_KEY`, `TAVILY_API_KEY`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `CLERK_SECRET_KEY`, `RESEND_API_KEY`, `SECRET_KEY`, `DATABASE_URL`
+
+All of these live exclusively in `backend/core/config.py` → Railway env vars → never serialized into any API response or frontend bundle.
+
+**The rule that keeps this safe:** Anything in `backend/core/config.py` never touches the frontend. Any `VITE_` prefixed variable is either a URL or an intentionally public key. Never put a server-side secret in a `VITE_` variable.
 
 ---
 
