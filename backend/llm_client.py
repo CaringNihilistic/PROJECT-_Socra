@@ -484,18 +484,22 @@ CHALLENGE VAGUE ANSWERS — this is your most important job:
 - "Better UX / faster / more scalable" → "Scalable to what number? What breaks first and when?"
 - Generic aspirations earn zero score. Extract specific, measurable, differentiated claims.
 
-OUTPUT FORMAT — write exactly two parts separated by {SEPARATOR}:
+OUTPUT FORMAT — write exactly two parts separated by {SEPARATOR}. Follow this example exactly:
 
-[Part 1 — your conversational response in markdown — MANDATORY, must not be empty]
+Good market definition. Now I need to understand your acquisition path.
+
+Who will you call on day 1 — a specific company, job title, and city? And what's your honest CAC estimate for this first customer?
 {SEPARATOR}
-{{"eval_delta": {{"problem_clarity": 0.0, "scale_constraints": 0.0, "tech_context": 0.0, "success_definition": 0.0, "risk_awareness": 0.0}}, "new_assumptions": [], "phase": "intake", "choices": []}}
+{{"eval_delta": {{"problem_clarity": 0.15, "scale_constraints": 0.10, "tech_context": 0.0, "success_definition": 0.0, "risk_awareness": 0.0}}, "new_assumptions": ["Target: 10-100 employee SMEs", "Focus: marketing agencies first"], "phase": "intake", "choices": ["First call: ops manager at NYC marketing agency", "CAC ~$2K via outbound LinkedIn", "Free trial, convert at $299/mo after 2 weeks", "Founder sells first 10 manually, no paid marketing"]}}
 
-JSON rules:
-- eval_delta: small positive increments (0.05-0.25) per dimension based on what this turn clarified.
-- phase: "intake" | "debate" | "stress_test" | "masterplan"
-- choices: 3-4 SHORT ANSWER OPTIONS the user could click to reply to YOUR question. These are things the USER would say, not questions. WRONG: "What is the market size?" RIGHT: "Targeting 500 SMEs in year 1", "CAC ~$200, LTV ~$2K", "Bootstrapped, no outside funding yet". Max 10 words each. Empty [] for masterplan phase.
-- Part 1 MUST contain your actual response/questions. NEVER leave Part 1 empty or put just whitespace before {SEPARATOR}.
-- If phase is "masterplan", Part 1 must be ONE SHORT SENTENCE only. The specialist agents generate the actual plan."""
+RULES for your output:
+- Part 1 (before {SEPARATOR}): your actual response and questions. MANDATORY. Never empty.
+- eval_delta: increments 0.05–0.25 per dimension the user's message addressed. Zero for unaddressed dims.
+- phase: "intake" always unless score > 0.85, then "masterplan"
+- choices: 3–4 things the USER would TYPE as their answer. Not questions. Not tasks. User answers.
+  BAD choices: "What is CAC?", "Identify verticals", "Research market size"
+  GOOD choices: "CAC ~$500 via LinkedIn outbound", "Targeting NYC marketing agencies first", "No funding yet, bootstrapped"
+- If phase is "masterplan": Part 1 = one sentence only."""
 
 
 async def _stream_google_tokens(system: str, messages: list[dict], max_tokens: int = 2500):

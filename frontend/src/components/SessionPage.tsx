@@ -727,6 +727,23 @@ export function SessionPage() {
             </div>
           )}
 
+          {/* Fallback: show Socra avatar + prompt when LLM returned empty Part 1 but generated choices */}
+          {!isSending && currentChoices.length > 0 && !masterplan &&
+            conversation_history.length > 0 &&
+            conversation_history.filter(m => (m.content?.replace(/[*#\-_>\s]/g, '') ?? '').length > 5).slice(-1)[0]?.role === 'user' && (
+            <div className="flex gap-4 fade-up justify-start">
+              <div className="flex-shrink-0 mt-1">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-bold"
+                  style={{ background: 'linear-gradient(135deg, #f59e0b, #e85d26)', color: '#08070a', boxShadow: '0 2px 10px rgba(245,158,11,0.22)' }}>
+                  S
+                </div>
+              </div>
+              <div className="rounded-2xl px-4 py-3 max-w-[82%] text-[14px] text-ink-400 italic">
+                Pick one of the suggested answers below, or type your own response.
+              </div>
+            </div>
+          )}
+
           <div ref={bottomRef} />
         </div>
 
