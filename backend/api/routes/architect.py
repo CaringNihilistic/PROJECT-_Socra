@@ -191,10 +191,9 @@ async def send_message_stream(
                 new_agent_reports = list(original_agent_reports)
 
                 if new_phase == "masterplan" and not masterplan:
-                    from core.config import settings as _cfg
-                    billing_enabled = bool(_cfg.razorpay_key_id and _cfg.razorpay_key_secret)
-                    if billing_enabled and not is_paid:
-                        # Gate: save progress, emit payment_required, stop
+                    if not is_paid:
+                        # Gate: save progress, emit payment_required, stop.
+                        # Always fires — /unlock or /dev-paid handles the next step.
                         await db.execute(
                             update(Session)
                             .where(Session.id == session_id)
@@ -490,9 +489,8 @@ async def send_tribunal_message(
                 yield f"data: {json.dumps({'type': 'round_complete', 'round': round_number, 'tribunal_history': updated_history})}\n\n"
 
                 if round_number >= 4:
-                    from core.config import settings as _cfg
-                    billing_enabled = bool(_cfg.razorpay_key_id and _cfg.razorpay_key_secret)
-                    if billing_enabled and not is_tribunal_paid:
+                    if not is_tribunal_paid:
+                        # Always gate — /tribunal/unlock or /dev-paid handles the next step.
                         yield f"data: {json.dumps({'type': 'payment_required', 'session_id': session_id})}\n\n"
                         return
 

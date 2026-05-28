@@ -388,7 +388,7 @@ export function SessionPage() {
       }}>
 
       {/* Paywall modal — shown when billing is enabled and masterplan is locked */}
-      {BILLING_ENABLED && <PaywallModal />}
+      <PaywallModal />
 
       {/* Unlock in-progress overlay */}
       {isUnlocking && (

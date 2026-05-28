@@ -20,7 +20,11 @@
       "Bash(curl -s -N -X POST \"https://socra-backend-production.up.railway.app/sessions/37f67b2d-d1e5-4927-b053-33f8c2d4ec58/message/stream\" -H \"Content-Type: application/json\" -d \"{\\\\\"content\\\\\": \\\\\"students want deadline reminders\\\\\"}\" --max-time 30)",
       "Bash(timeout 120 bash -c \"until curl -s https://socra-production.up.railway.app/ | grep -q 'No surprises' 2>/dev/null; do sleep 10; done\")",
       "Bash(curl -s https://socra-production.up.railway.app/)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(curl -s -X POST http://localhost:8000/sessions/nonexistent-id/dev-paid)",
+      "Bash(docker -H npipe:////./pipe/docker_engine compose restart backend)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "PowerShell(Get-Process -Name python,uvicorn -ErrorAction SilentlyContinue)"
     ]
   }
 }
