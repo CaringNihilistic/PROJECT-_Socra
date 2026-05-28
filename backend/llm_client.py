@@ -1345,16 +1345,29 @@ Think through your reasoning first, then return ONLY valid JSON:
 
 async def _call_fast_llm(system: str, messages: list[dict]) -> str:
     """Cheaper/faster model for specialist agents. Falls back Google → Groq on quota errors."""
+    # Sanitize: Anthropic rejects None content or empty strings
+    safe_msgs = [{"role": m["role"], "content": m["content"] or " "} for m in messages if m.get("content") is not None]
+    if not safe_msgs or safe_msgs[0]["role"] != "user":
+        safe_msgs = [{"role": "user", "content": system}]
+
     if settings.anthropic_api_key:
         import anthropic
+        import logging as _log
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        response = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=900,
-            system=system,
-            messages=messages,
-        )
-        return response.content[0].text
+        try:
+            response = await client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=900,
+                system=system,
+                messages=safe_msgs,
+            )
+            u = response.usage
+            cost = (u.input_tokens * 0.80 + u.output_tokens * 4.00) / 1_000_000
+            _log.getLogger("usage").info("anthropic/agent | in=%d out=%d cost=$%.5f", u.input_tokens, u.output_tokens, cost)
+            return response.content[0].text
+        except anthropic.BadRequestError as e:
+            _log.getLogger(__name__).error("Anthropic agent 400: %s | msgs=%s", e, [m["role"] for m in safe_msgs])
+            raise
     if settings.google_api_key:
         try:
             return await _call_google(system, messages, max_tokens=900)
@@ -1414,7 +1427,9 @@ async def run_specialist_agent(agent_cfg: dict, msgs: list[dict]) -> dict:
     try:
         content = await _call_fast_llm(agent_cfg["prompt"], msgs)
     except Exception as e:
-        content = f"_Analysis unavailable ({str(e)[:80]})_"
+        import logging as _log
+        _log.getLogger(__name__).error("Specialist agent %s failed: %s", agent_cfg["key"], e)
+        content = f"_Analysis unavailable — {type(e).__name__}_"
     return {
         "key": agent_cfg["key"],
         "title": agent_cfg["title"],

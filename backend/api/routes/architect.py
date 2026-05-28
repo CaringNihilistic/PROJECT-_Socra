@@ -191,7 +191,7 @@ async def send_message_stream(
                 new_turn_number = turn_number + 1
 
                 masterplan = original_masterplan
-                new_agent_reports = list(original_agent_reports)
+                new_agent_reports: list = []  # always start fresh on each masterplan generation
 
                 if new_phase == "masterplan" and not masterplan:
                     if not is_paid:
@@ -373,7 +373,7 @@ async def unlock_masterplan(
     turn_number = session.turn_number
 
     async def unlock_stream():
-        new_agent_reports = list(original_agent_reports)
+        new_agent_reports: list = []  # always start fresh — don't carry over failed previous attempts
         masterplan = None
 
         async for ma_event in stream_multi_agent_masterplan(history):
