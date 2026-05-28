@@ -24,7 +24,22 @@
       "Bash(curl -s -X POST http://localhost:8000/sessions/nonexistent-id/dev-paid)",
       "Bash(docker -H npipe:////./pipe/docker_engine compose restart backend)",
       "Bash(curl -s http://localhost:8000/health)",
-      "PowerShell(Get-Process -Name python,uvicorn -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Process -Name python,uvicorn -ErrorAction SilentlyContinue)",
+      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/CLAUDE.md)",
+      "Bash(curl -s \"https://api.github.com/repos/obra/superpowers/contents/skills\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/systematic-debugging/SKILL.md\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/brainstorming/SKILL.md\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/requesting-code-review/SKILL.md\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/verification-before-completion/SKILL.md\")",
+      "Bash(mkdir -p \"c:/PROJECT _STARTUP/.claude/commands\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/systematic-debugging/SKILL.md\" > \"c:/PROJECT _STARTUP/.claude/commands/systematic-debugging.md\" && echo \"ok\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/brainstorming/SKILL.md\" > \"c:/PROJECT _STARTUP/.claude/commands/brainstorming.md\" && echo \"ok\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/requesting-code-review/SKILL.md\" > \"c:/PROJECT _STARTUP/.claude/commands/requesting-code-review.md\" && echo \"ok\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/skills/verification-before-completion/SKILL.md\" > \"c:/PROJECT _STARTUP/.claude/commands/verification-before-completion.md\" && echo \"ok\")"
+    ],
+    "additionalDirectories": [
+      "c:\\PROJECT _STARTUP\\.claude",
+      "c:\\PROJECT _STARTUP\\.claude\\commands"
     ]
   }
 }
