@@ -41,7 +41,9 @@
       "Bash(curl -s \"https://socra-production.up.railway.app/sessions/76895d92-ecaf-4ceb-8805-564c24f73e6b\" -H \"Accept: application/json\" -H \"Content-Type: application/json\")",
       "Bash(curl -s \"https://socra-production.up.railway.app/assets/index-325itTAO.js\")",
       "Bash(curl -s \"https://socra-backend-production.up.railway.app/sessions/76895d92-ecaf-4ceb-8805-564c24f73e6b\")",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s \"https://socra-backend-production.up.railway.app/sessions/73d2877f-d097-41fd-a5a0-7c12b528ba1b\")",
+      "Bash(python3 -c ' *)"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",
