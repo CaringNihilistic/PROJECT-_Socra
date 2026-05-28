@@ -1411,15 +1411,32 @@ def _trim_history_for_agents(history: list[dict], max_pairs: int = 4) -> list[di
 
 
 def _build_agent_msgs(conversation_history: list[dict], web_context: str = "") -> list[dict]:
-    """Build pre-trimmed messages for specialist agents.
-    Injects web context into the first user message so the messages prefix is identical
-    across all parallel agent calls, enabling provider-side caching (Google implicit cache,
-    Anthropic cache_control). Each agent's system prompt is its persona only."""
-    trimmed = _trim_history_for_agents(conversation_history)
-    msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed]
-    if web_context and msgs:
-        msgs[0] = {"role": "user", "content": f"[Web Research Context]\n{web_context}\n\n{msgs[0]['content']}"}
-    return msgs
+    """Build a single clean user message for specialist agents.
+
+    Passes only: initial idea + founder's answers + web research.
+    Does NOT pass the full Q&A conversation — LLMs pattern-match the
+    conversational format and generate more questions instead of analysis.
+    Single-message format also eliminates all Anthropic role-alternation 400 errors.
+    """
+    initial_idea = conversation_history[0]["content"].strip() if conversation_history else ""
+
+    # Collect user answers after the initial idea (skip assistant messages entirely)
+    user_answers = [
+        m["content"].strip()
+        for m in conversation_history[1:]
+        if m.get("role") == "user" and m.get("content", "").strip()
+    ]
+
+    parts = [f"STARTUP IDEA:\n{initial_idea}"]
+
+    if user_answers:
+        answers_text = "\n\n".join(f"- {a}" for a in user_answers[-8:])
+        parts.append(f"FOUNDER'S ANSWERS (from discovery):\n{answers_text}")
+
+    if web_context:
+        parts.append(f"LIVE MARKET RESEARCH:\n{web_context}")
+
+    return [{"role": "user", "content": "\n\n".join(parts)}]
 
 
 async def run_specialist_agent(agent_cfg: dict, msgs: list[dict]) -> dict:
@@ -1516,13 +1533,16 @@ Do NOT give generic startup advice. Critique the specific decisions in THIS plan
 Format as a numbered list. Be direct and honest."""
 
     # Use synthesis-quality model with Google → Groq fallback
+    # Anthropic requires at least one user message — empty messages[] causes 400
+    trigger_msg = [{"role": "user", "content": "Provide your critical review of this masterplan."}]
+
     content = ""
     try:
         if settings.anthropic_api_key:
-            content = await _call_anthropic(system, [], max_tokens=800)
+            content = await _call_anthropic(system, trigger_msg, max_tokens=800)
         elif settings.google_api_key:
             try:
-                content = await _call_google(system, [], max_tokens=800)
+                content = await _call_google(system, trigger_msg, max_tokens=800)
             except Exception:
                 pass  # Fall through to Groq
         if not content and settings.groq_api_key:
@@ -1633,6 +1653,8 @@ Format as clean Markdown. Be opinionated. If there is a clearly better choice, s
 async def _stream_synthesis_tokens(system: str, messages: list[dict]):
     """Stream synthesis using the best available model. Falls back Google → Groq on empty response or error."""
     import logging as _log
+    # Anthropic requires at least one user message
+    safe_msgs = messages if messages else [{"role": "user", "content": "Synthesize the council findings into a masterplan."}]
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
@@ -1640,7 +1662,7 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
             model="claude-haiku-4-5-20251001",
             max_tokens=3000,
             system=system,
-            messages=messages,
+            messages=safe_msgs,
         ) as stream:
             async for text in stream.text_stream:
                 yield text
@@ -1656,6 +1678,7 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
         if yielded > 0:
             return
         _log.getLogger(__name__).warning("Google synthesis returned empty — falling back to Groq")
+    messages = safe_msgs  # use sanitized messages for Groq too
     async for token in _stream_groq_tokens(system, messages, model="llama-3.3-70b-versatile", max_tokens=3000):
         yield token
 
@@ -1717,10 +1740,9 @@ async def stream_multi_agent_masterplan(conversation_history: list[dict]):
             yield {"type": "agent_report", "report": report}
             await asyncio.sleep(0.4)  # stagger reveals for UI effect
 
-    # Phase 3: stream synthesis — trim conversation to last 4 pairs (same as agents)
+    # Phase 3: stream synthesis — use same clean single-message format as agents
     synthesis_system = _build_synthesis_prompt(agent_reports)
-    trimmed_conv = _trim_history_for_agents(conversation_history)
-    msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed_conv]
+    msgs = _build_agent_msgs(conversation_history)  # idea + founder answers, no Q&A format
     synthesis_text = ""
 
     try:

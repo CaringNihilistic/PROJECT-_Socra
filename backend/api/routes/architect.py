@@ -66,7 +66,7 @@ async def _process_message(session, req_content: str, db: AsyncSession):
 
 async def _generate_masterplan_sync(conversation_history: list) -> str:
     """Fallback for the non-streaming route: collect all agent reports then synthesize."""
-    from llm_client import run_all_agents_combined, run_specialist_agent, SPECIALIST_AGENTS, _build_synthesis_prompt, _call_real_llm, _build_agent_msgs, _trim_history_for_agents
+    from llm_client import run_all_agents_combined, run_specialist_agent, SPECIALIST_AGENTS, _build_synthesis_prompt, _call_real_llm, _build_agent_msgs
     from core.config import settings
     if settings.anthropic_api_key or settings.google_api_key:
         import asyncio
@@ -76,8 +76,7 @@ async def _generate_masterplan_sync(conversation_history: list) -> str:
     else:
         reports = await run_all_agents_combined(conversation_history)
     system = _build_synthesis_prompt(reports)
-    trimmed_conv = _trim_history_for_agents(conversation_history)
-    msgs = [{"role": m["role"], "content": m["content"]} for m in trimmed_conv]
+    msgs = _build_agent_msgs(conversation_history)  # clean single-message format
     return await _call_real_llm(system, msgs, max_tokens=3000)
 
 
