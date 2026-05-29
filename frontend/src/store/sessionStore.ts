@@ -35,19 +35,6 @@ export interface Assumption {
   status: 'unknown' | 'validated' | 'disproved'
 }
 
-export interface DebateRound {
-  round: number
-  label: string
-  bull: string
-  bear: string
-}
-
-export interface Debate {
-  topic: string
-  rounds: DebateRound[]
-  verdict: string
-}
-
 export interface PitchSlide {
   id: string
   title: string
@@ -96,7 +83,6 @@ export interface SessionData {
   masterplan: string | null
   agent_reports: AgentReport[]
   pitch_deck?: PitchDeck | null
-  debate?: Debate | null
   explanations: ScoreExplanation[]
   latest_response?: string
   refusal?: string | null
@@ -170,7 +156,6 @@ interface SessionStore {
   sendTribunalMessage: (content: string) => Promise<void>
   updateAssumptionStatus: (index: number, status: Assumption['status']) => Promise<void>
   generatePitchDeck: () => Promise<void>
-  generateDebate: () => Promise<void>
   createCheckout: () => Promise<string | null>
   verifyAndUnlock: (checkoutId: string, sessionId: string) => Promise<void>
   createTribunalCheckout: () => Promise<string | null>
@@ -713,19 +698,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     } finally {
       set({ isUnlocking: false, isAnalyzing: false })
     }
-  },
-
-  generateDebate: async () => {
-    const { session, authToken } = get()
-    if (!session?.masterplan) return
-    try {
-      const { data } = await axios.post<Debate>(
-        `${API_URL}/sessions/${session.id}/debate`,
-        {},
-        { headers: authHeaders(authToken) },
-      )
-      set((s) => ({ session: s.session ? { ...s.session, debate: data } : null }))
-    } catch { /* silently fail */ }
   },
 
   generatePitchDeck: async () => {

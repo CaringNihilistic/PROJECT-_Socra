@@ -45,7 +45,7 @@ const DIMS = [
 ]
 
 type Dims = { pc: number; sc: number; tc: number; sd: number; ra: number }
-type DemoPhase = 'eval' | 'agents' | 'pitch' | 'debate'
+type DemoPhase = 'eval' | 'agents' | 'pitch'
 
 interface DemoState {
   phase: DemoPhase
@@ -55,9 +55,6 @@ interface DemoState {
   showChallenge: boolean
   searching: boolean
   agentCount: number
-  showBull: boolean
-  showBear: boolean
-  showVerdict: boolean
 }
 
 const D0: DemoState = {
@@ -68,9 +65,6 @@ const D0: DemoState = {
   showChallenge: false,
   searching: false,
   agentCount: 0,
-  showBull: false,
-  showBear: false,
-  showVerdict: false,
 }
 
 const DEMO_AGENTS = [
@@ -83,7 +77,6 @@ const PHASE_TABS: { key: DemoPhase; label: string }[] = [
   { key: 'eval',   label: '① Eval' },
   { key: 'agents', label: '② Agents' },
   { key: 'pitch',  label: '③ Pitch' },
-  { key: 'debate', label: '④ Debate' },
 ]
 
 function LiveDemo() {
@@ -110,17 +103,11 @@ function LiveDemo() {
       at(11600, () => upd({ agentCount: 2 }))
       at(12900, () => upd({ agentCount: 3 }))
 
-      // ── Phase 3: Pitch deck (15–21s) ─────────────────────────────────────
+      // ── Phase 3: Pitch deck (15–22s) ─────────────────────────────────────
       at(15500, () => upd({ phase: 'pitch' }))
 
-      // ── Phase 4: Debate (21–27s) ──────────────────────────────────────────
-      at(21000, () => upd({ phase: 'debate' }))
-      at(21600, () => upd({ showBull: true }))
-      at(23000, () => upd({ showBear: true }))
-      at(24800, () => upd({ showVerdict: true }))
-
       // ── Loop ──────────────────────────────────────────────────────────────
-      ids.push(setTimeout(run, 28000))
+      ids.push(setTimeout(run, 22500))
     }
 
     run()
@@ -288,54 +275,9 @@ function LiveDemo() {
                 ))}
               </div>
               <span className="text-[10px] font-mono text-amber-500/40 border border-amber-500/15 px-2.5 py-0.5 rounded-lg">
-                Export as HTML →
+                9 slide-ready cards
               </span>
             </div>
-          </div>
-        )}
-
-        {/* ── Phase 4: Debate ──────────────────────────────────────────────── */}
-        {demo.phase === 'debate' && (
-          <div className="space-y-3 fade-up">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-base">⚔️</span>
-              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">AI Debate · Round 1: Opening Arguments</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {demo.showBull && (
-                <div className="rounded-xl border px-3 py-3 fade-up"
-                  style={{ borderColor: 'rgba(52,211,153,0.2)', background: 'rgba(52,211,153,0.04)' }}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span className="text-[10px] font-mono text-emerald-400/70 uppercase tracking-wider">Bull</span>
-                  </div>
-                  <p className="text-[12px] text-ink-400 leading-relaxed">
-                    Remote work is permanently mainstream. 300M+ flexible workers need this. The market is fragmented — perfect for a marketplace play.
-                  </p>
-                </div>
-              )}
-              {demo.showBear && (
-                <div className="rounded-xl border px-3 py-3 fade-up"
-                  style={{ borderColor: 'rgba(239,68,68,0.18)', background: 'rgba(239,68,68,0.04)' }}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                    <span className="text-[10px] font-mono text-red-400/60 uppercase tracking-wider">Bear</span>
-                  </div>
-                  <p className="text-[12px] text-ink-400 leading-relaxed">
-                    WeWork burned $47B proving space unit economics are brutal. You need 80%+ utilisation before a single location breaks even.
-                  </p>
-                </div>
-              )}
-            </div>
-            {demo.showVerdict && (
-              <div className="rounded-xl border px-3 py-2.5 fade-up"
-                style={{ borderColor: 'rgba(99,102,241,0.18)', background: 'rgba(99,102,241,0.04)' }}>
-                <span className="text-[10px] font-mono text-indigo-400/50 uppercase tracking-wider mr-2">Verdict</span>
-                <span className="text-[12px] text-ink-400">
-                  Timing is right, but validate utilisation economics with 3 pilot locations before scaling.
-                </span>
-              </div>
-            )}
           </div>
         )}
 
@@ -441,8 +383,7 @@ export function LandingPage() {
     { icon: '🏛', title: 'The Council — 5 AI Advisors', desc: 'The Banker, Oracle, Challenger, Builder, and Skeptic — five distinct voices, each looking for a different reason your idea fails. The Chairman synthesizes their verdict.', tag: 'Core', tc: '#a78bfa' },
     { icon: '🌐', title: 'Live Web Research', desc: 'The council searches for real competitor data, market sizing, and pricing benchmarks before writing their reports. Named companies, real numbers — not hallucinations.', tag: 'Core', tc: '#22d3ee' },
     { icon: '💀', title: "Devil's Advocate", desc: '5 specific reasons this plan fails — regulatory exposure, unit economics, timing, competitive response, execution gaps. The critique that saves you 6 months of wrong building.', tag: 'Core', tc: '#e05555' },
-    { icon: '📑', title: 'Investor Pitch Deck', desc: '9 slide-ready cards generated from the masterplan — problem, solution, market, model, competition, roadmap, and ask. Export as a fully interactive HTML presentation.', tag: 'Output', tc: '#f59e0b' },
-    { icon: '⚔️', title: 'Bull vs Bear Debate', desc: 'A VC optimist and an operator skeptic argue your idea across 3 structured rounds with a final verdict. The tension between them is where the real insight lives.', tag: 'Output', tc: '#34d399' },
+    { icon: '📑', title: 'Investor Pitch Deck', desc: '9 slide-ready cards generated from the masterplan — problem, solution, market, model, competition, roadmap, and ask. Investor-ready, straight from the council\'s findings.', tag: 'Output', tc: '#f59e0b' },
     { icon: '↔️', title: 'Idea Comparison', desc: 'Compare two sessions side by side — scores, council reports, and architecture. Useful when you\'re deciding between two directions before committing to either.', tag: 'Output', tc: '#f59e0b' },
     { icon: '📋', title: "Chairman's Masterplan", desc: 'Full markdown verdict: system design, tech stack, data model, scaling strategy, and risk register — synthesized from the council\'s findings. Exportable as .md or shareable via link.', tag: 'Core', tc: '#34d399' },
   ]
@@ -574,7 +515,7 @@ export function LandingPage() {
 
         {/* Proof row */}
         <div className="flex items-center justify-center gap-5 mb-10 flex-wrap">
-          {['The Council — 5 AI advisors', 'Real web research', 'Investor pitch deck', 'Bull vs Bear debate'].map((t) => (
+          {['The Council — 5 AI advisors', 'Real web research', 'Investor pitch deck', "Devil's advocate"].map((t) => (
             <div key={t} className="flex items-center gap-1.5">
               <div className="w-1 h-1 rounded-full bg-ink-700" />
               <span className="text-[11px] text-ink-700 font-mono">{t}</span>
@@ -684,7 +625,7 @@ export function LandingPage() {
       <div className="border-y border-ink-800/40 py-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.015)' }}>
         <div className="ticker-track flex gap-0">
           {[...Array(2)].flatMap(() =>
-            ['The Council — 5 AI advisors', 'Real web research', 'Investor pitch deck', 'Bull vs Bear debate', "Devil's advocate", 'Assumption tracker', "Chairman's masterplan", 'Interactive HTML export', 'Idea comparison', 'We say no — with evidence'].map((t) => (
+            ['The Council — 5 AI advisors', 'Real web research', 'Investor pitch deck', "Devil's advocate", 'Assumption tracker', "Chairman's masterplan", 'Idea comparison', 'We say no — with evidence'].map((t) => (
               <span key={t + Math.random()} className="flex items-center gap-2 px-8 text-[12px] font-mono text-ink-700">
                 {t} <span className="text-amber-500/40">◆</span>
               </span>
@@ -833,7 +774,6 @@ export function LandingPage() {
                   'Architecture masterplan',
                   "Devil's advocate",
                   'Investor pitch deck',
-                  'Bull vs Bear debate',
                   'Shareable score card',
                 ].map(f => (
                   <div key={f} className="flex gap-2 text-[13px] text-ink-300">

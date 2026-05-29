@@ -1,7 +1,7 @@
 import json
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Header
-from fastapi.responses import StreamingResponse, HTMLResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from pydantic import BaseModel, Field
@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
-from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, generate_pitch_deck_html, generate_debate, stream_tribunal_turn, generate_tribunal_verdicts
+from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, stream_tribunal_turn, generate_tribunal_verdicts
 from api.routes.sessions import _serialize, _check_session_access
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
@@ -305,39 +305,6 @@ async def create_pitch_deck(
     return deck
 
 
-@router.post("/{session_id}/pitch-deck/html", response_class=HTMLResponse)
-async def export_pitch_deck_html(
-    session_id: str,
-    db: AsyncSession = Depends(get_db),
-    authorization: Optional[str] = Header(None),
-):
-    result = await db.execute(select(Session).where(Session.id == session_id))
-    session = result.scalar_one_or_none()
-    if not session:
-        raise HTTPException(404, "Session not found")
-    await _check_session_access(session, authorization)
-    if not session.pitch_deck:
-        raise HTTPException(400, "Generate the pitch deck first")
-
-    # Find devil's advocate content from agent reports
-    agent_reports = list(session.agent_reports or [])
-    devil = next((r for r in agent_reports if r.get("key") == "devils_advocate"), None)
-    devil_content = devil.get("content", "") if devil else ""
-
-    html = await generate_pitch_deck_html(
-        deck=session.pitch_deck,
-        devil_content=devil_content,
-        idea=session.initial_idea,
-    )
-
-    if not html:
-        raise HTTPException(503, "HTML generation failed — try again")
-
-    return HTMLResponse(content=html, headers={
-        "Content-Disposition": f'attachment; filename="pitch-deck.html"'
-    })
-
-
 @router.post("/{session_id}/unlock")
 async def unlock_masterplan(
     session_id: str,
@@ -412,36 +379,6 @@ async def unlock_masterplan(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
-
-
-@router.post("/{session_id}/debate")
-async def create_debate(
-    session_id: str,
-    db: AsyncSession = Depends(get_db),
-    authorization: Optional[str] = Header(None),
-):
-    result = await db.execute(select(Session).where(Session.id == session_id))
-    session = result.scalar_one_or_none()
-    if not session:
-        raise HTTPException(404, "Session not found")
-    await _check_session_access(session, authorization)
-    if not session.masterplan:
-        raise HTTPException(400, "Masterplan must be generated before running a debate")
-
-    if session.debate:
-        return session.debate
-
-    debate = await generate_debate(
-        conversation_history=list(session.conversation_history or []),
-        agent_reports=list(session.agent_reports or []),
-        masterplan=session.masterplan,
-    )
-
-    await db.execute(
-        update(Session).where(Session.id == session_id).values(debate=debate)
-    )
-    await db.commit()
-    return debate
 
 
 @router.post("/{session_id}/tribunal/message")

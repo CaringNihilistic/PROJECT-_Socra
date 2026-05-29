@@ -25,7 +25,6 @@ class Session(Base):
     masterplan = Column(Text, nullable=True)
     agent_reports = Column(JSON, nullable=True)
     pitch_deck = Column(JSON, nullable=True)
-    debate = Column(JSON, nullable=True)
 
     paid = Column(Boolean, default=False)
 

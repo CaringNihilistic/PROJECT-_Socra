@@ -55,7 +55,6 @@ def _serialize(session: Session) -> dict:
         "masterplan": session.masterplan,
         "agent_reports": session.agent_reports or [],
         "pitch_deck": session.pitch_deck,
-        "debate": session.debate,
         "explanations": get_score_explanation(scores),
         "paid": bool(session.paid),
         "mode": session.mode or "standard",

@@ -44,7 +44,9 @@
       "Bash(python3 -m json.tool)",
       "Bash(curl -s \"https://socra-backend-production.up.railway.app/sessions/73d2877f-d097-41fd-a5a0-7c12b528ba1b\")",
       "Bash(python3 -c ' *)",
-      "Bash(xargs grep -l \"AgentReportCard\")"
+      "Bash(xargs grep -l \"AgentReportCard\")",
+      "Read(//c/Users/ayush/.claude/**)",
+      "Bash(git rm *)"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",
