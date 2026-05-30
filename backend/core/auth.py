@@ -115,39 +115,19 @@ async def is_admin(authorization: Optional[str] = None) -> bool:
 
 
 async def get_identity(authorization: Optional[str] = None) -> dict:
-    """Return identity + admin diagnostics for the current request."""
-    allow = settings.admin_identifiers
-    clerk_host = (settings.clerk_frontend_api_url or "").replace("https://", "").replace("http://", "").rstrip("/")
-    base = {"user_id": None, "email": None, "is_admin": False, "admin_count": len(allow),
-            "token_ok": False, "email_source": "none", "clerk_url": clerk_host, "verify_reason": ""}
-
+    """Return {user_id, email, is_admin} for the current request."""
+    # Clerk not configured → open dev environment, treat as admin
     if not settings.clerk_secret_key or not settings.clerk_frontend_api_url:
-        return {**base, "is_admin": True, "token_ok": None, "verify_reason": "clerk_disabled"}
-    if not authorization or not authorization.startswith("Bearer "):
-        return {**base, "verify_reason": "no_bearer"}
-    token = authorization.removeprefix("Bearer ").strip()
-    try:
-        jwks = await _get_jwks()
-    except Exception as e:
-        return {**base, "verify_reason": f"jwks_fetch_failed:{type(e).__name__}"}
-    try:
-        header = jwt.get_unverified_header(token)
-        kid = header.get("kid")
-        key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
-        if not key:
-            return {**base, "verify_reason": f"kid_not_in_jwks:{kid}"}
-        payload = jwt.decode(token, key, algorithms=["RS256"], options={"verify_aud": False})
-    except Exception as e:
-        return {**base, "verify_reason": f"decode_failed:{type(e).__name__}"}
-
+        return {"user_id": None, "email": None, "is_admin": True}
+    payload = await _verify_token(authorization)
+    if not payload:
+        return {"user_id": None, "email": None, "is_admin": False}
     user_id = payload.get("sub")
     email = payload.get("email")
-    email_source = "jwt" if email else "none"
     if not email and user_id:
         email = await _fetch_clerk_email(user_id)
-        email_source = "clerk_api" if email else "lookup_failed"
+    allow = settings.admin_identifiers
     admin = bool(allow and (
         (user_id and user_id.lower() in allow) or (email and email.lower() in allow)
     ))
-    return {"user_id": user_id, "email": email, "is_admin": admin, "admin_count": len(allow),
-            "token_ok": True, "email_source": email_source, "clerk_url": clerk_host, "verify_reason": "ok"}
+    return {"user_id": user_id, "email": email, "is_admin": admin}

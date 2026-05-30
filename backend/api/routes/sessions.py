@@ -186,13 +186,14 @@ async def create_session(
 async def get_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    authorization: Optional[str] = Header(None),
 ):
+    # Public read-by-UUID: the session UUID is an unguessable capability and the
+    # shareable card / share / compare pages are public (no auth). Mutations
+    # (messages, unlock, admin actions, assumptions) remain ownership/admin-gated.
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
-    await _check_session_access(session, authorization)
     return _serialize(session)
 
 
@@ -205,10 +206,8 @@ async def admin_mark_paid(
     """Admin: mark a session as fully paid. Requires the caller to be on the
     ADMIN_EMAILS allowlist (verified via their Clerk token).
     Use for testing on production without going through Razorpay."""
-    _ident = await get_identity(authorization)
-    if not _ident.get("is_admin"):
-        # Diagnostic body so we can see exactly why admin resolution failed
-        raise HTTPException(403, f"Admin access required | debug={_ident}")
+    if not await is_admin(authorization):
+        raise HTTPException(403, "Admin access required")
 
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
