@@ -603,31 +603,47 @@ async def _stream_groq_tokens(system: str, messages: list[dict], model: str = "l
 async def _stream_llm_tokens(system: str, messages: list[dict]):
     """Async generator yielding raw text tokens. Falls back Google → Groq on quota errors or empty response."""
     import logging as _log
+    input_data = [{"role": "system", "content": system[:500]}, *messages[-2:]]
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        async with client.messages.stream(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=2500,
-            system=system,
-            messages=messages,
-        ) as stream:
-            async for text in stream.text_stream:
-                yield text
+        full_text = ""
+        with trace_generation("anthropic/stream", "claude-haiku-4-5-20251001", input_data) as gen:
+            async with client.messages.stream(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=2500,
+                system=system,
+                messages=messages,
+            ) as stream:
+                async for text in stream.text_stream:
+                    full_text += text
+                    yield text
+            if gen:
+                gen.update(output=full_text[:4000])
         return
     if settings.google_api_key:
         yielded = 0
-        try:
-            async for token in _stream_google_tokens(system, messages):
-                yielded += 1
-                yield token
-        except Exception as e:
-            _log.getLogger(__name__).warning("Google streaming failed: %s", e)
+        full_text = ""
+        with trace_generation("google/stream", "gemini-2.0-flash", input_data) as gen:
+            try:
+                async for token in _stream_google_tokens(system, messages):
+                    yielded += 1
+                    full_text += token
+                    yield token
+            except Exception as e:
+                _log.getLogger(__name__).warning("Google streaming failed: %s", e)
+            if gen:
+                gen.update(output=full_text[:4000])
         if yielded > 0:
             return  # Google worked — don't fall through
         _log.getLogger(__name__).warning("Google returned empty stream — falling back to Groq")
-    async for token in _stream_groq_tokens(system, messages):
-        yield token
+    full_text = ""
+    with trace_generation("groq/stream", "llama-3.1-8b-instant", input_data) as gen:
+        async for token in _stream_groq_tokens(system, messages):
+            full_text += token
+            yield token
+        if gen:
+            gen.update(output=full_text[:4000])
 
 
 async def stream_architect_llm(
@@ -1633,31 +1649,47 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
     import logging as _log
     # Anthropic requires at least one user message
     safe_msgs = messages if messages else [{"role": "user", "content": "Synthesize the council findings into a masterplan."}]
+    input_data = [{"role": "system", "content": system[:500]}, *safe_msgs[-1:]]
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        async with client.messages.stream(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=3000,
-            system=system,
-            messages=safe_msgs,
-        ) as stream:
-            async for text in stream.text_stream:
-                yield text
+        full_text = ""
+        with trace_generation("anthropic/synthesis", "claude-haiku-4-5-20251001", input_data) as gen:
+            async with client.messages.stream(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=3000,
+                system=system,
+                messages=safe_msgs,
+            ) as stream:
+                async for text in stream.text_stream:
+                    full_text += text
+                    yield text
+            if gen:
+                gen.update(output=full_text[:4000])
         return
     if settings.google_api_key:
         yielded = 0
-        try:
-            async for token in _stream_google_tokens(system, safe_msgs, max_tokens=3000):
-                yielded += 1
-                yield token
-        except Exception as e:
-            _log.getLogger(__name__).warning("Google synthesis streaming failed: %s", e)
+        full_text = ""
+        with trace_generation("google/synthesis", "gemini-2.0-flash", input_data) as gen:
+            try:
+                async for token in _stream_google_tokens(system, safe_msgs, max_tokens=3000):
+                    yielded += 1
+                    full_text += token
+                    yield token
+            except Exception as e:
+                _log.getLogger(__name__).warning("Google synthesis streaming failed: %s", e)
+            if gen:
+                gen.update(output=full_text[:4000])
         if yielded > 0:
             return
         _log.getLogger(__name__).warning("Google synthesis returned empty — falling back to Groq")
-    async for token in _stream_groq_tokens(system, safe_msgs, model="llama-3.3-70b-versatile", max_tokens=3000):
-        yield token
+    full_text = ""
+    with trace_generation("groq/synthesis", "llama-3.3-70b-versatile", input_data) as gen:
+        async for token in _stream_groq_tokens(system, safe_msgs, model="llama-3.3-70b-versatile", max_tokens=3000):
+            full_text += token
+            yield token
+        if gen:
+            gen.update(output=full_text[:4000])
 
 
 async def stream_multi_agent_masterplan(conversation_history: list[dict]):
