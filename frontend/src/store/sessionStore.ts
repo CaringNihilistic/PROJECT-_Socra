@@ -381,11 +381,22 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       tribunalPersonaStreams: {},
     })
 
+    // Watchdog: if no SSE data arrives for 90s the provider stream has stalled —
+    // abort so the UI recovers instead of freezing forever. Reset on every chunk.
+    const controller = new AbortController()
+    let watchdog: ReturnType<typeof setTimeout> | undefined
+    const armWatchdog = () => {
+      if (watchdog) clearTimeout(watchdog)
+      watchdog = setTimeout(() => controller.abort(), 90000)
+    }
+
     try {
+      armWatchdog()
       const response = await fetch(`${API_URL}/sessions/${session.id}/tribunal/message`, {
         method: 'POST',
         headers: authHeaders(authToken),
         body: JSON.stringify({ content }),
+        signal: controller.signal,
       })
 
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
@@ -397,6 +408,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
+        armWatchdog()
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() ?? ''
@@ -447,7 +459,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           }
         }
       }
+    } catch (err) {
+      const aborted = err instanceof DOMException && err.name === 'AbortError'
+      console.error('[sendTribunalMessage] failed:', err)
+      alert(aborted
+        ? 'The tribunal stalled (no response in 90s). Please send your message again.'
+        : `Tribunal message failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
+      if (watchdog) clearTimeout(watchdog)
       set({ tribunalStreaming: false, tribunalActivePersona: null })
     }
   },

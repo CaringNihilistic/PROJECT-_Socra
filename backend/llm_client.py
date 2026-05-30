@@ -1136,9 +1136,19 @@ async def stream_tribunal_turn(
         system = persona["prompt"] + round_note
         content = ""
 
-        async for token in _stream_llm_tokens(system, persona_msgs):
-            content += token
-            yield {"type": "persona_token", "persona": persona["key"], "delta": token}
+        # Per-persona timeout + error guard: a stalled or failing provider stream must
+        # never hang the whole round. We always emit persona_done so round_done fires
+        # and the SSE connection closes (otherwise the frontend freezes forever).
+        try:
+            async with asyncio.timeout(60):
+                async for token in _stream_llm_tokens(system, persona_msgs):
+                    content += token
+                    yield {"type": "persona_token", "persona": persona["key"], "delta": token}
+        except (asyncio.TimeoutError, Exception) as e:
+            import logging as _log
+            _log.getLogger(__name__).error("Tribunal persona %s stream failed: %s", persona["key"], e)
+            if not content.strip():
+                content = "(This judge couldn't respond this round — the others have spoken. You can continue.)"
 
         yield {"type": "persona_done", "persona": persona["key"], "content": content}
 
