@@ -137,6 +137,8 @@ interface SessionStore {
   isResearching: boolean
   sessionError: string | null
   authToken: string | null
+  isAdmin: boolean
+  authReady: boolean
   paymentRequired: boolean
   isUnlocking: boolean
   streamError: 'timeout' | 'network' | null
@@ -149,6 +151,8 @@ interface SessionStore {
   tribunalRound: number
   tribunalPaymentRequired: boolean
   setAuthToken: (token: string | null) => void
+  setAuthReady: (ready: boolean) => void
+  loadMe: () => Promise<void>
   loadSessionHistory: () => Promise<void>
   createSession: (idea: string, mode?: string) => Promise<void>
   resumeSession: (sessionId: string) => Promise<void>
@@ -163,6 +167,7 @@ interface SessionStore {
   devUnlock: () => Promise<void>
   devUnlockTribunal: () => Promise<void>
   devRerunMasterplan: () => Promise<void>
+  devSeedConversation: () => Promise<void>
   saveFollowUpEmail: (sessionId: string, email: string) => Promise<void>
   clearSession: () => void
 }
@@ -187,6 +192,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   isResearching: false,
   sessionError: null,
   authToken: null,
+  isAdmin: false,
+  authReady: false,
   paymentRequired: false,
   isUnlocking: false,
   streamError: null,
@@ -199,6 +206,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   tribunalPaymentRequired: false,
 
   setAuthToken: (token) => set({ authToken: token }),
+  setAuthReady: (ready) => set({ authReady: ready }),
+
+  loadMe: async () => {
+    const { authToken } = get()
+    if (!authToken) { set({ isAdmin: false }); return }
+    try {
+      const { data } = await axios.get(`${API_URL}/me`, { headers: authHeaders(authToken) })
+      set({ isAdmin: !!data.is_admin })
+    } catch {
+      set({ isAdmin: false })
+    }
+  },
 
   loadSessionHistory: async () => {
     const { authToken } = get()
@@ -583,9 +602,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (!session) return
     set({ isUnlocking: true })
     try {
-      const adminSecret = import.meta.env.VITE_ADMIN_SECRET ?? ''
       await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, {
-        headers: { ...authHeaders(authToken), 'X-Admin-Secret': adminSecret },
+        headers: authHeaders(authToken),
       })
       set({ paymentRequired: false })
 
@@ -632,9 +650,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (!session) return
     set({ isUnlocking: true })
     try {
-      const adminSecret = import.meta.env.VITE_ADMIN_SECRET ?? ''
       await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, {
-        headers: { ...authHeaders(authToken), 'X-Admin-Secret': adminSecret },
+        headers: authHeaders(authToken),
       })
       const { data } = await axios.post(
         `${API_URL}/sessions/${session.id}/tribunal/unlock`,
@@ -695,6 +712,25 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     } catch (err) {
       console.error('[devRerunMasterplan] failed:', err)
       alert(`Re-run failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      set({ isUnlocking: false, isAnalyzing: false })
+    }
+  },
+
+  devSeedConversation: async () => {
+    const { session, authToken } = get()
+    if (!session) return
+    set({ isUnlocking: true, isAnalyzing: true, currentAgentReports: [], streamingMessage: '' })
+    try {
+      const { data } = await axios.post(
+        `${API_URL}/sessions/${session.id}/admin-seed-conversation`,
+        {},
+        { headers: authHeaders(authToken), timeout: 180000 },
+      )
+      set({ session: data, paymentRequired: false })
+    } catch (err) {
+      console.error('[devSeedConversation] failed:', err)
+      alert(`Seed failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       set({ isUnlocking: false, isAnalyzing: false })
     }

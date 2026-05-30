@@ -20,7 +20,13 @@ class Settings(BaseSettings):
     razorpay_tribunal_amount: int = 19900    # paise; 19900 = ₹199
     resend_api_key: str = ""
     frontend_origin: str = "http://localhost:5173"
-    admin_secret: str = ""  # Set in Railway env; enables /sessions/{id}/admin-mark-paid
+    admin_secret: str = ""  # Legacy — retained for back-compat; admin actions now use admin_emails
+    admin_emails: str = ""  # Comma-separated allowlist of admin Clerk emails (or user IDs). Set in Railway env.
+
+    @property
+    def admin_identifiers(self) -> set[str]:
+        """Lowercased set of admin emails / Clerk user IDs from ADMIN_EMAILS."""
+        return {p.strip().lower() for p in self.admin_emails.split(",") if p.strip()}
 
     @property
     def is_stub(self) -> bool:

@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from db.database import init_db, engine
-from api.routes import sessions, architect, waitlist, billing, followup
+from api.routes import sessions, architect, waitlist, billing, followup, me
 from core.config import settings
 
 
@@ -98,6 +98,7 @@ app.include_router(architect.router)
 app.include_router(waitlist.router)
 app.include_router(billing.router)
 app.include_router(followup.router)
+app.include_router(me.router)
 
 
 # ---------------------------------------------------------------------------

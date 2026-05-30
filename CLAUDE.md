@@ -73,11 +73,12 @@ PROJECT _STARTUP/
 │   │   ├── database.py          # Async engine + session + init_db
 │   │   └── models.py            # Session + WaitlistEntry tables
 │   └── api/routes/
-│       ├── sessions.py          # CRUD, admin-mark-paid, assumptions
-│       ├── architect.py         # Streaming chat, unlock, masterplan, pitch deck, tribunal
+│       ├── sessions.py          # CRUD, admin-mark-paid, assumptions, access checks
+│       ├── architect.py         # Streaming chat, unlock, masterplan, pitch deck, tribunal, admin seed
 │       ├── billing.py           # Razorpay checkout / webhook / verify
 │       ├── waitlist.py          # Email waitlist signup
-│       └── followup.py          # Follow-up email capture + admin send
+│       ├── followup.py          # Follow-up email capture + admin send
+│       └── me.py                # GET /me — current identity + is_admin
 ├── frontend/
 │   └── src/
 │       ├── App.tsx              # Routing (path-based), Clerk provider, payment-return handling
@@ -110,7 +111,9 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 
 ### Backend Routes
 - `POST /sessions/` — create session · `GET /sessions/` — list · `GET /sessions/{id}` — fetch
-- `POST /sessions/{id}/admin-mark-paid` — **dev bypass** (sets paid + tribunal_paid; gated by `ADMIN_SECRET` header when set)
+- `GET /me` — returns `{user_id, email, is_admin}` for the current Clerk token (frontend uses it to show admin shortcuts)
+- `POST /sessions/{id}/admin-mark-paid` — **admin bypass** (sets paid + tribunal_paid; requires caller on `ADMIN_EMAILS` allowlist)
+- `POST /sessions/{id}/admin-seed-conversation` — **admin**: auto-plays a founder conversation, generates the masterplan, marks paid (quality testing)
 - `POST /sessions/{id}/message/stream` — SSE Socratic chat
 - `POST /sessions/{id}/unlock` — run council + masterplan (standard mode)
 - `POST /sessions/{id}/pitch-deck` — generate pitch deck
@@ -170,7 +173,8 @@ Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) �
 | `RAZORPAY_TRIBUNAL_AMOUNT` | Tribunal price in paise | 19900 (₹199) |
 | `RESEND_API_KEY` | Follow-up emails | "" |
 | `FRONTEND_ORIGIN` | CORS allowed origin | localhost:5173 |
-| `ADMIN_SECRET` | Protects `admin-mark-paid` (when set, requires `X-Admin-Secret` header) | "" |
+| `ADMIN_EMAILS` | Comma-separated allowlist of admin Clerk emails (or user IDs). Grants payment bypass, skip-to-masterplan, conversation seeding, and view-any-session. Verified via the caller's Clerk token. | "" |
+| `ADMIN_SECRET` | Legacy — no longer used for admin gating (kept for back-compat) | "" |
 
 ### Frontend (Vite — must be set at **build time**)
 | Var | Purpose |
@@ -179,7 +183,7 @@ Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) �
 | `VITE_WS_URL` | WebSocket URL |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Clerk public key (auth disabled if unset) |
 | `VITE_RAZORPAY_KEY_ID` | Controls `BILLING_ENABLED` — when **unset**, `[DEV]` skip-payment buttons appear |
-| `VITE_ADMIN_SECRET` | Sent as `X-Admin-Secret` for dev unlock |
+| `VITE_ADMIN_SECRET` | Legacy — no longer used (admin is identity-based via Clerk now) |
 
 ---
 
@@ -239,10 +243,10 @@ npm run preview      # preview the production build
 
 ## Current Known Issues / Tech Debt
 
-- **Stale marketing copy:** `LandingPage.tsx` (the 4-phase demo animation's "④ Debate" phase + the "Bull vs Bear Debate" / "Interactive HTML export" feature cards) and the old static `index.html` still advertise the removed Bull vs Bear debate and HTML pitch export. Functional, but misleading — clean up when the landing page is redesigned. Note: the `debate` *scoring phase* (intake → debate → stress_test → masterplan) is unrelated and still live.
+- **Stale marketing copy (static page only):** the old static `index.html` still advertises the removed Bull vs Bear debate and HTML pitch export. (`LandingPage.tsx` — the live React landing page — has been cleaned.) Note: the `debate` *scoring phase* (intake → debate → stress_test → masterplan) is unrelated and still live.
 - **No session ownership check** on most backend endpoints — any caller with a session ID can read/act on it. Needs an owner check tied to `user_id`.
 - **Rate limiting is in-memory & per-process** (`RateLimitMiddleware`) — it does not work correctly across multiple Railway instances.
-- **`ADMIN_SECRET` is open when unset** — `admin-mark-paid` has no protection unless the env var is configured. Must be set in production.
+- **Admin actions require `ADMIN_EMAILS`** — `admin-mark-paid` / `admin-seed-conversation` are gated on the caller's Clerk identity being on the `ADMIN_EMAILS` allowlist. When Clerk auth isn't configured at all (e.g. pure local dev), every request is treated as admin (open dev mode).
 - **STUB_MODE only works for the 3 landing-page example ideas** — any other idea in stub mode just returns a "set your API key" prompt.
 - **Anonymous → authenticated session migration** is not implemented — sessions started signed-out aren't claimed on sign-in.
 - **Payment state is session-scoped in Zustand** — must be reset on session resume/create or the paywall from a previous session leaks through.

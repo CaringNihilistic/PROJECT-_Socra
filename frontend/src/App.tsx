@@ -41,28 +41,36 @@ const PAYMENT_RETURN = getPaymentReturn()
 
 /** Syncs the Clerk JWT into the store. Refreshes every 45 min before expiry. */
 function ClerkSync() {
-  const { getToken, isSignedIn } = useAuth()
+  const { getToken, isSignedIn, isLoaded } = useAuth()
   const setAuthToken = useSessionStore((s) => s.setAuthToken)
+  const setAuthReady = useSessionStore((s) => s.setAuthReady)
   const loadSessionHistory = useSessionStore((s) => s.loadSessionHistory)
+  const loadMe = useSessionStore((s) => s.loadMe)
 
   useEffect(() => {
+    // Wait until Clerk has resolved the auth state before signalling readiness,
+    // so token-dependent actions (e.g. tribunal auto-send) don't race the token.
+    if (!isLoaded) return
+
     if (!isSignedIn) {
       setAuthToken(null)
+      setAuthReady(true)
       return
     }
 
     const refresh = async () => {
       const t = await getToken()
       setAuthToken(t)
+      await loadMe()
     }
 
-    refresh()
+    refresh().finally(() => setAuthReady(true))
     loadSessionHistory()
 
     // Clerk tokens expire in 1 h — refresh every 45 min
     const interval = setInterval(refresh, 45 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [isSignedIn])
+  }, [isSignedIn, isLoaded])
 
   return null
 }

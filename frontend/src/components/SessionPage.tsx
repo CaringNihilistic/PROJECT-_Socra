@@ -215,9 +215,10 @@ function DevilsAdvocateCard({ report }: { report: AgentReport }) {
 const BILLING_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID
 
 function PaywallModal() {
-  const { session, createCheckout, paymentRequired, devUnlock } = useSessionStore()
+  const { session, createCheckout, paymentRequired, devUnlock, isAdmin } = useSessionStore()
   const [loading, setLoading] = useState(false)
   const [devLoading, setDevLoading] = useState(false)
+  const showDev = isAdmin || !BILLING_ENABLED
 
   if (!paymentRequired || !session) return null
 
@@ -290,14 +291,14 @@ function PaywallModal() {
           >
             {loading ? 'Redirecting to payment…' : 'Unlock for ₹499 →'}
           </button>
-          {!BILLING_ENABLED && (
+          {showDev && (
             <button
               onClick={async () => { setDevLoading(true); await devUnlock(); setDevLoading(false) }}
               disabled={devLoading}
               className="w-full py-2.5 rounded-xl text-[12px] font-mono transition-all duration-200 disabled:opacity-50 mt-2"
               style={{ background: 'rgba(255,200,0,0.08)', border: '1px solid rgba(255,200,0,0.2)', color: 'rgba(255,200,0,0.7)' }}
             >
-              {devLoading ? 'Unlocking…' : '[DEV] Skip payment & unlock'}
+              {devLoading ? 'Unlocking…' : (isAdmin ? '[ADMIN] Skip payment & unlock' : '[DEV] Skip payment & unlock')}
             </button>
           )}
           <p className="text-center text-[11px] font-mono text-ink-700 mt-3">
@@ -319,9 +320,10 @@ export function SessionPage() {
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching, isUnlocking,
-    streamError, savedFlash, lastSentMessage,
-    sendMessage, clearSession, generatePitchDeck, devUnlock, devRerunMasterplan,
+    streamError, savedFlash, lastSentMessage, isAdmin,
+    sendMessage, clearSession, generatePitchDeck, devUnlock, devRerunMasterplan, devSeedConversation,
   } = useSessionStore()
+  const showDev = isAdmin || !BILLING_ENABLED
 
   const [cardCopied, setCardCopied] = useState(false)
 
@@ -461,14 +463,14 @@ export function SessionPage() {
               <div className="text-[18px] font-display font-bold text-ink-100">Specialist Analysis</div>
             </div>
             <div className="flex items-center gap-2">
-              {!BILLING_ENABLED && (
+              {showDev && (
                 <button
                   onClick={() => devRerunMasterplan()}
                   disabled={isUnlocking || isAnalyzing}
                   className="px-3 py-2 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
                   style={{ background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.2)', color: 'rgba(255,200,0,0.65)' }}
                 >
-                  {isUnlocking || isAnalyzing ? '…' : '[DEV] Re-run'}
+                  {isUnlocking || isAnalyzing ? '…' : (isAdmin ? '[ADMIN] Re-run' : '[DEV] Re-run')}
                 </button>
               )}
               <button
@@ -604,16 +606,27 @@ export function SessionPage() {
           </div>
         )}
 
-        {/* Dev shortcut: skip straight to masterplan from any turn */}
-        {!BILLING_ENABLED && !masterplan && !isAnalyzing && !isSending && (
-          <button
-            onClick={() => devUnlock()}
-            disabled={isUnlocking}
-            className="self-start px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
-            style={{ background: 'rgba(255,200,0,0.05)', border: '1px solid rgba(255,200,0,0.15)', color: 'rgba(255,200,0,0.5)' }}
-          >
-            {isUnlocking ? '…' : '[DEV] Skip to masterplan'}
-          </button>
+        {/* Dev/admin shortcuts: skip straight to masterplan, or auto-play a full conversation */}
+        {showDev && !masterplan && !isAnalyzing && !isSending && (
+          <div className="flex items-center gap-2 self-start flex-wrap">
+            <button
+              onClick={() => devUnlock()}
+              disabled={isUnlocking}
+              className="px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
+              style={{ background: 'rgba(255,200,0,0.05)', border: '1px solid rgba(255,200,0,0.15)', color: 'rgba(255,200,0,0.5)' }}
+            >
+              {isUnlocking ? '…' : (isAdmin ? '[ADMIN] Skip to masterplan' : '[DEV] Skip to masterplan')}
+            </button>
+            <button
+              onClick={() => devSeedConversation()}
+              disabled={isUnlocking}
+              title="Auto-play a realistic founder conversation, then generate the masterplan — for testing quality"
+              className="px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
+              style={{ background: 'rgba(120,200,255,0.05)', border: '1px solid rgba(120,200,255,0.18)', color: 'rgba(120,200,255,0.6)' }}
+            >
+              {isUnlocking ? '…' : (isAdmin ? '[ADMIN] Quick-fill conversation' : '[DEV] Quick-fill conversation')}
+            </button>
+          </div>
         )}
 
         {/* Council streaming indicator (agents loading, no masterplan yet) */}

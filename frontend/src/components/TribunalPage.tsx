@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSessionStore, type TribunalTurn } from '../store/sessionStore'
 import { TribunalCard } from './TribunalCard'
 import { FollowUpEmailCapture } from './FollowUpEmailCapture'
+import { CLERK_ENABLED } from '../lib/auth'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
@@ -191,7 +192,12 @@ export function TribunalPage() {
   const sendTribunalMessage = useSessionStore((s) => s.sendTribunalMessage)
   const createTribunalCheckout = useSessionStore((s) => s.createTribunalCheckout)
   const devUnlockTribunal = useSessionStore((s) => s.devUnlockTribunal)
+  const isAdmin = useSessionStore((s) => s.isAdmin)
+  const authReady = useSessionStore((s) => s.authReady)
   const clearSession = useSessionStore((s) => s.clearSession)
+  const showDev = isAdmin || !BILLING_ENABLED
+  // Auth is "resolved" when Clerk is disabled (no token expected) or it has finished loading.
+  const authResolved = !CLERK_ENABLED || authReady
 
   const [input, setInput] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
@@ -205,12 +211,14 @@ export function TribunalPage() {
   const verdicts = session?.tribunal_verdicts ?? null
   const completedRounds = Math.floor(tribunalHistory.length / 4)
 
-  // Auto-send initial idea on first mount
+  // Auto-send initial idea on first mount — but wait until auth is resolved so an
+  // owned (signed-in) session sends with its token and doesn't 403 on a token race.
   useEffect(() => {
     if (!session || autoSent || tribunalHistory.length > 0) return
+    if (!authResolved) return
     setAutoSent(true)
     sendTribunalMessage(session.initial_idea)
-  }, [session?.id])
+  }, [session?.id, authResolved])
 
   // On mobile: auto-advance tab to whichever persona is actively streaming
   useEffect(() => {
@@ -508,7 +516,7 @@ export function TribunalPage() {
               {checkoutLoading ? 'Redirecting…' : 'Unlock Verdict →'}
             </button>
 
-            {!BILLING_ENABLED && (
+            {showDev && (
               <button
                 onClick={async () => { setDevUnlockLoading(true); await devUnlockTribunal(); setDevUnlockLoading(false) }}
                 disabled={devUnlockLoading}
@@ -524,7 +532,7 @@ export function TribunalPage() {
                   opacity: devUnlockLoading ? 0.6 : 1,
                 }}
               >
-                {devUnlockLoading ? 'Unlocking…' : '[DEV] Skip payment & unlock'}
+                {devUnlockLoading ? 'Unlocking…' : (isAdmin ? '[ADMIN] Skip payment & unlock' : '[DEV] Skip payment & unlock')}
               </button>
             )}
 

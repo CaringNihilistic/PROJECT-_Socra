@@ -9,7 +9,7 @@ from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_score_explanation
 from llm_client import call_architect_llm
-from core.auth import get_user_id
+from core.auth import get_user_id, is_admin, get_identity
 
 try:
     from openai import RateLimitError as _OpenAIRateLimitError
@@ -88,28 +88,39 @@ def _serialize_summary(session: Session) -> dict:
 
 async def _check_session_access(session: Session, authorization: Optional[str]) -> None:
     """Raise 403 if an authenticated session is accessed by a different user.
-    Anonymous sessions (user_id=None) are accessible by anyone who knows the UUID."""
+    Anonymous sessions (user_id=None) are accessible by anyone who knows the UUID.
+    Admins (ADMIN_EMAILS allowlist) can access any session."""
     if not session.user_id:
         return
     requesting_user = await get_user_id(authorization)
-    if requesting_user != session.user_id:
-        raise HTTPException(403, "Access denied")
+    if requesting_user == session.user_id:
+        return
+    if await is_admin(authorization):
+        return
+    raise HTTPException(403, "Access denied")
 
 
 @router.get("/")
 async def list_sessions(
+    all: int = 0,
     db: AsyncSession = Depends(get_db),
     authorization: Optional[str] = Header(None),
 ):
     user_id = await get_user_id(authorization)
     if not user_id:
         raise HTTPException(401, "Authentication required to list sessions")
-    result = await db.execute(
-        select(Session)
-        .where(Session.user_id == user_id)
-        .order_by(desc(Session.created_at))
-        .limit(20)
-    )
+    # Admins may list every session with ?all=1
+    if all and await is_admin(authorization):
+        result = await db.execute(
+            select(Session).order_by(desc(Session.created_at)).limit(100)
+        )
+    else:
+        result = await db.execute(
+            select(Session)
+            .where(Session.user_id == user_id)
+            .order_by(desc(Session.created_at))
+            .limit(20)
+        )
     return [_serialize_summary(s) for s in result.scalars().all()]
 
 
@@ -189,13 +200,13 @@ async def get_session(
 async def admin_mark_paid(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    x_admin_secret: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None),
 ):
-    """Admin: mark a session as fully paid. Requires X-Admin-Secret header matching ADMIN_SECRET env var.
+    """Admin: mark a session as fully paid. Requires the caller to be on the
+    ADMIN_EMAILS allowlist (verified via their Clerk token).
     Use for testing on production without going through Razorpay."""
-    from core.config import settings as _cfg
-    if _cfg.admin_secret and x_admin_secret != _cfg.admin_secret:
-        raise HTTPException(403, "Invalid admin secret")
+    if not await is_admin(authorization):
+        raise HTTPException(403, "Admin access required")
 
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()

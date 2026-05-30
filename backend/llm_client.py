@@ -902,6 +902,37 @@ RULES — violating any makes the deck worthless:
         return {"slides": []}
 
 
+async def generate_founder_answer(idea: str, conversation_history: list[dict]) -> str:
+    """Admin testing only: simulate a realistic founder answering the advisor's
+    latest question, so a full substantive conversation can be auto-played without
+    a human typing every turn. Used by the admin-seed-conversation endpoint."""
+    last_question = next(
+        (m["content"] for m in reversed(conversation_history) if m.get("role") == "assistant"),
+        "",
+    )
+    if settings.is_stub or not last_question:
+        return (
+            "We're targeting mid-size teams (50-200 people) who currently cobble this "
+            "together with spreadsheets. Early pricing is around $49/seat/month, and our "
+            "wedge is the onboarding flow that gets a team live in under 10 minutes."
+        )
+
+    system = (
+        "You are the founder of this startup, answering an advisor's question in a "
+        "discovery interview. Give a concrete, realistic, specific answer — name actual "
+        "numbers (CAC, pricing, market size), real competitor names, and concrete decisions. "
+        "Sound like a thoughtful but honest founder, not a salesperson. 2-4 sentences, no fluff, "
+        "no bullet points.\n\n"
+        f"STARTUP IDEA: {idea}"
+    )
+    msgs = [{"role": "user", "content": f"Advisor asked:\n{last_question}\n\nYour answer:"}]
+    try:
+        answer = await _call_real_llm(system, msgs, max_tokens=220)
+        return (answer or "").strip() or "We've validated this with ~15 customer interviews and 3 paid pilots so far."
+    except Exception:
+        return "We've validated this with ~15 customer interviews and 3 paid pilots so far."
+
+
 async def generate_masterplan(conversation_history: list[dict]) -> str:
     if settings.is_stub:
         await asyncio.sleep(random.uniform(1.5, 2.5))

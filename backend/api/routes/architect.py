@@ -11,6 +11,8 @@ from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
 from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, stream_tribunal_turn, generate_tribunal_verdicts
 from api.routes.sessions import _serialize, _check_session_access
+from core.auth import is_admin
+from llm_client import generate_founder_answer
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
 
@@ -475,3 +477,42 @@ async def unlock_tribunal_verdicts(
     )
     await db.commit()
     return {"verdicts": verdicts}
+
+
+@router.post("/{session_id}/admin-seed-conversation")
+async def admin_seed_conversation(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
+    """Admin testing only: auto-play a realistic founder conversation, generate the
+    masterplan, and mark the session paid — one call to test masterplan QUALITY
+    without typing every turn. Requires the caller to be on the ADMIN_EMAILS allowlist."""
+    if not await is_admin(authorization):
+        raise HTTPException(403, "Admin access required")
+
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if session.mode == "tribunal":
+        raise HTTPException(400, "Seeding is only for standard (masterplan) sessions")
+
+    idea = session.initial_idea
+    # Auto-play up to 5 founder turns or until the masterplan phase is reached
+    for _ in range(5):
+        if session.masterplan or session.phase == "masterplan":
+            break
+        answer = await generate_founder_answer(idea, list(session.conversation_history or []))
+        await _process_message(session, answer, db)
+
+    # Ensure a masterplan exists even if the eval didn't quite cross the threshold
+    if not session.masterplan:
+        masterplan = await _generate_masterplan_sync(list(session.conversation_history or []))
+        session.masterplan = masterplan
+        session.phase = "masterplan"
+
+    session.paid = True
+    await db.commit()
+    await db.refresh(session)
+    return _serialize(session)

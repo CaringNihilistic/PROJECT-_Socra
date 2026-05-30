@@ -46,7 +46,11 @@
       "Bash(python3 -c ' *)",
       "Bash(xargs grep -l \"AgentReportCard\")",
       "Read(//c/Users/ayush/.claude/**)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "PowerShell($paths = @\\(\"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\", \"$env:ProgramFiles\\\\Docker\\\\Docker\\\\Docker Desktop.exe\", \"$env:LOCALAPPDATA\\\\Docker\\\\Docker Desktop.exe\"\\); $exe = $paths | Where-Object { Test-Path $_ } | Select-Object -First 1; if \\($exe\\) { Start-Process $exe; \"Launched: $exe\" } else { \"Docker Desktop.exe not found in common paths\" })",
+      "Bash(break)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(git check-ignore *)"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",
