@@ -205,8 +205,10 @@ async def admin_mark_paid(
     """Admin: mark a session as fully paid. Requires the caller to be on the
     ADMIN_EMAILS allowlist (verified via their Clerk token).
     Use for testing on production without going through Razorpay."""
-    if not await is_admin(authorization):
-        raise HTTPException(403, "Admin access required")
+    _ident = await get_identity(authorization)
+    if not _ident.get("is_admin"):
+        # Diagnostic body so we can see exactly why admin resolution failed
+        raise HTTPException(403, f"Admin access required | debug={_ident}")
 
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()

@@ -115,19 +115,24 @@ async def is_admin(authorization: Optional[str] = None) -> bool:
 
 
 async def get_identity(authorization: Optional[str] = None) -> dict:
-    """Return {user_id, email, is_admin} for the current request."""
+    """Return identity + admin diagnostics for the current request."""
+    allow = settings.admin_identifiers
     # Clerk not configured → open dev environment, treat as admin
     if not settings.clerk_secret_key or not settings.clerk_frontend_api_url:
-        return {"user_id": None, "email": None, "is_admin": True}
+        return {"user_id": None, "email": None, "is_admin": True,
+                "admin_count": len(allow), "token_ok": None, "email_source": "clerk_disabled"}
     payload = await _verify_token(authorization)
     if not payload:
-        return {"user_id": None, "email": None, "is_admin": False}
+        return {"user_id": None, "email": None, "is_admin": False,
+                "admin_count": len(allow), "token_ok": False, "email_source": "none"}
     user_id = payload.get("sub")
     email = payload.get("email")
+    email_source = "jwt" if email else "none"
     if not email and user_id:
         email = await _fetch_clerk_email(user_id)
-    allow = settings.admin_identifiers
+        email_source = "clerk_api" if email else "lookup_failed"
     admin = bool(allow and (
         (user_id and user_id.lower() in allow) or (email and email.lower() in allow)
     ))
-    return {"user_id": user_id, "email": email, "is_admin": admin}
+    return {"user_id": user_id, "email": email, "is_admin": admin,
+            "admin_count": len(allow), "token_ok": True, "email_source": email_source}
