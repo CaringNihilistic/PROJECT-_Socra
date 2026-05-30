@@ -137,6 +137,7 @@ interface SessionStore {
   isResearching: boolean
   sessionError: string | null
   authToken: string | null
+  tokenGetter: (() => Promise<string | null>) | null
   isAdmin: boolean
   authReady: boolean
   paymentRequired: boolean
@@ -152,6 +153,8 @@ interface SessionStore {
   tribunalPaymentRequired: boolean
   setAuthToken: (token: string | null) => void
   setAuthReady: (ready: boolean) => void
+  setTokenGetter: (fn: (() => Promise<string | null>) | null) => void
+  getFreshToken: () => Promise<string | null>
   loadMe: () => Promise<void>
   loadSessionHistory: () => Promise<void>
   createSession: (idea: string, mode?: string) => Promise<void>
@@ -192,6 +195,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   isResearching: false,
   sessionError: null,
   authToken: null,
+  tokenGetter: null,
   isAdmin: false,
   authReady: false,
   paymentRequired: false,
@@ -207,12 +211,26 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   setAuthToken: (token) => set({ authToken: token }),
   setAuthReady: (ready) => set({ authReady: ready }),
+  setTokenGetter: (fn) => set({ tokenGetter: fn }),
+
+  // Clerk session tokens are short-lived (~60s). Always fetch a fresh one right
+  // before an authenticated request instead of reusing the stale cached token.
+  getFreshToken: async () => {
+    const { tokenGetter, authToken } = get()
+    if (tokenGetter) {
+      try {
+        const t = await tokenGetter()
+        if (t) { set({ authToken: t }); return t }
+      } catch { /* fall back to cached token */ }
+    }
+    return authToken
+  },
 
   loadMe: async () => {
-    const { authToken } = get()
-    if (!authToken) { set({ isAdmin: false }); return }
+    const token = await get().getFreshToken()
+    if (!token) { set({ isAdmin: false }); return }
     try {
-      const { data } = await axios.get(`${API_URL}/me`, { headers: authHeaders(authToken) })
+      const { data } = await axios.get(`${API_URL}/me`, { headers: authHeaders(token) })
       set({ isAdmin: !!data.is_admin })
     } catch {
       set({ isAdmin: false })
@@ -220,7 +238,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   loadSessionHistory: async () => {
-    const { authToken } = get()
+    const authToken = await get().getFreshToken()
     if (authToken) {
       try {
         const { data } = await axios.get<SessionSummary[]>(`${API_URL}/sessions/`, {
@@ -234,8 +252,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   createSession: async (idea: string, mode = 'standard') => {
-    const { authToken } = get()
     set({ isLoading: true, sessionError: null, paymentRequired: false, tribunalPaymentRequired: false, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isUnlocking: false })
+    const authToken = await get().getFreshToken()
     try {
       const { data } = await axios.post<SessionData>(
         `${API_URL}/sessions/`,
@@ -265,8 +283,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   resumeSession: async (sessionId: string) => {
-    const { authToken } = get()
     set({ isLoading: true, paymentRequired: false, tribunalPaymentRequired: false, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isResearching: false, isUnlocking: false })
+    const authToken = await get().getFreshToken()
     try {
       const { data } = await axios.get<SessionData>(`${API_URL}/sessions/${sessionId}`, {
         headers: authHeaders(authToken),
@@ -280,8 +298,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   sendMessage: async (content: string) => {
-    const { session, authToken } = get()
+    const { session } = get()
     if (!session) return
+    const authToken = await get().getFreshToken()
     set({ isSending: true, streamingMessage: '', currentChoices: [], currentAgentReports: [], isAnalyzing: false, isResearching: false, streamError: null, lastSentMessage: content })
 
     const TOKEN_TIMEOUT_MS = 20000
@@ -372,8 +391,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   sendTribunalMessage: async (content: string) => {
-    const { session, authToken, tribunalRound } = get()
+    const { session, tribunalRound } = get()
     if (!session) return
+    const authToken = await get().getFreshToken()
 
     set({
       tribunalStreaming: true,
@@ -617,18 +637,19 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   devUnlock: async () => {
-    const { session, authToken } = get()
+    const { session } = get()
     if (!session) return
     set({ isUnlocking: true })
     try {
+      const token = await get().getFreshToken()
       await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, {
-        headers: authHeaders(authToken),
+        headers: authHeaders(token),
       })
       set({ paymentRequired: false })
 
       const response = await fetch(`${API_URL}/sessions/${session.id}/unlock`, {
         method: 'POST',
-        headers: authHeaders(authToken),
+        headers: authHeaders(token),
       })
       if (!response.ok || !response.body) return
 
@@ -665,17 +686,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   devUnlockTribunal: async () => {
-    const { session, authToken } = get()
+    const { session } = get()
     if (!session) return
     set({ isUnlocking: true })
     try {
+      const token = await get().getFreshToken()
       await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, {
-        headers: authHeaders(authToken),
+        headers: authHeaders(token),
       })
       const { data } = await axios.post(
         `${API_URL}/sessions/${session.id}/tribunal/unlock`,
         {},
-        { headers: authHeaders(authToken) },
+        { headers: authHeaders(token) },
       )
       set((s) => ({
         tribunalPaymentRequired: false,
@@ -692,15 +714,16 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   devRerunMasterplan: async () => {
-    const { session, authToken } = get()
+    const { session } = get()
     if (!session) return
     set({ isUnlocking: true, currentAgentReports: [] })
     try {
-      await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, { headers: authHeaders(authToken) })
+      const token = await get().getFreshToken()
+      await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, { headers: authHeaders(token) })
       set({ paymentRequired: false })
 
       const response = await fetch(`${API_URL}/sessions/${session.id}/unlock`, {
-        method: 'POST', headers: authHeaders(authToken),
+        method: 'POST', headers: authHeaders(token),
       })
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
 
@@ -737,14 +760,15 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   devSeedConversation: async () => {
-    const { session, authToken } = get()
+    const { session } = get()
     if (!session) return
     set({ isUnlocking: true, isAnalyzing: true, currentAgentReports: [], streamingMessage: '' })
     try {
+      const token = await get().getFreshToken()
       const { data } = await axios.post(
         `${API_URL}/sessions/${session.id}/admin-seed-conversation`,
         {},
-        { headers: authHeaders(authToken), timeout: 180000 },
+        { headers: authHeaders(token), timeout: 180000 },
       )
       set({ session: data, paymentRequired: false })
     } catch (err) {

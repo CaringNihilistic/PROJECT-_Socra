@@ -44,6 +44,7 @@ function ClerkSync() {
   const { getToken, isSignedIn, isLoaded } = useAuth()
   const setAuthToken = useSessionStore((s) => s.setAuthToken)
   const setAuthReady = useSessionStore((s) => s.setAuthReady)
+  const setTokenGetter = useSessionStore((s) => s.setTokenGetter)
   const loadSessionHistory = useSessionStore((s) => s.loadSessionHistory)
   const loadMe = useSessionStore((s) => s.loadMe)
 
@@ -51,6 +52,10 @@ function ClerkSync() {
     // Wait until Clerk has resolved the auth state before signalling readiness,
     // so token-dependent actions (e.g. tribunal auto-send) don't race the token.
     if (!isLoaded) return
+
+    // Register Clerk's getToken so store actions can fetch a FRESH token per request.
+    // Clerk session tokens expire in ~60s; reusing a cached one causes 403s.
+    setTokenGetter(() => getToken())
 
     if (!isSignedIn) {
       setAuthToken(null)
