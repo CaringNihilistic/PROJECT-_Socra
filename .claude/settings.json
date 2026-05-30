@@ -52,7 +52,8 @@
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3000)",
       "Bash(git check-ignore *)",
       "Bash(python -c \"import ast; ast.parse\\(open\\('backend/core/auth.py',encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
-      "PowerShell(docker run --rm -v \"C:\\\\PROJECT _STARTUP\\\\frontend:/app\" -w /app node:20-alpine sh -c \"npm install --no-audit --no-fund --silent && echo '---TSC---' && npx tsc --noEmit && echo 'TSC_CLEAN'\" 2>&1)"
+      "PowerShell(docker run --rm -v \"C:\\\\PROJECT _STARTUP\\\\frontend:/app\" -w /app node:20-alpine sh -c \"npm install --no-audit --no-fund --silent && echo '---TSC---' && npx tsc --noEmit && echo 'TSC_CLEAN'\" 2>&1)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://socra-backend-production.up.railway.app/sessions/abf4b604-a7a9-4724-b106-0270cc73ee3b\")"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",
