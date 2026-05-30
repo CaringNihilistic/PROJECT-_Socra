@@ -37,8 +37,18 @@ class Settings(BaseSettings):
 
 
 _s = Settings()
-_s.groq_api_key = _s.groq_api_key.strip()
-_s.anthropic_api_key = _s.anthropic_api_key.strip()
-_s.google_api_key = _s.google_api_key.strip()
-_s.tavily_api_key = _s.tavily_api_key.strip()
+# Strip every string setting — pasting secrets into hosting dashboards (Railway)
+# frequently appends an invisible trailing newline, which breaks URLs, headers,
+# and comparisons (e.g. a "\n" on CLERK_FRONTEND_API_URL breaks JWKS fetch → all
+# token verification fails). Defensive strip prevents this whole class of bug.
+for _field in (
+    "groq_api_key", "anthropic_api_key", "google_api_key", "tavily_api_key",
+    "openai_api_key", "clerk_secret_key", "clerk_frontend_api_url", "admin_secret",
+    "admin_emails", "secret_key", "razorpay_key_id", "razorpay_key_secret",
+    "razorpay_webhook_secret", "resend_api_key", "frontend_origin",
+    "database_url", "redis_url",
+):
+    _v = getattr(_s, _field, "")
+    if isinstance(_v, str):
+        setattr(_s, _field, _v.strip())
 settings = _s
