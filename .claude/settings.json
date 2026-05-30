@@ -53,7 +53,20 @@
       "Bash(git check-ignore *)",
       "Bash(python -c \"import ast; ast.parse\\(open\\('backend/core/auth.py',encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
       "PowerShell(docker run --rm -v \"C:\\\\PROJECT _STARTUP\\\\frontend:/app\" -w /app node:20-alpine sh -c \"npm install --no-audit --no-fund --silent && echo '---TSC---' && npx tsc --noEmit && echo 'TSC_CLEAN'\" 2>&1)",
-      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://socra-backend-production.up.railway.app/sessions/abf4b604-a7a9-4724-b106-0270cc73ee3b\")"
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://socra-backend-production.up.railway.app/sessions/abf4b604-a7a9-4724-b106-0270cc73ee3b\")",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:langfuse.com)",
+      "Bash(npx skills *)",
+      "PowerShell(npx skills add langfuse/skills --skill \"langfuse\" 2>&1)",
+      "Read(//c/Program Files/**)",
+      "PowerShell(ls \"$env:APPDATA\\\\npm\\\\npx.cmd\" -ErrorAction SilentlyContinue; ls \"$env:ProgramFiles\\\\nodejs\\\\npx.cmd\" -ErrorAction SilentlyContinue; ls \"C:\\\\Users\\\\ayush\\\\AppData\\\\Roaming\\\\npm\\\\npx.cmd\" -ErrorAction SilentlyContinue)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh api *)",
+      "PowerShell(gh api repos/langfuse/skills/contents/skills/langfuse --jq '.[] | {name, type, path}' 2>&1)",
+      "WebFetch(domain:api.github.com)",
+      "PowerShell(ls \"c:\\\\PROJECT _STARTUP\\\\.claude\\\\\" -ErrorAction SilentlyContinue)",
+      "WebFetch(domain:pypi.org)"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",
