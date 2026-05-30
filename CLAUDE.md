@@ -18,6 +18,7 @@
 | Cache/queue | Redis (asyncio) | 5.1.0 (provisioned; minimal use) |
 | Config | pydantic-settings | 2.5.0 |
 | LLM SDKs | anthropic 0.40.0, openai 1.50.0 (also Google Gemini + Groq via HTTP) |
+| Observability | langfuse ≥2.0.0 (optional — traces LLM calls) | — |
 | Payments | razorpay | 1.4.2 |
 | Auth | Clerk (JWT verify via python-jose) | — |
 | HTTP | httpx | 0.27.0 |
@@ -64,6 +65,7 @@ PROJECT _STARTUP/
 ├── backend/
 │   ├── main.py                  # FastAPI app, CORS, rate limiting, /health
 │   ├── llm_client.py            # LLM routing, council agents, tribunal, masterplan, pitch deck (largest file)
+│   ├── observability.py         # Langfuse tracing — set_session_context + record_generation (no-ops if keys unset)
 │   ├── eval_bar.py              # 5-dimension scoring + phase thresholds
 │   ├── web_search.py            # Tavily live market research
 │   ├── core/
@@ -175,6 +177,9 @@ Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) �
 | `FRONTEND_ORIGIN` | CORS allowed origin | localhost:5173 |
 | `ADMIN_EMAILS` | Comma-separated allowlist of admin Clerk emails (or user IDs). Grants payment bypass, skip-to-masterplan, conversation seeding, and view-any-session. Verified via the caller's Clerk token. | "" |
 | `ADMIN_SECRET` | Legacy — no longer used for admin gating (kept for back-compat) | "" |
+| `LANGFUSE_PUBLIC_KEY` | Langfuse observability — public key (safe to expose) | "" |
+| `LANGFUSE_SECRET_KEY` | Langfuse observability — secret key | "" |
+| `LANGFUSE_HOST` | Langfuse host (override for self-hosted) | "https://cloud.langfuse.com" |
 
 ### Frontend (Vite — must be set at **build time**)
 | Var | Purpose |

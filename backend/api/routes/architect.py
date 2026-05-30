@@ -13,6 +13,7 @@ from llm_client import call_architect_llm, stream_architect_llm, stream_multi_ag
 from api.routes.sessions import _serialize, _check_session_access
 from core.auth import is_admin
 from llm_client import generate_founder_answer
+from observability import set_session_id
 
 router = APIRouter(prefix="/sessions", tags=["architect"])
 
@@ -134,6 +135,7 @@ async def send_message_stream(
     }
 
     async def event_stream():
+        set_session_id(session_id)
         message_text = ""
 
         # Follow-up mode: masterplan already exists — use advisory prompt, no scoring
@@ -289,6 +291,7 @@ async def create_pitch_deck(
     await _check_session_access(session, authorization)
     if not session.masterplan:
         raise HTTPException(400, "Masterplan must be generated before creating a pitch deck")
+    set_session_id(session_id)
 
     # Return cached deck if already generated
     if session.pitch_deck:
@@ -341,6 +344,7 @@ async def unlock_masterplan(
     turn_number = session.turn_number
 
     async def unlock_stream():
+        set_session_id(session_id)
         new_agent_reports: list = []  # always start fresh — don't carry over failed previous attempts
         masterplan = None
 
@@ -406,6 +410,7 @@ async def send_tribunal_message(
     initial_idea = session.initial_idea
 
     async def event_stream():
+        set_session_id(session_id)
         updated_history = tribunal_history + [{"role": "user", "content": req.content}]
 
         async for event in stream_tribunal_turn(tribunal_history, req.content, round_number):
@@ -469,6 +474,7 @@ async def unlock_tribunal_verdicts(
     if session.tribunal_verdicts:
         return {"verdicts": session.tribunal_verdicts}
 
+    set_session_id(session_id)
     verdicts = await generate_tribunal_verdicts(
         list(session.tribunal_history or []), session.initial_idea
     )

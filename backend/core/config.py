@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:5173"
     admin_secret: str = ""  # Legacy — retained for back-compat; admin actions now use admin_emails
     admin_emails: str = ""  # Comma-separated allowlist of admin Clerk emails (or user IDs). Set in Railway env.
+    langfuse_public_key: str = ""  # Langfuse observability — public key (safe to expose)
+    langfuse_secret_key: str = ""  # Langfuse observability — secret key
+    langfuse_host: str = "https://cloud.langfuse.com"  # Override for self-hosted Langfuse
 
     @property
     def admin_identifiers(self) -> set[str]:
@@ -46,7 +49,8 @@ for _field in (
     "openai_api_key", "clerk_secret_key", "clerk_frontend_api_url", "admin_secret",
     "admin_emails", "secret_key", "razorpay_key_id", "razorpay_key_secret",
     "razorpay_webhook_secret", "resend_api_key", "frontend_origin",
-    "database_url", "redis_url",
+    "database_url", "redis_url", "langfuse_public_key", "langfuse_secret_key",
+    "langfuse_host",
 ):
     _v = getattr(_s, _field, "")
     if isinstance(_v, str):

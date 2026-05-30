@@ -8,6 +8,7 @@ import json
 import random
 from typing import Optional
 from core.config import settings
+from observability import trace_generation
 
 
 # ---------------------------------------------------------------------------
@@ -345,26 +346,43 @@ async def _call_groq(system: str, messages: list[dict], max_tokens: int, json_mo
     }
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
-    response = await client.chat.completions.create(**kwargs)
-    return response.choices[0].message.content
+    input_data = [{"role": "system", "content": system[:1000]}, *messages[-2:]]
+    with trace_generation("groq", "llama-3.1-8b-instant", input_data) as gen:
+        response = await client.chat.completions.create(**kwargs)
+        result = response.choices[0].message.content
+        u = response.usage
+        if gen:
+            gen.update(
+                output=result or "",
+                usage_details={"input_tokens": u.prompt_tokens, "output_tokens": u.completion_tokens} if u else None,
+            )
+        return result
 
 
 async def _call_anthropic(system: str, messages: list[dict], max_tokens: int) -> str:
     import anthropic
     import logging as _log
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    response = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=max_tokens,
-        system=system,
-        messages=messages,
-    )
-    u = response.usage
-    cost = (u.input_tokens * 0.80 + u.output_tokens * 4.00) / 1_000_000
-    _log.getLogger("usage").info(
-        "anthropic | in=%d out=%d cost=$%.5f", u.input_tokens, u.output_tokens, cost
-    )
-    return response.content[0].text
+    input_data = [{"role": "system", "content": system[:1000]}, *messages[-2:]]
+    with trace_generation("anthropic", "claude-haiku-4-5-20251001", input_data) as gen:
+        response = await client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=max_tokens,
+            system=system,
+            messages=messages,
+        )
+        u = response.usage
+        cost = (u.input_tokens * 0.80 + u.output_tokens * 4.00) / 1_000_000
+        _log.getLogger("usage").info(
+            "anthropic | in=%d out=%d cost=$%.5f", u.input_tokens, u.output_tokens, cost
+        )
+        result = response.content[0].text
+        if gen:
+            gen.update(
+                output=result,
+                usage_details={"input_tokens": u.input_tokens, "output_tokens": u.output_tokens},
+            )
+        return result
 
 
 async def _call_google(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
@@ -381,14 +399,22 @@ async def _call_google(system: str, messages: list[dict], max_tokens: int, json_
     }
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
-    response = await client.chat.completions.create(**kwargs)
-    u = response.usage
-    if u:
-        cost = (u.prompt_tokens * 0.075 + u.completion_tokens * 0.30) / 1_000_000
-        _log.getLogger("usage").info(
-            "google | in=%d out=%d cost=$%.5f", u.prompt_tokens, u.completion_tokens, cost
-        )
-    return response.choices[0].message.content or ""
+    input_data = [{"role": "system", "content": system[:1000]}, *messages[-2:]]
+    with trace_generation("google", "gemini-2.0-flash", input_data) as gen:
+        response = await client.chat.completions.create(**kwargs)
+        u = response.usage
+        if u:
+            cost = (u.prompt_tokens * 0.075 + u.completion_tokens * 0.30) / 1_000_000
+            _log.getLogger("usage").info(
+                "google | in=%d out=%d cost=$%.5f", u.prompt_tokens, u.completion_tokens, cost
+            )
+        result = response.choices[0].message.content or ""
+        if gen:
+            gen.update(
+                output=result,
+                usage_details={"input_tokens": u.prompt_tokens, "output_tokens": u.completion_tokens} if u else None,
+            )
+        return result
 
 
 async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
@@ -1289,17 +1315,25 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
         import anthropic
         import logging as _log
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        input_data = [{"role": "system", "content": system[:1000]}, *safe_msgs[-1:]]
         try:
-            response = await client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=900,
-                system=system,
-                messages=safe_msgs,
-            )
-            u = response.usage
-            cost = (u.input_tokens * 0.80 + u.output_tokens * 4.00) / 1_000_000
-            _log.getLogger("usage").info("anthropic/agent | in=%d out=%d cost=$%.5f", u.input_tokens, u.output_tokens, cost)
-            return response.content[0].text
+            with trace_generation("anthropic/agent", "claude-haiku-4-5-20251001", input_data) as gen:
+                response = await client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=900,
+                    system=system,
+                    messages=safe_msgs,
+                )
+                u = response.usage
+                cost = (u.input_tokens * 0.80 + u.output_tokens * 4.00) / 1_000_000
+                _log.getLogger("usage").info("anthropic/agent | in=%d out=%d cost=$%.5f", u.input_tokens, u.output_tokens, cost)
+                result = response.content[0].text
+                if gen:
+                    gen.update(
+                        output=result,
+                        usage_details={"input_tokens": u.input_tokens, "output_tokens": u.output_tokens},
+                    )
+                return result
         except anthropic.BadRequestError as e:
             _log.getLogger(__name__).error("Anthropic agent 400 — falling through to Google: %s | roles=%s", e, [m["role"] for m in safe_msgs])
             # Fall through to Google/Groq rather than surfacing the error
@@ -1310,12 +1344,21 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
             pass  # Google quota exhausted → fall through to Groq
     from openai import AsyncOpenAI
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
-    response = await client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        max_tokens=400,
-        messages=[{"role": "system", "content": system}, *messages],
-    )
-    return response.choices[0].message.content or ""
+    input_data = [{"role": "system", "content": system[:1000]}, *messages[-1:]]
+    with trace_generation("groq/agent", "llama-3.1-8b-instant", input_data) as gen:
+        response = await client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            max_tokens=400,
+            messages=[{"role": "system", "content": system}, *messages],
+        )
+        result = response.choices[0].message.content or ""
+        u = response.usage
+        if gen:
+            gen.update(
+                output=result,
+                usage_details={"input_tokens": u.prompt_tokens, "output_tokens": u.completion_tokens} if u else None,
+            )
+        return result
 
 
 def _trim_history_for_agents(history: list[dict], max_pairs: int = 4) -> list[dict]:
