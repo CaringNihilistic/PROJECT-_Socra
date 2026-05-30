@@ -44,18 +44,38 @@ def _client():
         if settings.langfuse_secret_key and settings.langfuse_public_key:
             try:
                 from langfuse import Langfuse
+                import logging as _log
+                # v4 uses base_url= (not host=). Passing it explicitly ensures Railway env
+                # vars take precedence over any SDK defaults.
                 _lf_client = Langfuse(
                     public_key=settings.langfuse_public_key,
                     secret_key=settings.langfuse_secret_key,
-                    host=settings.langfuse_host or "https://cloud.langfuse.com",
+                    base_url=settings.langfuse_host or "https://cloud.langfuse.com",
                 )
+                if _lf_client.auth_check():
+                    _log.getLogger(__name__).info("Langfuse connected — tracing active")
+                else:
+                    _log.getLogger(__name__).warning("Langfuse auth_check failed — check keys")
+                    _lf_client = None
             except ImportError:
                 import logging
                 logging.getLogger(__name__).warning(
-                    "langfuse package not installed — observability disabled. "
-                    "Run: pip install 'langfuse>=3.0.0'"
+                    "langfuse package not installed — observability disabled"
                 )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Langfuse init failed: %s", e)
     return _lf_client
+
+
+def flush():
+    """Flush pending Langfuse events — call on FastAPI shutdown to avoid losing buffered traces."""
+    lf = _lf_client
+    if lf:
+        try:
+            lf.flush()
+        except Exception:
+            pass
 
 
 def set_session_id(session_id: Optional[str]) -> None:
