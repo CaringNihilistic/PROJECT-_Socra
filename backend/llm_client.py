@@ -392,15 +392,35 @@ async def _call_google(system: str, messages: list[dict], max_tokens: int, json_
 
 
 async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
-    """Route to Anthropic → Google → Groq. Falls back automatically on quota/rate errors."""
+    """Route to Anthropic → Google → Groq. Falls back automatically on any provider error."""
+    import logging as _log
     if settings.anthropic_api_key:
-        return await _call_anthropic(system, messages, max_tokens)
+        try:
+            return await _call_anthropic(system, messages, max_tokens)
+        except Exception as e:
+            _log.getLogger(__name__).warning("Anthropic call failed, falling back: %s", e)
     if settings.google_api_key:
         try:
             return await _call_google(system, messages, max_tokens, json_mode=json_mode)
         except Exception:
             pass  # Google quota exhausted → fall through to Groq
     return await _call_groq(system, messages, max_tokens, json_mode=json_mode)
+
+
+def _parse_json_object(raw: str) -> dict:
+    """Parse a JSON object from an LLM response that may include prose, markdown
+    fences, or reasoning before/after the JSON (Anthropic has no json_mode, so it
+    often wraps the object in text)."""
+    text = (raw or "").strip()
+    text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    try:
+        return json.loads(text)
+    except Exception:
+        import re as _re
+        m = _re.search(r"\{.*\}", text, _re.DOTALL)
+        if m:
+            return json.loads(m.group())
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -1179,6 +1199,8 @@ async def generate_tribunal_verdicts(tribunal_history: list[dict], idea: str) ->
                 persona_msgs.append({"role": "user", "content": turn["content"]})
             elif turn.get("persona") == persona["key"]:
                 persona_msgs.append({"role": "assistant", "content": turn["content"]})
+        # End on a user turn so the model produces the verdict (and messages stay valid)
+        persona_msgs.append({"role": "user", "content": "Deliver your final verdict now as the JSON object specified."})
 
         verdict_system = f"""{persona["prompt"]}
 
@@ -1202,7 +1224,7 @@ RULES:
 - If the founder gave specific numbers (CAC, LTV, market size), that raises the score
 - If answers were vague or dodged questions, that lowers the score
 
-Think through your reasoning first, then return ONLY valid JSON:
+Return ONLY a valid JSON object, no preamble or commentary before or after it:
 {{
   "pass": true or false,
   "score": integer 0-100,
@@ -1211,8 +1233,8 @@ Think through your reasoning first, then return ONLY valid JSON:
 }}"""
 
         try:
-            raw = await _call_real_llm(verdict_system, persona_msgs, max_tokens=500, json_mode=True)
-            data = json.loads(raw)
+            raw = await _call_real_llm(verdict_system, persona_msgs, max_tokens=800, json_mode=True)
+            data = _parse_json_object(raw)
             data.setdefault("pass", False)
             data.setdefault("score", 50)
             data.setdefault("verdict", "Insufficient context to form a clear verdict.")
