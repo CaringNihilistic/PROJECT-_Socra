@@ -1,435 +1,273 @@
-# 🧠 Socra — The AI Architect for Real Projects
+# Socra — AI Startup Evaluator
 
-> **The AI that refuses to answer until it fully understands — and challenges your assumptions before you waste time building the wrong thing.**
-
-Socra is an AI-powered project architect that sits *before* any expensive LLM call. It debates, interrogates, and educates until it has a complete picture of your project — then hands a precision-crafted masterplan to the model of your choice. Stop burning tokens on half-baked prompts.
+> An AI that refuses to give you a masterplan until it fully understands your idea. It interrogates founders Socratically, scores the idea across 5 dimensions, then unlocks a multi-agent council analysis and a synthesized Chairman's Masterplan. A second mode — the **Tribunal** — puts the idea on trial before 3 adversarial judges who deliver Pass/Fail verdicts.
 
 ---
 
-## 🚨 The Problem
+## What It Does
 
-| Without Socra | With Socra |
+Most AI tools tell you what you want to hear. Socra doesn't.
+
+It runs founders through a structured Socratic interrogation — asking targeted questions, challenging vague answers, and scoring their idea across 5 dimensions in real time. Only when the idea is fully understood does it unlock a specialist council of 5 AI advisors, each analyzing a different aspect of the business, followed by a synthesized masterplan from "The Chairman."
+
+**Standard Mode:** Socratic Q&A → Eval scoring → Council of 5 agents → Chairman's Masterplan → Pitch deck  
+**Tribunal Mode:** 3 adversarial judges (Investor, Customer, Competitor) interrogate the founder over 4 rounds, then deliver Pass/Fail verdicts with scores
+
+---
+
+## Core Features
+
+### Socratic Interrogation
+- Maximum 2 targeted questions per turn — no rambling
+- Challenges vague answers ("reduce costs" → "by how much exactly?")
+- Scores progress across 5 dimensions in real time
+- Phases: `intake` → `debate` → `stress_test` → `masterplan`
+
+### The Eval Bar (5 Dimensions)
+| Dimension | Weight |
 |---|---|
-| Vague prompt → garbage output → retry 10 times | Structured debate → expert context → precise output first time |
-| Burn ₹500 in API credits on trial and error | One optimized call to the right model |
-| Junior dev starts coding wrong system | Staff-engineer-level interrogation before a line is written |
-| Architecture decided in 5 minutes | Architecture stress-tested, argued, and documented |
+| Problem Clarity | 25% |
+| Scale & Constraints | 20% |
+| Tech Context | 20% |
+| Success Definition | 20% |
+| Risk Awareness | 15% |
 
-Most people treat AI like a search bar. Socra treats it like a senior engineer who **refuses to code until the problem is actually understood.**
+### Council of 5 Specialist Agents
+Runs in parallel once the eval threshold is reached:
+- 💼 **The Banker** — unit economics, CAC/LTV, burn rate, funding gap
+- 🔮 **The Oracle** — market sizing, GTM, timing risk
+- ⚔️ **The Challenger** — named competitors, moat analysis, copy risk
+- 🔧 **The Builder** — tech stack, build vs buy, what breaks at 10x
+- 🎯 **The Skeptic** — regulation, platform dependencies, killer assumptions
+- 💀 **Devil's Advocate** — 5 specific critiques of the masterplan itself
 
----
+### Chairman's Masterplan
+Synthesizes all 5 council reports into a definitive plan: tech stack table, 3 implementation phases, risk register with specific mitigations, first 3 files to write.
 
-## ✨ Core Features
+### Tribunal Mode
+3 adversarial personas interrogate the founder over 4 rounds, each from their own perspective. After round 4:
+- Each judge delivers a Pass/Fail verdict with a score (0–100) and rubric
+- Composite grade: GREENLIT / STRONG / CHALLENGED / REJECTED
+- Shareable verdict card
 
-### 🏗️ The Architect Flow
-- Classifies incoming requests — simple questions go straight to the model, projects enter the architect flow
-- Multi-turn Socratic intake that extracts the full context of your project
-- Real-time **Evaluation Bar** that visually scores how well the system understands your project across 5 dimensions
-- Debate engine that proposes approaches, then argues against its own proposals
-- Stress-testing phase: *"What happens at 10x users?"*, *"What if this third-party API goes down?"*
-- Final masterplan handed to the model of your choice only when context is sufficient
+### Pitch Deck Generator
+9-slide investor deck generated from the council analysis: Problem, Solution, Market, Product, Business Model, GTM, Competition, Roadmap, The Ask.
 
-### 📊 Evaluation Bar (5 Dimensions)
-- **Problem Clarity** — Is the actual problem understood, not just the symptom?
-- **Scale & Constraints** — Users, data volume, budget, team size
-- **Tech Context** — Existing stack, non-negotiables, flexibility zones
-- **Success Definition** — What does "done and working" actually look like?
-- **Risk Awareness** — What could kill this project; what's been tried before?
+### Shareable Links
+- `/card/:id` — public score card (dimensions + phase)
+- `/share/:id` — read-only masterplan view
+- `/compare/:id1/:id2` — side-by-side session comparison
 
-Each dimension fills independently. The bar explains *why* it moved after every exchange.
-
-### 🧑‍🤝‍🧑 Team Mode
-- Multiple users join the same architect session
-- System detects contradictions between team members and forces alignment
-- Shared decision log visible to all participants in real time
-
-### 💬 Devil's Advocate Mode
-- A dedicated toggle that argues *only against* the current proposed approach
-- Forces genuine defense of architectural decisions
-- Great for solo founders who have nobody to pressure-test ideas with
-
-### 🧾 Decision Log
-- Every architectural decision is saved with the reasoning behind it
-- Full searchable history of *why* things were built a certain way
-- Auto-attached to the exported PRD
-
-### 🔍 Assumption Tracker
-- System explicitly lists every assumption it is making
-- User can correct any assumption mid-conversation
-- Recalibrates the entire recommendation when an assumption changes
-
-### 🎯 Jargon Calibration
-- Quietly detects technical proficiency from the user's language
-- Senior devs get concise, technical answers
-- Non-technical founders get full analogies and plain explanations
-- Same product, two completely different conversation styles
-
-### 🗺️ Architecture Visualization
-- Auto-generates a system diagram after the masterplan is concluded
-- Shows components, communication patterns, and scaling risk zones
-- Shareable with team or investors
-
-### 💰 Cost Estimator
-- After architecture is finalized, estimates actual monthly cloud cost
-- Compares naive first approach vs the Socra-optimized approach
-- Makes token and money savings tangible and visible
-
-### ⚠️ "What Could Go Wrong" Report
-- Top 5 failure risks for the proposed system at scale
-- Specific mitigation strategy for each risk
-- Generated after the masterplan as a final senior-engineer review
-
-### 📋 Export to PRD
-- One-click export of the full session as a structured Product Requirements Document
-- Formatted and ready to share with developers, investors, or stakeholders
-- Includes decision log, assumptions, architecture diagram, and cost estimate
-
-### 🔄 Version History
-- Snapshots of how the architecture evolved across the conversation
-- See exactly what changed and what argument caused the pivot
-- Good for learning, great for documentation
-
-### 🏛️ Public Architecture Library
-- Anonymized past architectures for common project types (SaaS, marketplace, RAG app, mobile backend)
-- New users can start from a similar project template
-- Library grows over time, building a compounding moat
-
-### 🎙️ Voice Input
-- Talk through your project idea instead of typing
-- Transcribed, context-extracted, and fed to the architect
-- Removes friction for non-technical founders
-
-### 🔀 Model Router
-- Sends the final masterplan to Claude, GPT-4, Gemini, or local LLaMA
-- Real-time cost comparison: *"GPT-4 → ₹0.80 | Claude Sonnet → ₹0.60 | Local LLaMA → ₹0.00"*
-- User chooses based on budget and task type
-
-### 🧠 Memory Across Sessions
-- Remembers your tech stack, team size, and past decisions
-- References previous projects: *"Last time you chose PostgreSQL — stay consistent?"*
-- Builds a persistent profile of each user's technical context
+### Live Market Research
+Tavily web search runs before council analysis to ground agent reports in current market data.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend
-| Layer | Technology |
+| Component | Choice |
 |---|---|
-| API Framework | FastAPI |
-| Orchestration | LangChain |
-| LLM (debate + architect agent) | Claude Sonnet / GPT-4 via API |
-| LLM (classifier) | Fine-tuned LLaMA 3 (1B) |
-| Vector DB (memory + library) | FAISS + ChromaDB |
-| Task Queue | Celery + Redis |
-| Database | PostgreSQL |
-| Auth | Supabase Auth |
-| Real-time (team mode) | WebSockets via FastAPI |
-| Voice transcription | Whisper API |
+| Framework | FastAPI + Uvicorn |
+| Language | Python 3.11 |
+| Database | PostgreSQL (SQLAlchemy asyncio + asyncpg) |
+| Cache | Redis |
+| Auth | Clerk (JWT verification via python-jose) |
+| Payments | Razorpay |
+| Observability | Langfuse v4 |
+| Web search | Tavily |
+| HTTP client | httpx |
+
+### LLM Routing
+All calls route through `backend/llm_client.py` with automatic fallback:
+1. **Anthropic Haiku 4.5** (`claude-haiku-4-5-20251001`) — primary
+2. **Google Gemini 2.0 Flash** (`gemini-2.0-flash`) — fallback
+3. **Groq** (`llama-3.1-8b-instant`) — final fallback
 
 ### Frontend
-| Layer | Technology |
+| Component | Choice |
 |---|---|
-| Framework | React + TypeScript |
-| State management | Zustand |
-| Real-time updates | Socket.IO client |
-| Diagram rendering | React Flow |
+| Framework | React 18 + TypeScript |
+| Build | Vite |
 | Styling | Tailwind CSS |
-
-### AI / ML
-| Component | Technology |
-|---|---|
-| Complexity classifier | Fine-tuned LLaMA 3 1B |
-| Socratic question generation | LangChain agent + Claude |
-| Debate / argument engine | Claude Sonnet (structured prompting) |
-| Evaluation bar scoring | Custom rubric + LLM-as-judge |
-| Assumption extraction | LangChain NER chain |
-| Architecture diagram gen | GPT-4 → Mermaid.js |
-| Cost estimation | Custom pricing DB + LLM calculator |
+| State | Zustand |
+| Auth | @clerk/clerk-react |
 
 ### Infrastructure
-| Component | Technology |
-|---|---|
-| Containerization | Docker + Docker Compose |
-| Deployment | Railway / Render (MVP), AWS ECS (scale) |
-| CI/CD | GitHub Actions |
-| Monitoring | Langfuse (LLM observability) |
-| Environment | Python 3.11+, Node 20+ |
+- **Hosting:** Railway (backend + frontend as separate services)
+- **Local dev:** Docker Compose
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 socra/
 ├── backend/
-│   ├── agents/
-│   │   ├── classifier.py          # Complexity classifier (LLaMA)
-│   │   ├── intake_agent.py        # Socratic question generator
-│   │   ├── debate_agent.py        # Argument + challenge engine
-│   │   ├── assumption_tracker.py  # Assumption extraction & management
-│   │   └── masterplan_agent.py    # Final architecture generator
-│   ├── api/
-│   │   ├── routes/
-│   │   │   ├── sessions.py        # Project session management
-│   │   │   ├── architect.py       # Core architect flow endpoints
-│   │   │   ├── export.py          # PRD + diagram export
-│   │   │   └── models.py          # Model router endpoints
-│   │   └── websockets/
-│   │       └── team_session.py    # Real-time team collaboration
+│   ├── main.py                  # FastAPI app, CORS, rate limiting, /health
+│   ├── llm_client.py            # LLM routing, council agents, tribunal, masterplan
+│   ├── observability.py         # Langfuse v4 tracing (optional)
+│   ├── eval_bar.py              # 5-dimension scoring + phase thresholds
+│   ├── web_search.py            # Tavily live market research
 │   ├── core/
-│   │   ├── eval_bar.py            # Evaluation bar scoring logic
-│   │   ├── memory.py              # Cross-session memory (FAISS)
-│   │   ├── model_router.py        # Multi-model routing + cost calc
-│   │   └── state_machine.py       # Architect flow state manager
+│   │   ├── config.py            # Settings via pydantic-settings
+│   │   └── auth.py              # Clerk JWT verification + admin role
 │   ├── db/
-│   │   ├── models.py
-│   │   └── migrations/
-│   ├── services/
-│   │   ├── voice.py               # Whisper transcription
-│   │   ├── diagram.py             # Architecture viz generation
-│   │   ├── cost_estimator.py      # Cloud cost estimation
-│   │   └── prd_exporter.py        # PRD document generator
-│   └── main.py
-│
+│   │   ├── database.py          # Async engine + session
+│   │   └── models.py            # Session + WaitlistEntry tables
+│   └── api/routes/
+│       ├── sessions.py          # Session CRUD + admin endpoints
+│       ├── architect.py         # Streaming chat, unlock, masterplan, tribunal
+│       ├── billing.py           # Razorpay checkout / webhook / verify
+│       ├── waitlist.py          # Email waitlist
+│       ├── followup.py          # Follow-up email capture
+│       └── me.py                # GET /me — identity + is_admin
 ├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── EvalBar/           # The 5-dimension evaluation bar
-│   │   │   ├── DebatePanel/       # Conversation + argument UI
-│   │   │   ├── AssumptionTracker/ # Live assumption list
-│   │   │   ├── ArchDiagram/       # React Flow diagram
-│   │   │   ├── CostEstimator/     # Real-time cost comparison
-│   │   │   ├── DecisionLog/       # Session decision history
-│   │   │   └── ModelSelector/     # Model router UI
-│   │   ├── pages/
-│   │   ├── store/
-│   │   └── hooks/
-│   └── package.json
-│
-├── ml/
-│   ├── classifier/
-│   │   ├── train.py               # Fine-tune LLaMA complexity classifier
-│   │   ├── dataset/               # Synthetic training data
-│   │   └── eval.py                # Classifier evaluation
-│   └── evals/
-│       ├── benchmark.py           # Compare raw vs Socra-processed prompts
-│       └── judge.py               # LLM-as-judge scoring
-│
+│   └── src/
+│       ├── App.tsx              # Path-based routing, Clerk provider
+│       ├── store/sessionStore.ts # Zustand store — all state + SSE streaming
+│       └── components/
+│           ├── LandingPage.tsx  # Entry — idea input, examples, mode selection
+│           ├── SessionPage.tsx  # Standard mode: Chat → Council → Masterplan
+│           ├── TribunalPage.tsx # Tribunal mode: 3 judges → verdicts
+│           ├── PitchDeckView.tsx
+│           ├── CardPage.tsx     # Public score card (/card/:id)
+│           ├── SharePage.tsx    # Public masterplan view (/share/:id)
+│           └── ComparePage.tsx  # Side-by-side comparison (/compare/:id1/:id2)
 ├── docker-compose.yml
-├── .env.example
-└── README.md
+└── .env.example
 ```
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 20+
-- Docker & Docker Compose
-- API keys: Anthropic, OpenAI (optional), HuggingFace
+- Docker + Docker Compose (recommended)
+- Anthropic API key (or Google/Groq as fallback)
 
-### Installation
+### Local Development
 
 ```bash
-# Clone the repo
-git clone https://github.com/yourusername/socra.git
-cd socra
+git clone https://github.com/CaringNihilistic/PROJECT-_Socra.git
+cd PROJECT-_Socra
 
-# Copy environment variables
 cp .env.example .env
-# Fill in your API keys in .env
+# Add your ANTHROPIC_API_KEY and set STUB_MODE=false
 
-# Start all services with Docker
-docker-compose up --build
+docker compose up
+```
 
-# Or run manually:
+- Frontend: http://localhost:3000
+- Backend: http://localhost:8000
+- API docs: http://localhost:8000/docs
 
-# Backend
+`STUB_MODE=true` (default) runs offline with canned responses for the 3 landing page example ideas — no API key needed to try it.
+
+### Backend Only
+
+```bash
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
+```
 
-# Frontend
+### Frontend Only
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### Environment Variables
+### Key Environment Variables
 
 ```env
-# LLM APIs
-ANTHROPIC_API_KEY=your_key_here
-OPENAI_API_KEY=your_key_here          # optional
-HUGGINGFACE_TOKEN=your_token_here
+# LLM (at least one required for real responses)
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=            # Gemini fallback
+GROQ_API_KEY=              # Groq fallback
+
+STUB_MODE=false            # true = offline demo (landing page examples only)
 
 # Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/socra
-REDIS_URL=redis://localhost:6379
+DATABASE_URL=postgresql://socra:socra_dev@postgres:5432/socra_db
+REDIS_URL=redis://redis:6379
 
-# Auth
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
+# Auth (Clerk) — optional for local dev
+CLERK_SECRET_KEY=
+CLERK_FRONTEND_API_URL=
 
-# Vector DB
-CHROMA_HOST=localhost
-CHROMA_PORT=8001
+# Payments (Razorpay) — leave unset to show [DEV] bypass buttons
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
 
-# Observability
-LANGFUSE_PUBLIC_KEY=your_key
-LANGFUSE_SECRET_KEY=your_key
+# Live market research
+TAVILY_API_KEY=
+
+# Observability (optional)
+LANGFUSE_PUBLIC_KEY=
+LANGFUSE_SECRET_KEY=
+
+# Admin access (comma-separated Clerk emails)
+ADMIN_EMAILS=you@example.com
 ```
 
 ---
 
-## 📐 How the Architect Flow Works
+## How It Works
 
 ```
-1. User submits project idea
-         ↓
-2. Complexity Classifier (LLaMA)
-   → Simple question? Route directly to model.
-   → Project/system? Enter architect flow.
-         ↓
-3. Intake Phase
-   System asks 2-3 most critical missing questions
-   [Eval bar starts filling]
-         ↓
-4. Debate Phase
-   System proposes an approach, then argues against it
-   User responds, defends, or pivots
-   [Bar updates in real time]
-         ↓
-5. Stress-test Phase
-   "What happens at 10x users?"
-   "What if this third-party API fails?"
-   "Why not a simpler approach?"
-         ↓
-6. Bar crosses 85% threshold
-         ↓
-7. Masterplan generated
-   → Architecture diagram
-   → Cost estimate
-   → Risk report
-   → Structured expert-level prompt
-         ↓
-8. Handed to chosen model (Claude / GPT-4 / LLaMA)
-         ↓
-9. Output + full decision log exported as PRD
+Founder submits idea
+        ↓
+Socratic interrogation (2-3 questions/turn, max ~8 turns)
+Eval bar scores 5 dimensions in real time
+        ↓
+Score > 80%?
+   No → Keep questioning
+   Yes → Payment gate
+        ↓
+[Payment or admin bypass]
+        ↓
+Parallel council: 5 agents run simultaneously
+Live web research enriches each report
+        ↓
+Chairman synthesizes → Masterplan
+Devil's Advocate critiques it
+        ↓
+Optional: Pitch deck (9 slides)
+Optional: Tribunal (3 judges × 4 rounds → Pass/Fail verdicts)
 ```
 
 ---
 
-## 📏 Evaluation Bar Scoring
+## API Endpoints
 
-The bar is calculated as a weighted average across 5 dimensions:
-
-| Dimension | Weight | What fills it |
+| Method | Path | Description |
 |---|---|---|
-| Problem Clarity | 25% | User has articulated the *actual* problem, not just a symptom |
-| Scale & Constraints | 20% | Team size, timeline, budget, expected load confirmed |
-| Tech Context | 20% | Existing stack, non-negotiables, and flexibility zones known |
-| Success Definition | 20% | Clear, measurable definition of "done and working" |
-| Risk Awareness | 15% | At least 2 failure modes identified and acknowledged |
-
-**Below 40%** → System refuses to generate output, continues questioning  
-**40–70%** → System generates a rough draft with explicit uncertainty flags  
-**70–85%** → System generates with minor clarification requests attached  
-**Above 85%** → Full masterplan generated with high confidence
-
----
-
-## 🧪 Evals & Benchmarking
-
-The `ml/evals/` folder contains a benchmark pipeline that:
-
-1. Takes 100 real vague project prompts
-2. Runs them raw through Claude/GPT-4
-3. Runs them through the Socra architect flow first, then through the same model
-4. Scores both outputs using an LLM-as-judge on: accuracy, completeness, architecture quality, and token efficiency
-
-This is the proof that the system works — and it's your portfolio's strongest asset.
-
-```bash
-cd ml/evals
-python benchmark.py --prompts data/test_prompts.json --model claude-sonnet-4-20250514
-```
+| POST | `/sessions/` | Create session |
+| GET | `/sessions/{id}` | Get session (public by UUID) |
+| POST | `/sessions/{id}/message/stream` | SSE Socratic chat |
+| POST | `/sessions/{id}/unlock` | Run council + masterplan (SSE) |
+| POST | `/sessions/{id}/pitch-deck` | Generate pitch deck |
+| POST | `/sessions/{id}/tribunal/message` | SSE tribunal round |
+| POST | `/sessions/{id}/tribunal/unlock` | Generate verdicts |
+| POST | `/billing/checkout` | Razorpay checkout |
+| POST | `/billing/verify` | Verify payment |
+| GET | `/me` | Current identity + is_admin |
+| GET | `/health` | DB + Langfuse status |
 
 ---
 
-## 🗺️ Roadmap
+## Deployment
 
-### MVP (Month 1–2)
-- [ ] Core architect flow (intake → debate → masterplan)
-- [ ] Evaluation bar (basic scoring, 5 dimensions)
-- [ ] FastAPI backend + React frontend
-- [ ] Claude + GPT-4 model routing
-- [ ] Basic session persistence
+Deployed on Railway. Push to `main` → auto-build via Dockerfiles.
 
-### v2 (Month 3–4)
-- [ ] Fine-tuned LLaMA classifier
-- [ ] Memory across sessions (FAISS)
-- [ ] Architecture diagram generation (React Flow)
-- [ ] Cost estimator
-- [ ] Decision log + assumption tracker
-- [ ] Devil's advocate mode
-
-### v3 (Month 5–6)
-- [ ] Team mode (WebSockets)
-- [ ] Voice input (Whisper)
-- [ ] Export to PRD
-- [ ] "What could go wrong" risk report
-- [ ] Public architecture library
-- [ ] Jargon calibration
-- [ ] Version history of architectural decisions
-
-### v4 (Scale)
-- [ ] Subscription model (free tier capped, pro unlimited)
-- [ ] API access for teams to embed Socra in their own tools
-- [ ] Self-hosted / local LLaMA option for privacy-sensitive teams
-- [ ] IDE plugin (VS Code extension)
+Backend env vars are set in the Railway backend service. Frontend `VITE_*` vars are set in the Railway frontend service and are baked in at build time — changing them requires a rebuild.
 
 ---
 
-## 💡 Why This Stands Out as a Portfolio Project
+## License
 
-- Covers the full LLM engineer stack: fine-tuning, RAG, agents, evals, FastAPI, multi-model routing
-- The eval benchmark in `ml/evals/` gives you *measurable proof* that your system improves output quality
-- Solves a real problem that every developer using AI has experienced
-- The argumentation layer is genuinely novel — no existing tool argues back
-- You can demo it live in any interview: drop a vague project idea in and show the bar filling up
-
----
-
-## 🤝 Contributing
-
-Contributions welcome. Please open an issue before submitting a large PR so we can align on the approach.
-
-```bash
-# Create a branch
-git checkout -b feature/your-feature-name
-
-# Make your changes, then
-git commit -m "feat: your description"
-git push origin feature/your-feature-name
-```
-
----
-
-## 📄 License
-
-MIT License — see `LICENSE` for details.
-
----
-
-## 👤 Author
-
-Built by [Your Name] — targeting the LLM/AI Engineer role.  
-Connect on [LinkedIn](https://linkedin.com) | [Twitter/X](https://x.com)
-
----
-
-*"The best prompt is the one you never had to write because the system understood you first."*
+MIT
