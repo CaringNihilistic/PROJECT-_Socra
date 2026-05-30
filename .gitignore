@@ -45,3 +45,9 @@ postgres_data/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Private docs — strategy, security details, build journals
+JOURNEY*.md
+SCALABILITY.md
+SECURITY.md
+Compound V.md
