@@ -43,7 +43,7 @@ function SaveNudge() {
       onClick={() => openSignIn()}
       className="w-full text-center text-[11px] font-mono text-amber-400/50 hover:text-amber-400 border border-amber-500/10 hover:border-amber-500/25 bg-amber-500/[0.03] px-4 py-2 rounded-xl transition-all"
     >
-      ⚠ This session isn't saved to an account — sign in to keep your work across devices →
+      ⚠ This session isn't saved. Sign in to keep your work across devices →
     </button>
   )
 }
@@ -254,7 +254,7 @@ function PaywallModal() {
         {/* What you get */}
         <div className="px-7 py-5 flex flex-col gap-2.5">
           {[
-            { icon: '🏛', label: 'The Council — 5 AI advisors', sub: 'The Banker, Oracle, Challenger, Builder, Skeptic' },
+            { icon: '🏛', label: 'The Council, 5 AI advisors', sub: 'The Banker, Oracle, Challenger, Builder, Skeptic' },
             { icon: '📄', label: "Chairman's Masterplan", sub: '2,000+ word strategic & technical verdict' },
             { icon: '💡', label: "Devil's advocate", sub: 'The 5 reasons this fails' },
             { icon: '↓', label: 'Exportable as .md', sub: 'Copy or download the full masterplan' },
@@ -302,7 +302,7 @@ function PaywallModal() {
             </button>
           )}
           <p className="text-center text-[11px] font-mono text-ink-700 mt-3">
-            One-time payment · Secure checkout via Stripe · No subscription
+            One-time payment · Secure checkout via Razorpay · No subscription
           </p>
         </div>
       </div>
@@ -468,6 +468,32 @@ export function SessionPage() {
               )
             })}
           </div>
+
+          {/* View tabs — only visible once masterplan is unlocked */}
+          {masterplan && (
+            <div className="flex items-center gap-0 border-t border-ink-800/40 fade-up">
+              {(['chat', 'council', 'masterplan'] as const).map((v) => {
+                const labels = { chat: 'Chat', council: 'Council', masterplan: 'Masterplan' }
+                const icons = { chat: '◎', council: '⬡', masterplan: '▤' }
+                const isActive = view === v
+                return (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className="relative px-4 py-2 text-[11px] font-mono tracking-[0.12em] uppercase transition-all duration-200 flex items-center gap-1.5"
+                    style={{ color: isActive ? '#34d399' : 'rgba(255,255,255,0.22)' }}
+                  >
+                    <span style={{ opacity: isActive ? 0.7 : 0.3, fontSize: '9px' }}>{icons[v]}</span>
+                    {labels[v]}
+                    {isActive && (
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px]"
+                        style={{ background: 'linear-gradient(90deg, transparent, #34d399, transparent)' }} />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -478,6 +504,7 @@ export function SessionPage() {
             <div>
               <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-700 mb-1">The Council</div>
               <div className="text-[18px] font-display font-bold text-ink-100">Specialist Analysis</div>
+              <div className="text-[11px] font-mono text-ink-700 mt-1">{specialistReports.length} of 5 advisors</div>
             </div>
             <div className="flex items-center gap-2">
               {showDev && (
@@ -492,29 +519,21 @@ export function SessionPage() {
               )}
               <button
                 onClick={() => setView('masterplan')}
-                className="px-5 py-2.5 rounded-xl font-mono text-[12px] font-semibold transition-all"
+                className="px-4 py-2 rounded-xl font-mono text-[11px] font-semibold transition-all flex items-center gap-1.5"
                 style={{ background: 'linear-gradient(135deg, #34d399, #10b981)', color: '#08070a' }}
               >
-                Masterplan →
+                ▤ Masterplan
               </button>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="grid sm:grid-cols-2 gap-2">
             {specialistReports.map((report) => (
               <AgentReportCard key={report.key} report={report} isNew={false} />
             ))}
           </div>
 
           {devilReport && <DevilsAdvocateCard report={devilReport} />}
-
-          <button
-            onClick={() => setView('masterplan')}
-            className="w-full py-3.5 rounded-xl font-mono text-[12px] tracking-[0.1em] uppercase transition-all"
-            style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)', color: 'rgba(52,211,153,0.7)' }}
-          >
-            Continue to Masterplan →
-          </button>
 
           <FollowUpEmailCapture sessionId={session.id} />
         </div>
@@ -615,7 +634,7 @@ export function SessionPage() {
             <button
               onClick={() => devSeedConversation()}
               disabled={isUnlocking}
-              title="Auto-play a realistic founder conversation, then generate the masterplan — for testing quality"
+              title="Auto-play a realistic founder conversation, then generate the masterplan (for testing quality)"
               className="px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
               style={{ background: 'rgba(120,200,255,0.05)', border: '1px solid rgba(120,200,255,0.18)', color: 'rgba(120,200,255,0.6)' }}
             >
@@ -652,13 +671,15 @@ export function SessionPage() {
               )}
               <div className={msg.role === 'user'
                 ? 'max-w-[75%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed text-ink-200'
-                : 'flex-1 min-w-0 text-[14px] leading-relaxed'
+                : 'flex-1 min-w-0 text-[14px] leading-relaxed rounded-xl px-4 py-3'
               }
                 style={msg.role === 'user' ? {
                   background: 'rgba(255,255,255,0.055)',
                   border: '1px solid rgba(255,255,255,0.09)',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                } : undefined}>
+                } : {
+                  background: 'rgba(245,158,11,0.028)',
+                }}>
                 {msg.role === 'assistant' ? (
                   <div className="prose prose-invert max-w-none text-ink-300
                     prose-headings:text-ink-100 prose-headings:font-display prose-headings:tracking-tight prose-headings:mt-5 prose-headings:mb-2
@@ -748,7 +769,7 @@ export function SessionPage() {
         {/* Suggested answer chips — stay visible while user types, clear only on send */}
         {currentChoices.length > 0 && !isSending && !masterplan && (
           <div className="flex flex-col gap-2.5">
-            <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Suggested answers — click to pre-fill, then edit &amp; send</span>
+            <span className="text-[10px] font-mono text-ink-700">Suggested answers. Click to pre-fill, then edit &amp; send.</span>
             <div className="flex flex-wrap gap-2">
               {currentChoices.map((choice, i) => (
                 <button
@@ -776,7 +797,7 @@ export function SessionPage() {
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] font-mono"
             style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)' }}>
             <span className="text-red-400/80">
-              {streamError === 'timeout' ? 'Response timed out — the server took too long.' : 'Connection dropped.'}
+              {streamError === 'timeout' ? 'Response timed out. The server took too long.' : 'Connection dropped.'}
             </span>
             {lastSentMessage && (
               <button
@@ -795,8 +816,8 @@ export function SessionPage() {
             {total_score < 0.4
               ? `${Math.round((0.4 - total_score) / 0.05)} more specific answers needed to unlock analysis`
               : total_score < 0.7
-              ? 'Good progress — keep adding detail to each dimension'
-              : 'Almost there — one or two more strong answers'}
+              ? 'Good progress. Keep adding detail to each dimension.'
+              : 'Almost there. One or two more strong answers.'}
           </div>
         )}
 

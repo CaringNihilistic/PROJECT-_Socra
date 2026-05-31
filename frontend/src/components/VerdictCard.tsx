@@ -1,4 +1,4 @@
-import type { Scores, ScoreExplanation } from '../store/sessionStore'
+﻿import type { Scores, ScoreExplanation } from '../store/sessionStore'
 
 interface VerdictCardProps {
   idea: string
@@ -26,7 +26,7 @@ const DIM_SHORT: Record<string, string> = {
 export function VerdictCard({ idea, totalScore, explanations, sessionId }: VerdictCardProps) {
   const score = Math.round(totalScore * 100)
   const grade = getGrade(score)
-  const ideaText = idea.length > 100 ? idea.slice(0, 97) + '…' : idea
+  const ideaText = idea.length > 100 ? idea.slice(0, 97) + 'â€¦' : idea
 
   return (
     <div
@@ -70,7 +70,7 @@ export function VerdictCard({ idea, totalScore, explanations, sessionId }: Verdi
       {/* Idea */}
       <p style={{
         fontSize: '17px', color: 'rgba(255,255,255,0.85)', lineHeight: '1.5',
-        marginBottom: '32px', fontFamily: "'Instrument Sans', sans-serif",
+        marginBottom: '32px', fontFamily: "'Onest', sans-serif",
         fontWeight: 500, letterSpacing: '-0.01em',
       }}>
         "{ideaText}"

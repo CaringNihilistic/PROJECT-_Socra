@@ -66,11 +66,26 @@
       "PowerShell(gh api repos/langfuse/skills/contents/skills/langfuse --jq '.[] | {name, type, path}' 2>&1)",
       "WebFetch(domain:api.github.com)",
       "PowerShell(ls \"c:\\\\PROJECT _STARTUP\\\\.claude\\\\\" -ErrorAction SilentlyContinue)",
-      "WebFetch(domain:pypi.org)"
+      "WebFetch(domain:pypi.org)",
+      "Bash(npx tsc *)",
+      "PowerShell(Get-Command node, npm, npx -ErrorAction SilentlyContinue)",
+      "PowerShell($env:PATH -split ';' | Where-Object { $_ -match 'node|npm' })",
+      "PowerShell($nodePath = \"C:\\\\Program Files\\\\nodejs\\\\npx.cmd\"; if \\(Test-Path $nodePath\\) { Write-Output \"Found at $nodePath\" } else { Get-ChildItem \"C:\\\\Users\\\\ayush\\\\AppData\\\\Roaming\\\\npm\" -ErrorAction SilentlyContinue | Select-Object -First 5 })",
+      "PowerShell(gh api repos/Leonxlnx/taste-skill/contents/ 2>&1)",
+      "PowerShell(Invoke-WebRequest -Uri \"https://raw.githubusercontent.com/Leonxlnx/taste-skill/main/skills/taste-skill/SKILL.md\" -UseBasicParsing | Select-Object -ExpandProperty Content | Out-File -FilePath \"$env:TEMP\\\\SKILL.md\" -Encoding utf8; Write-Output \"Downloaded: $\\(\\(Get-Item \"$env:TEMP\\\\SKILL.md\"\\).Length\\) bytes\")",
+      "Read(//c/Users/ayush/AppData/Local/Temp/**)",
+      "PowerShell(Copy-Item \"$env:TEMP\\\\SKILL.md\" \"c:\\\\PROJECT _STARTUP\\\\.claude\\\\commands\\\\design-taste-frontend.md\" -Force; Write-Output \"Installed. Size: $\\(\\(Get-Item 'c:\\\\PROJECT _STARTUP\\\\.claude\\\\commands\\\\design-taste-frontend.md'\\).Length\\) bytes\")",
+      "PowerShell(Invoke-WebRequest -Uri \"https://raw.githubusercontent.com/nextlevelbuilder/ui-ux-pro-max-skill/main/SKILL.md\" -UseBasicParsing | Select-Object -ExpandProperty Content | Out-File -FilePath \"$env:TEMP\\\\ui-ux-pro-max-SKILL.md\" -Encoding utf8; Write-Output \"Downloaded: $\\(\\(Get-Item \"$env:TEMP\\\\ui-ux-pro-max-SKILL.md\"\\).Length\\) bytes\")",
+      "PowerShell(Invoke-WebRequest -Uri \"https://raw.githubusercontent.com/nextlevelbuilder/ui-ux-pro-max-skill/main/.claude/skills/ui-ux-pro-max/SKILL.md\" -UseBasicParsing | Select-Object -ExpandProperty Content | Out-File -FilePath \"$env:TEMP\\\\ui-ux-pro-max-SKILL.md\" -Encoding utf8; Write-Output \"Downloaded: $\\(\\(Get-Item \"$env:TEMP\\\\ui-ux-pro-max-SKILL.md\"\\).Length\\) bytes\")",
+      "PowerShell(Copy-Item \"$env:TEMP\\\\ui-ux-pro-max-SKILL.md\" \"c:\\\\PROJECT _STARTUP\\\\.claude\\\\commands\\\\ui-ux-pro-max.md\" -Force; Write-Output \"Installed: $\\(\\(Get-Item 'c:\\\\PROJECT _STARTUP\\\\.claude\\\\commands\\\\ui-ux-pro-max.md'\\).Length\\) bytes\")",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\PROJECT _STARTUP\\\\frontend\"; Remove-Item -Recurse -Force node_modules, package-lock.json -ErrorAction SilentlyContinue; Write-Output \"Cleaned. Running npm install...\")",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\PROJECT _STARTUP\\\\frontend\"; npm install 2>&1 | Select-Object -Last 10)",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\PROJECT _STARTUP\\\\frontend\"; npm run dev 2>&1 | Select-Object -First 15)"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",
-      "c:\\PROJECT _STARTUP\\.claude\\commands"
+      "c:\\PROJECT _STARTUP\\.claude\\commands",
+      "c:\\PROJECT _STARTUP\\.claude\\skills\\impeccable"
     ]
   }
 }

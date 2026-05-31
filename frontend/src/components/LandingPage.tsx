@@ -68,7 +68,7 @@ const D0: DemoState = {
 }
 
 const DEMO_AGENTS = [
-  { icon: '🔮', title: 'The Oracle',     color: '#22d3ee',  snippet: 'TAM ~$4.2B globally, but India SAM is ~$180M. Only 3 scaled players — WeWork, Awfis, IndiQube.' },
+  { icon: '🔮', title: 'The Oracle',     color: '#22d3ee',  snippet: 'TAM ~$4.2B globally, but India SAM is ~$180M. Only 3 scaled players: WeWork, Awfis, IndiQube.' },
   { icon: '🔧', title: 'The Builder',    color: '#a78bfa', snippet: 'Next.js + PostgreSQL + PostGIS for geo queries. Redis for availability. Don\'t build real-time booking v1.' },
   { icon: '🎯', title: 'The Skeptic',   color: '#e85d26', snippet: 'Cold-start kills this. Without 50+ verified listings at launch, every worker churns on day one.' },
 ]
@@ -130,7 +130,7 @@ function LiveDemo() {
         <span className="w-2.5 h-2.5 rounded-full bg-[#e05555]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#e8a030]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#3cba82]" />
-        <span className="ml-2 text-[11px] font-mono text-ink-700 flex-1">socra — architect session</span>
+        <span className="ml-2 text-[11px] font-mono text-ink-700 flex-1">socra · architect session</span>
         {/* Phase tabs */}
         <div className="flex items-center gap-1">
           {PHASE_TABS.map(t => (
@@ -189,14 +189,14 @@ function LiveDemo() {
                 <div className="flex gap-2 fade-up">
                   <div className="w-6 h-6 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-[10px] font-mono text-amber-400 flex-shrink-0 mt-0.5">S</div>
                   <div className="text-[12px] text-ink-400 leading-relaxed flex-1">
-                    <strong className="text-ink-200">Before I touch any model</strong> — who is the primary user? The desk-seeker, or the office owner? Your entire data model changes based on that answer.
+                    <strong className="text-ink-200">Before I touch any model:</strong> who is the primary user? The desk-seeker, or the office owner? Your entire data model changes based on that answer.
                   </div>
                 </div>
               )}
               {demo.showChallenge && (
                 <div className="ml-8 text-[11px] text-ink-500 px-3 py-2 rounded-lg leading-relaxed fade-up"
                   style={{ background: 'rgba(224,85,85,0.05)', border: '1px solid rgba(224,85,85,0.12)' }}>
-                  <span className="text-[10px] font-mono text-[#e05555] mr-1.5">⚡ CHALLENGE —</span>
+                  <span className="text-[10px] font-mono text-[#e05555] mr-1.5">⚡ CHALLENGE:</span>
                   Airbnb took 10 years and $6B to build marketplace trust. What's your day-one plan for the chicken-and-egg problem?
                 </div>
               )}
@@ -256,7 +256,7 @@ function LiveDemo() {
                 </p>
                 <div className="space-y-1.5">
                   {[
-                    '42M remote workers in India — market is massive and fragmented',
+                    '42M remote workers in India, market is massive and fragmented',
                     'Avg ₹8,000/month wasted on unused coworking memberships',
                     'No unified marketplace with real-time availability exists today',
                   ].map((b) => (
@@ -292,14 +292,10 @@ const PHASE_COLORS: Record<string, string> = {
   intake: '#55545c', debate: '#f59e0b', stress_test: '#e85d26', masterplan: '#34d399',
 }
 
-function SectionBadge({ children }: { children: React.ReactNode }) {
-  return <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-700 mb-4">{children}</p>
-}
-
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-display font-bold leading-[1.1] tracking-tight mb-10"
-      style={{ fontSize: 'clamp(26px, 3.5vw, 42px)' }}>
+    <h2 className="font-display font-extrabold leading-[1.08] tracking-tight mb-10"
+      style={{ fontSize: 'clamp(28px, 3.5vw, 44px)', letterSpacing: '-0.02em' }}>
       {children}
     </h2>
   )
@@ -378,14 +374,14 @@ export function LandingPage() {
   ]
 
   const features = [
-    { icon: '📊', title: 'Live Evaluation Bar', desc: 'Real-time score across 5 dimensions — problem clarity, scale, tech context, success definition, risk. The masterplan only unlocks when context is actually sufficient.', tag: 'Core', tc: '#5590e8' },
-    { icon: '🔍', title: 'Assumption Tracker', desc: 'Every hidden assumption surfaced as a clickable chip. Mark each one validated or disproved — because the ones you haven\'t tested are the ones that kill you.', tag: 'Core', tc: '#e85d26' },
-    { icon: '🏛', title: 'The Council — 5 AI Advisors', desc: 'The Banker, Oracle, Challenger, Builder, and Skeptic — five distinct voices, each looking for a different reason your idea fails. The Chairman synthesizes their verdict.', tag: 'Core', tc: '#a78bfa' },
-    { icon: '🌐', title: 'Live Web Research', desc: 'The council searches for real competitor data, market sizing, and pricing benchmarks before writing their reports. Named companies, real numbers — not hallucinations.', tag: 'Core', tc: '#22d3ee' },
-    { icon: '💀', title: "Devil's Advocate", desc: '5 specific reasons this plan fails — regulatory exposure, unit economics, timing, competitive response, execution gaps. The critique that saves you 6 months of wrong building.', tag: 'Core', tc: '#e05555' },
-    { icon: '📑', title: 'Investor Pitch Deck', desc: '9 slide-ready cards generated from the masterplan — problem, solution, market, model, competition, roadmap, and ask. Investor-ready, straight from the council\'s findings.', tag: 'Output', tc: '#f59e0b' },
-    { icon: '↔️', title: 'Idea Comparison', desc: 'Compare two sessions side by side — scores, council reports, and architecture. Useful when you\'re deciding between two directions before committing to either.', tag: 'Output', tc: '#f59e0b' },
-    { icon: '📋', title: "Chairman's Masterplan", desc: 'Full markdown verdict: system design, tech stack, data model, scaling strategy, and risk register — synthesized from the council\'s findings. Exportable as .md or shareable via link.', tag: 'Core', tc: '#34d399' },
+    { title: 'Live Evaluation Bar', desc: 'Real-time score across 5 dimensions: problem clarity, scale, tech context, success definition, risk. The masterplan only unlocks when context is actually sufficient.', tc: '#5590e8' },
+    { title: 'Assumption Tracker', desc: 'Every hidden assumption surfaced as a clickable chip. Mark each validated or disproved. The ones you haven\'t tested are the ones that kill you.', tc: '#e85d26' },
+    { title: 'The Council, 5 AI Advisors', desc: 'The Banker, Oracle, Challenger, Builder, and Skeptic. Five distinct voices, each looking for a different reason your idea fails. The Chairman synthesizes their verdict.', tc: '#a78bfa' },
+    { title: 'Live Web Research', desc: 'The council searches for real competitor data, market sizing, and pricing benchmarks before writing their reports. Named companies, real numbers. Not hallucinations.', tc: '#22d3ee' },
+    { title: "Devil's Advocate", desc: '5 specific reasons this plan fails: regulatory exposure, unit economics, timing, competitive response, execution gaps. The critique that saves you 6 months of wrong building.', tc: '#e05555' },
+    { title: 'Tribunal Mode', desc: 'Three adversarial judges (Investor, Customer, Competitor) interrogate you over 4 rounds then deliver a scored Pass/Fail verdict. A faster, harsher test for founders who want a direct answer.', tc: '#f59e0b' },
+    { title: 'Idea Comparison', desc: 'Compare two sessions side by side: scores, council reports, and architecture. Useful when deciding between two directions before committing to either.', tc: '#f59e0b' },
+    { title: "Chairman's Masterplan", desc: 'Full markdown verdict: system design, tech stack, data model, scaling strategy, and risk register. Synthesized from the council findings. Exportable as .md or shareable via link.', tc: '#34d399' },
   ]
 
   return (
@@ -415,7 +411,7 @@ export function LandingPage() {
         <div className="flex items-center gap-3">
           {CLERK_ENABLED && <AuthButton />}
           <a href="#waitlist"
-            className="text-[13px] font-semibold px-4 py-1.5 rounded-lg transition-all"
+            className="text-[13px] font-semibold px-4 py-1.5 rounded-lg transition-all active:scale-[0.97]"
             style={{ background: 'linear-gradient(135deg,#f59e0b,#e85d26)', color: '#080809' }}>
             Get early access
           </a>
@@ -423,14 +419,20 @@ export function LandingPage() {
       </nav>
 
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
-      <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-20 pb-16 text-center">
-        <div className="inline-flex items-center gap-2 text-[11px] font-mono text-amber-400/60 border border-amber-400/15 bg-amber-400/5 px-3.5 py-1.5 rounded-full mb-8">
+      <section className="relative z-10 px-6 pt-10 pb-8">
+        <div className="max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-[1fr,460px] xl:grid-cols-[1fr,500px] gap-10 xl:gap-16 items-start min-h-[calc(100dvh-72px)]">
+
+        {/* Left: content column */}
+        <div className="flex flex-col pt-6 lg:pt-14">
+
+        <div className="inline-flex items-center gap-2 text-[11px] font-mono text-amber-400/60 border border-amber-400/15 bg-amber-400/5 px-3.5 py-1.5 rounded-full mb-6 self-start">
           <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
           Brutal · Specific · Honest
         </div>
 
-        <h1 className="font-display font-bold leading-[1.04] tracking-[-1px] mb-5 max-w-3xl"
-          style={{ fontSize: 'clamp(40px, 6vw, 70px)' }}>
+        <h1 className="font-display font-extrabold leading-[1.02] mb-4 max-w-2xl"
+          style={{ fontSize: 'clamp(40px, 5vw, 68px)', letterSpacing: '-0.03em' }}>
           <span className="text-ink-100">We kill </span>
           <span className="italic text-amber-400" style={{ textShadow: '0 0 60px rgba(245,158,11,0.35)' }}>bad ideas</span>
           <br />
@@ -438,18 +440,16 @@ export function LandingPage() {
           <span className="text-ink-400">kill you.</span>
         </h1>
 
-        <p className="text-ink-500 font-mono mb-5 max-w-lg mx-auto" style={{ fontSize: '15px' }}>
+        <p className="text-ink-500 font-mono mb-3 max-w-lg" style={{ fontSize: '15px' }}>
           ChatGPT tells you how to build it. Socra tells you if you should.
         </p>
 
-        <p className="text-ink-500 leading-relaxed max-w-xl mx-auto mb-10" style={{ fontSize: '16px' }}>
-          Most AI tools are optimized to make you feel good about your idea. Socra isn't.
-          We interrogate your assumptions, stress-test your model, and deliver a verdict —
-          before you bet your career on the wrong foundation.
+        <p className="text-ink-500 leading-relaxed mb-8 max-w-[46ch]" style={{ fontSize: '16px' }}>
+          Interrogates your assumptions. Stress-tests your model. Delivers a verdict before you commit.
         </p>
 
         {/* Input card */}
-        <div id="start" className="w-full max-w-[600px] relative group mb-4">
+        <div id="start" className="w-full max-w-[560px] relative group mb-5">
           <div className="absolute -inset-px rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none"
             style={{ background: 'linear-gradient(135deg,rgba(245,158,11,0.3),rgba(232,93,38,0.15))', filter: 'blur(1px)' }} />
           <div className="relative rounded-2xl overflow-hidden border border-ink-700/60 group-focus-within:border-amber-500/30 transition-colors duration-300"
@@ -514,8 +514,8 @@ export function LandingPage() {
         </div>
 
         {/* Proof row */}
-        <div className="flex items-center justify-center gap-5 mb-10 flex-wrap">
-          {['The Council — 5 AI advisors', 'Real web research', 'Investor pitch deck', "Devil's advocate"].map((t) => (
+        <div className="flex items-center gap-5 mb-8 flex-wrap">
+          {['The Council, 5 AI advisors', 'Real web research', "Chairman's Masterplan", "Devil's advocate"].map((t) => (
             <div key={t} className="flex items-center gap-1.5">
               <div className="w-1 h-1 rounded-full bg-ink-700" />
               <span className="text-[11px] text-ink-700 font-mono">{t}</span>
@@ -524,12 +524,12 @@ export function LandingPage() {
         </div>
 
         {/* Examples */}
-        <div className="w-full max-w-[600px]">
-          <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-800 mb-3">or try an example</p>
+        <div className="w-full max-w-[560px]">
+          <p className="text-[10px] font-mono text-ink-800 mb-3">or try an example</p>
           <div className="flex flex-col gap-1.5">
             {examples.map((ex, i) => (
               <button key={i} onClick={() => { setIdea(ex); inputRef.current?.focus() }}
-                className="group text-left px-4 py-3 rounded-xl border border-ink-800/40 hover:border-ink-700/60 hover:bg-ink-900/30 transition-all">
+                className="group text-left px-4 py-3 rounded-xl border border-ink-800/40 hover:border-ink-700/60 hover:bg-ink-900/30 transition-all active:scale-[0.99]">
                 <div className="flex items-start gap-3">
                   <span className="text-[10px] font-mono text-ink-800 group-hover:text-ink-700 mt-0.5 flex-shrink-0">{String(i + 1).padStart(2, '0')}</span>
                   <span className="text-[13px] text-ink-600 group-hover:text-ink-400 transition-colors leading-relaxed">{ex}</span>
@@ -619,13 +619,24 @@ export function LandingPage() {
             </div>
           </div>
         )}
+
+        </div>{/* end left column */}
+
+        {/* Right: LiveDemo — the hero's visual asset */}
+        <div className="hidden lg:flex flex-col pt-14 lg:sticky lg:top-24">
+          <p className="text-[10px] font-mono tracking-[0.12em] text-ink-700 mb-4 uppercase">Live session</p>
+          <LiveDemo />
+        </div>
+
+        </div>{/* end grid */}
+        </div>{/* end max-w-7xl */}
       </section>
 
       {/* ── Ticker ───────────────────────────────────────────────────────────── */}
       <div className="border-y border-ink-800/40 py-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.015)' }}>
         <div className="ticker-track flex gap-0">
           {[...Array(2)].flatMap(() =>
-            ['The Council — 5 AI advisors', 'Real web research', 'Investor pitch deck', "Devil's advocate", 'Assumption tracker', "Chairman's masterplan", 'Idea comparison', 'We say no — with evidence'].map((t) => (
+            ['The Council, 5 AI advisors', 'Real web research', 'Tribunal mode', "Devil's advocate", 'Assumption tracker', "Chairman's masterplan", 'Shareable score card', 'We say no, with evidence'].map((t) => (
               <span key={t + Math.random()} className="flex items-center gap-2 px-8 text-[12px] font-mono text-ink-700">
                 {t} <span className="text-amber-500/40">◆</span>
               </span>
@@ -634,35 +645,20 @@ export function LandingPage() {
         </div>
       </div>
 
-      {/* ── Demo ─────────────────────────────────────────────────────────────── */}
-      <section id="how" className="relative z-10 py-24 px-6">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-10">
-            <SectionBadge>Live demo</SectionBadge>
-            <SectionHeading>
-              Watch the interrogation.<br />
-              <em className="text-amber-400 not-italic">See where the idea breaks.</em>
-            </SectionHeading>
-          </div>
-          <LiveDemo />
-        </div>
-      </section>
-
       {/* ── Problem ──────────────────────────────────────────────────────────── */}
-      <section className="relative z-10 py-20 px-6">
+      <section id="how" className="relative z-10 py-20 px-6">
         <div className="max-w-4xl mx-auto">
-          <SectionBadge>The problem</SectionBadge>
           <SectionHeading>
             Every AI tool is optimized to say yes.<br />
-            <em className="text-amber-400 not-italic">We're the one that says no</em> — with evidence.
+            <em className="text-amber-400 not-italic">We're the one that says no.</em>
           </SectionHeading>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="rounded-2xl p-6 border" style={{ background: 'rgba(224,85,85,0.04)', borderColor: 'rgba(224,85,85,0.15)' }}>
               <p className="text-[12px] font-mono font-semibold text-[#e05555] uppercase tracking-wider mb-5">✕ Every other tool</p>
               {[
-                'ChatGPT celebrates your idea — it\'s designed to be agreeable',
-                'Lean Canvas is a template, not a challenge — no pushback, no score',
+                'ChatGPT celebrates your idea. It\'s designed to be agreeable.',
+                'Lean Canvas is a template, not a challenge. No pushback, no score.',
                 '"Validate your idea" tools return generic output founders immediately discount',
                 'Accelerator feedback is one-way with no real-time interrogation',
                 'Nobody names the assumption that kills this in year 1',
@@ -675,9 +671,9 @@ export function LandingPage() {
             <div className="rounded-2xl p-6 border" style={{ background: 'rgba(60,186,130,0.04)', borderColor: 'rgba(60,186,130,0.15)' }}>
               <p className="text-[12px] font-mono font-semibold text-emerald-400 uppercase tracking-wider mb-5">✓ Socra</p>
               {[
-                'Five council advisors with distinct voices — each looking for a different reason this fails',
+                'Five council advisors with distinct voices, each looking for a different reason this fails',
                 'Specific objections: named competitors, real regulations, actual cost estimates',
-                'Every assumption surfaced and tracked — so you know exactly what you\'re betting on',
+                'Every assumption surfaced and tracked, so you know exactly what you\'re betting on',
                 'A verdict you can trust precisely because Socra has a reputation for saying no',
                 'The one conversation worth having before you quit your job for this',
               ].map((t) => (
@@ -693,28 +689,27 @@ export function LandingPage() {
       {/* ── Features ─────────────────────────────────────────────────────────── */}
       <section id="features" className="relative z-10 py-20 px-6">
         <div className="max-w-4xl mx-auto">
-          <SectionBadge>What Socra does</SectionBadge>
           <SectionHeading>
             Everything needed to find out<br />
             <em className="text-amber-400 not-italic">if the idea is worth the risk.</em>
           </SectionHeading>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {features.map((f) => (
+            {features.map((f, i) => (
               <div key={f.title}
-                className="group rounded-2xl overflow-hidden border border-ink-800/50 hover:border-ink-700/70 transition-all duration-300 hover:-translate-y-1"
-                style={{ background: 'rgba(255,255,255,0.015)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 8px 32px ${f.tc}14` }}
+                className={`group rounded-xl overflow-hidden border border-ink-800/50 hover:border-ink-700/60 transition-all duration-300 ${
+                  i === 0 ? 'sm:col-span-2 lg:col-span-2' : ''
+                }`}
+                style={{ background: 'rgba(255,255,255,0.012)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 8px 32px ${f.tc}12` }}
                 onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none' }}>
-                <div className="h-[2px]" style={{ background: `linear-gradient(90deg, ${f.tc}90, ${f.tc}15)` }} />
-                <div className="p-5">
-                  <div className="text-2xl mb-4">{f.icon}</div>
-                  <h3 className="text-[14px] font-semibold text-ink-200 mb-2">{f.title}</h3>
-                  <p className="text-[13px] text-ink-600 leading-relaxed mb-3">{f.desc}</p>
-                  <span className="inline-block text-[10px] font-mono font-medium px-2 py-0.5 rounded-full"
-                    style={{ color: f.tc, background: `${f.tc}12`, border: `1px solid ${f.tc}25` }}>
-                    {f.tag}
+                <div className="h-[1.5px]" style={{ background: `linear-gradient(90deg, ${f.tc}80, transparent)` }} />
+                <div className={`p-5 ${i === 0 ? 'sm:p-6' : ''}`}>
+                  <span className="text-[10px] font-mono tabular-nums mb-3 block" style={{ color: `${f.tc}80` }}>
+                    {String(i + 1).padStart(2, '0')}
                   </span>
+                  <h3 className={`font-semibold text-ink-100 mb-2 leading-snug ${i === 0 ? 'text-[17px]' : 'text-[14px]'}`}>{f.title}</h3>
+                  <p className={`text-ink-400 leading-relaxed ${i === 0 ? 'text-[14px] max-w-md' : 'text-[13px]'}`}>{f.desc}</p>
                 </div>
               </div>
             ))}
@@ -725,24 +720,23 @@ export function LandingPage() {
       {/* ── Pricing ──────────────────────────────────────────────────────────── */}
       <section id="pricing" className="relative z-10 py-20 px-6 text-center">
         <div className="max-w-2xl mx-auto">
-          <SectionBadge>Pricing</SectionBadge>
           <SectionHeading>One price. No surprises.</SectionHeading>
           <p className="text-ink-500 mb-10" style={{ fontSize: '15px' }}>
             The conversation is free. Pay only when your masterplan is ready.
           </p>
 
-          <div className="grid sm:grid-cols-2 gap-4 text-left mb-6">
+          <div className="grid sm:grid-cols-3 gap-4 text-left mb-6">
             {/* Free */}
             <div className="rounded-2xl p-6 border border-ink-800/50" style={{ background: 'rgba(255,255,255,0.02)' }}>
-              <p className="text-[12px] font-mono font-semibold text-ink-600 uppercase tracking-wider mb-3">Conversation</p>
+              <p className="text-[12px] font-mono font-semibold text-ink-500 uppercase tracking-wider mb-3">Conversation</p>
               <div className="flex items-end gap-1 mb-1">
-                <span className="font-display text-4xl font-bold text-ink-100">Free</span>
+                <span className="font-display text-3xl font-extrabold text-ink-100">Free</span>
               </div>
-              <p className="text-[13px] text-ink-600 mb-5">Always — no account needed</p>
+              <p className="text-[12px] text-ink-500 mb-5">Always. No account needed.</p>
               <div className="space-y-2 mb-6">
                 {[
-                  'Full Socratic interrogation',
-                  'Live 5-dimension eval bar',
+                  'Socratic interrogation',
+                  'Live eval bar',
                   'Assumption tracker',
                   'Quick-reply choices',
                 ].map(f => (
@@ -752,29 +746,59 @@ export function LandingPage() {
                 ))}
               </div>
               <a href="#start" className="block w-full py-2.5 rounded-xl text-[13px] font-semibold text-center text-ink-300 border border-ink-700 hover:border-ink-600 transition-all">
-                Start for free
+                Start free
               </a>
             </div>
 
-            {/* Per session */}
+            {/* Tribunal */}
             <div className="rounded-2xl p-6 border relative overflow-hidden"
-              style={{ borderColor: 'rgba(245,158,11,0.3)', background: 'linear-gradient(135deg, rgba(245,158,11,0.04) 0%, rgba(232,93,38,0.02) 100%)' }}>
+              style={{ borderColor: 'rgba(232,93,38,0.25)', background: 'linear-gradient(135deg, rgba(232,93,38,0.04) 0%, rgba(245,158,11,0.02) 100%)' }}>
+              <div className="absolute top-3 right-3 text-[10px] font-mono text-orange-400/70 border border-orange-400/20 bg-orange-400/5 px-2 py-0.5 rounded-full">
+                One-time
+              </div>
+              <p className="text-[12px] font-mono font-semibold text-orange-400/80 uppercase tracking-wider mb-3">Tribunal</p>
+              <div className="flex items-end gap-1 mb-1">
+                <span className="font-display text-3xl font-extrabold text-ink-100">₹199</span>
+                <span className="text-ink-500 mb-1 text-[13px]">/session</span>
+              </div>
+              <p className="text-[12px] text-ink-500 mb-5">Faster verdict, brutal judges</p>
+              <div className="space-y-2 mb-6">
+                {[
+                  '3 adversarial judges',
+                  '4 interrogation rounds',
+                  'Pass/Fail verdict',
+                  'Shareable verdict card',
+                ].map(f => (
+                  <div key={f} className="flex gap-2 text-[13px] text-ink-300">
+                    <span className="text-orange-400/80">✓</span>{f}
+                  </div>
+                ))}
+              </div>
+              <a href="#start"
+                className="block w-full py-2.5 rounded-xl text-[13px] font-semibold text-center transition-all"
+                style={{ background: 'linear-gradient(135deg,#e85d26,#f59e0b)', color: '#080809' }}>
+                Start tribunal
+              </a>
+            </div>
+
+            {/* Full Analysis */}
+            <div className="rounded-2xl p-6 border relative overflow-hidden"
+              style={{ borderColor: 'rgba(245,158,11,0.3)', background: 'linear-gradient(135deg, rgba(245,158,11,0.04) 0%, rgba(52,211,153,0.02) 100%)' }}>
               <div className="absolute top-3 right-3 text-[10px] font-mono text-amber-400/70 border border-amber-400/20 bg-amber-400/5 px-2 py-0.5 rounded-full">
                 One-time
               </div>
               <p className="text-[12px] font-mono font-semibold text-amber-400/80 uppercase tracking-wider mb-3">Full Analysis</p>
               <div className="flex items-end gap-1 mb-1">
-                <span className="font-display text-4xl font-bold text-ink-100">₹499</span>
-                <span className="text-ink-600 mb-1 text-[14px]">/session</span>
+                <span className="font-display text-3xl font-extrabold text-ink-100">₹499</span>
+                <span className="text-ink-500 mb-1 text-[13px]">/session</span>
               </div>
-              <p className="text-[13px] text-ink-600 mb-5">Unlocks when your score is ready</p>
+              <p className="text-[12px] text-ink-500 mb-5">Unlocks when score is ready</p>
               <div className="space-y-2 mb-6">
                 {[
-                  '5 specialist AI agents',
-                  'Architecture masterplan',
+                  '5 specialist advisors',
+                  "Chairman's Masterplan",
                   "Devil's advocate",
-                  'Investor pitch deck',
-                  'Shareable score card',
+                  'Export as .md',
                 ].map(f => (
                   <div key={f} className="flex gap-2 text-[13px] text-ink-300">
                     <span className="text-emerald-400">✓</span>{f}
@@ -784,13 +808,13 @@ export function LandingPage() {
               <a href="#start"
                 className="block w-full py-2.5 rounded-xl text-[13px] font-semibold text-center transition-all"
                 style={{ background: 'linear-gradient(135deg,#f59e0b,#e85d26)', color: '#080809', boxShadow: '0 0 24px rgba(245,158,11,0.2)' }}>
-                Start your analysis →
+                Start analysis →
               </a>
             </div>
           </div>
 
           <p className="text-[12px] text-ink-700">
-            Payment via Razorpay — UPI, cards, net banking accepted.{' '}
+            Payment via Razorpay. UPI, cards, net banking accepted.{' '}
             <a href="#waitlist" className="text-amber-500/60 hover:text-amber-400 transition-colors">
               Need a team plan? Talk to us.
             </a>
@@ -841,7 +865,7 @@ export function LandingPage() {
           <div className="w-1.5 h-1.5 rounded-full bg-amber-400/60" />
           <span className="font-display text-[15px] text-ink-600">Socra</span>
         </div>
-        <p className="text-[12px] text-ink-800 font-mono">© 2025 Socra. Built in India 🇮🇳</p>
+        <p className="text-[12px] text-ink-800 font-mono">© 2026 Socra. Built in India 🇮🇳</p>
         <div className="flex gap-5">
           {['Twitter', 'LinkedIn', 'GitHub', 'Privacy'].map(l => (
             <a key={l} href="#" className="text-[12px] text-ink-700 hover:text-ink-500 transition-colors">{l}</a>

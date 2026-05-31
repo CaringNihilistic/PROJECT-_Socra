@@ -19,9 +19,9 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"DM Serif Display"', 'serif'],
+        display: ['"Bricolage Grotesque"', 'sans-serif'],
         mono: ['"DM Mono"', 'monospace'],
-        sans: ['"Instrument Sans"', 'sans-serif'],
+        sans: ['"Onest"', 'sans-serif'],
       },
     },
   },
