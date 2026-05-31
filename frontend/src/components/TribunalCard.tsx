@@ -1,4 +1,4 @@
-﻿import type { TribunalVerdicts } from '../store/sessionStore'
+import type { TribunalVerdicts } from '../store/sessionStore'
 
 interface TribunalCardProps {
   idea: string
@@ -17,7 +17,7 @@ const PERSONA_ORDER = ['investor', 'customer', 'competitor']
 
 export function TribunalCard({ idea, verdicts, sessionId }: TribunalCardProps) {
   const grade = GRADE_STYLE[verdicts.grade] ?? GRADE_STYLE.CHALLENGED
-  const ideaText = idea.length > 110 ? idea.slice(0, 107) + 'â€¦' : idea
+  const ideaText = idea.length > 110 ? idea.slice(0, 107) + '…' : idea
   const score = verdicts.composite_score
 
   const scoreGradient =
@@ -98,7 +98,7 @@ export function TribunalCard({ idea, verdicts, sessionId }: TribunalCardProps) {
             {score}
           </div>
           <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em', marginTop: '4px' }}>
-            / 100  Â·  {verdicts.passes} of {verdicts.total} passed
+            / 100  ·  {verdicts.passes} of {verdicts.total} passed
           </div>
         </div>
 
@@ -153,7 +153,7 @@ export function TribunalCard({ idea, verdicts, sessionId }: TribunalCardProps) {
                   <span style={{ fontSize: '11px', fontWeight: 600, color: p.color, letterSpacing: '0.06em' }}>
                     {p.name}
                   </span>
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>Â·</span>
+                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>·</span>
                   <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.28)', letterSpacing: '0.03em' }}>
                     {p.role}
                   </span>

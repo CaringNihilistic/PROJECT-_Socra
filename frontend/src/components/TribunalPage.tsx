@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSessionStore, type TribunalTurn } from '../store/sessionStore'
 import { TribunalCard } from './TribunalCard'
 import { FollowUpEmailCapture } from './FollowUpEmailCapture'
@@ -17,9 +17,9 @@ function useIsMobile() {
 const BILLING_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID
 
 const PERSONAS = [
-  { key: 'investor',   name: 'The Investor',   icon: 'ðŸ’°', color: '#34d399', role: 'Series A investor' },
-  { key: 'customer',   name: 'The Customer',   icon: 'ðŸ‘¤', color: '#5590e8', role: 'Your first buyer' },
-  { key: 'competitor', name: 'The Competitor', icon: 'âš”ï¸', color: '#f59e0b', role: 'Best-funded rival' },
+  { key: 'investor',   name: 'The Investor',   icon: '💰', color: '#34d399', role: 'Series A investor' },
+  { key: 'customer',   name: 'The Customer',   icon: '👤', color: '#5590e8', role: 'Your first buyer' },
+  { key: 'competitor', name: 'The Competitor', icon: '⚔️', color: '#f59e0b', role: 'Best-funded rival' },
 ] as const
 
 function PersonaColumn({
@@ -139,7 +139,7 @@ function PersonaColumn({
           return null
         })}
 
-        {/* Streaming text â€” visible while active AND after persona_done (before round_complete clears it) */}
+        {/* Streaming text — visible while active AND after persona_done (before round_complete clears it) */}
         {streamText && (
           <div style={{ alignSelf: 'flex-start', maxWidth: '95%' }}>
             <div style={{
@@ -152,12 +152,12 @@ function PersonaColumn({
               fontFamily: "'Onest', sans-serif",
             }}>
               {streamText}
-              {isActive && <span style={{ opacity: 0.5, animation: 'blink 1s step-start infinite' }}>â–‹</span>}
+              {isActive && <span style={{ opacity: 0.5, animation: 'blink 1s step-start infinite' }}>▋</span>}
             </div>
           </div>
         )}
 
-        {/* Waiting indicator â€” only show for the next persona in line, not all at once */}
+        {/* Waiting indicator — only show for the next persona in line, not all at once */}
         {isStreaming && isActive && !streamText && (
           <div style={{
             alignSelf: 'flex-start',
@@ -211,7 +211,7 @@ export function TribunalPage() {
   const verdicts = session?.tribunal_verdicts ?? null
   const completedRounds = Math.floor(tribunalHistory.length / 4)
 
-  // Auto-send initial idea on first mount â€” but wait until auth is resolved so an
+  // Auto-send initial idea on first mount — but wait until auth is resolved so an
   // owned (signed-in) session sends with its token and doesn't 403 on a token race.
   useEffect(() => {
     if (!session || autoSent || tribunalHistory.length > 0) return
@@ -262,7 +262,7 @@ export function TribunalPage() {
         <div style={{ width: '100%', maxWidth: '680px', animation: 'fadeIn 0.6s ease' }}>
           <div style={{ textAlign: 'center', marginBottom: '36px' }}>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Startup Tribunal Â· Verdict
+              Startup Tribunal · Verdict
             </div>
             <h2 style={{ fontSize: '24px', color: 'rgba(255,255,255,0.9)', margin: 0, fontFamily: "'Onest', sans-serif" }}>
               The jury has reached a decision.
@@ -289,7 +289,7 @@ export function TribunalPage() {
                 letterSpacing: '0.05em',
               }}
             >
-              Share verdict card â†’
+              Share verdict card →
             </a>
             <button
               onClick={clearSession}
@@ -366,7 +366,7 @@ export function TribunalPage() {
               padding: '4px 8px',
             }}
           >
-            âœ•
+            ✕
           </button>
         </div>
       </div>
@@ -384,7 +384,7 @@ export function TribunalPage() {
           fontFamily: "'Onest', sans-serif",
           fontStyle: 'italic',
         }}>
-          "{session.initial_idea.length > 160 ? session.initial_idea.slice(0, 157) + 'â€¦' : session.initial_idea}"
+          "{session.initial_idea.length > 160 ? session.initial_idea.slice(0, 157) + '…' : session.initial_idea}"
         </p>
       </div>
 
@@ -423,7 +423,7 @@ export function TribunalPage() {
         </div>
       )}
 
-      {/* Persona columns â€” desktop: 3-up, mobile: single selected */}
+      {/* Persona columns — desktop: 3-up, mobile: single selected */}
       <div style={{
         flex: 1,
         padding: isMobile ? '12px 12px 0' : '24px 24px 0',
@@ -474,7 +474,7 @@ export function TribunalPage() {
             textAlign: 'center',
             boxShadow: '0 0 60px rgba(245,158,11,0.08)',
           }}>
-            <div style={{ fontSize: '32px', marginBottom: '16px' }}>âš–ï¸</div>
+            <div style={{ fontSize: '32px', marginBottom: '16px' }}>⚖️</div>
             <h3 style={{
               fontSize: '20px', color: 'rgba(255,255,255,0.92)',
               margin: '0 0 12px',
@@ -487,7 +487,7 @@ export function TribunalPage() {
               fontSize: '14px', color: 'rgba(255,255,255,0.45)',
               margin: '0 0 32px', lineHeight: 1.6,
             }}>
-              The tribunal has deliberated. Unlock the Pass/Fail verdicts from all three judges â€” plus the shareable card founders post on LinkedIn.
+              The tribunal has deliberated. Unlock the Pass/Fail verdicts from all three judges — plus the shareable card founders post on LinkedIn.
             </p>
 
             <div style={{
@@ -495,7 +495,7 @@ export function TribunalPage() {
               gap: '6px', marginBottom: '28px',
             }}>
               <span style={{ fontSize: '40px', fontWeight: 700, color: '#f59e0b', fontFamily: "'DM Mono', monospace" }}>
-                â‚¹199
+                ₹199
               </span>
               <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)' }}>one-time</span>
             </div>
@@ -513,7 +513,7 @@ export function TribunalPage() {
                 opacity: checkoutLoading ? 0.7 : 1,
               }}
             >
-              {checkoutLoading ? 'Redirectingâ€¦' : 'Unlock Verdict â†’'}
+              {checkoutLoading ? 'Redirecting…' : 'Unlock Verdict →'}
             </button>
 
             {showDev && (
@@ -532,7 +532,7 @@ export function TribunalPage() {
                   opacity: devUnlockLoading ? 0.6 : 1,
                 }}
               >
-                {devUnlockLoading ? 'Unlockingâ€¦' : (isAdmin ? '[ADMIN] Skip payment & unlock' : '[DEV] Skip payment & unlock')}
+                {devUnlockLoading ? 'Unlocking…' : (isAdmin ? '[ADMIN] Skip payment & unlock' : '[DEV] Skip payment & unlock')}
               </button>
             )}
 
@@ -552,9 +552,9 @@ export function TribunalPage() {
           zIndex: 50,
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '28px', marginBottom: '16px' }}>âš–ï¸</div>
+            <div style={{ fontSize: '28px', marginBottom: '16px' }}>⚖️</div>
             <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', letterSpacing: '0.1em' }}>
-              The tribunal deliberatesâ€¦
+              The tribunal deliberates…
             </p>
           </div>
         </div>
@@ -570,12 +570,12 @@ export function TribunalPage() {
         }}>
           {completedRounds === 0 && tribunalStreaming && (
             <p style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.25)', marginBottom: '12px' }}>
-              The tribunal is reviewing your ideaâ€¦
+              The tribunal is reviewing your idea…
             </p>
           )}
           {completedRounds > 0 && (
             <p style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginBottom: '10px' }}>
-              Round {completedRounds + 1} of 4 â€” respond to the panel
+              Round {completedRounds + 1} of 4 — respond to the panel
             </p>
           )}
 
@@ -588,9 +588,9 @@ export function TribunalPage() {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
               }}
               placeholder={
-                tribunalStreaming ? 'Waiting for the panelâ€¦' :
-                completedRounds === 0 ? 'The tribunal will begin shortlyâ€¦' :
-                'Your response to all three judgesâ€¦'
+                tribunalStreaming ? 'Waiting for the panel…' :
+                completedRounds === 0 ? 'The tribunal will begin shortly…' :
+                'Your response to all three judges…'
               }
               disabled={tribunalStreaming || tribunalPaymentRequired || !!verdicts || completedRounds >= 4}
               rows={2}
@@ -625,7 +625,7 @@ export function TribunalPage() {
                 flexShrink: 0,
               }}
             >
-              â†’
+              →
             </button>
           </div>
         </div>
