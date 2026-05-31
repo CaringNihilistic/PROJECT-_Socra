@@ -536,7 +536,7 @@ export function SessionPage() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-2">
+          <div className="grid sm:grid-cols-2 gap-2 items-start">
             {specialistReports.map((report) => (
               <AgentReportCard key={report.key} report={report} isNew={false} />
             ))}
