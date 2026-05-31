@@ -10,7 +10,7 @@ Most AI tools tell you what you want to hear. Socra doesn't.
 
 It runs founders through a structured Socratic interrogation — asking targeted questions, challenging vague answers, and scoring their idea across 5 dimensions in real time. Only when the idea is fully understood does it unlock a specialist council of 5 AI advisors, each analyzing a different aspect of the business, followed by a synthesized masterplan from "The Chairman."
 
-**Standard Mode:** Socratic Q&A → Eval scoring → Council of 5 agents → Chairman's Masterplan → Pitch deck  
+**Standard Mode:** Socratic Q&A → Eval scoring → Council of 5 agents → Chairman's Masterplan  
 **Tribunal Mode:** 3 adversarial judges (Investor, Customer, Competitor) interrogate the founder over 4 rounds, then deliver Pass/Fail verdicts with scores
 
 ---
@@ -50,9 +50,6 @@ Synthesizes all 5 council reports into a definitive plan: tech stack table, 3 im
 - Composite grade: GREENLIT / STRONG / CHALLENGED / REJECTED
 - Shareable verdict card
 
-### Pitch Deck Generator
-9-slide investor deck generated from the council analysis: Problem, Solution, Market, Product, Business Model, GTM, Competition, Roadmap, The Ask.
-
 ### Shareable Links
 - `/card/:id` — public score card (dimensions + phase)
 - `/share/:id` — read-only masterplan view
@@ -71,6 +68,7 @@ Tavily web search runs before council analysis to ground agent reports in curren
 | Framework | FastAPI + Uvicorn |
 | Language | Python 3.11 |
 | Database | PostgreSQL (SQLAlchemy asyncio + asyncpg) |
+| Agent orchestration | LangGraph (StateGraph, parallel fan-out, Postgres checkpointing) |
 | Cache | Redis |
 | Auth | Clerk (JWT verification via python-jose) |
 | Payments | Razorpay |
@@ -84,12 +82,15 @@ All calls route through `backend/llm_client.py` with automatic fallback:
 2. **Google Gemini 2.0 Flash** (`gemini-2.0-flash`) — fallback
 3. **Groq** (`llama-3.1-8b-instant`) — final fallback
 
+The council of 5 agents can also run through a **LangGraph pipeline** — user-selectable before unlocking. Benchmarked 16% faster (52s vs 62s) at identical cost.
+
 ### Frontend
 | Component | Choice |
 |---|---|
 | Framework | React 18 + TypeScript |
 | Build | Vite |
 | Styling | Tailwind CSS |
+| Fonts | Bricolage Grotesque + Onest + DM Mono |
 | State | Zustand |
 | Auth | @clerk/clerk-react |
 
@@ -109,6 +110,9 @@ socra/
 │   ├── observability.py         # Langfuse v4 tracing (optional)
 │   ├── eval_bar.py              # 5-dimension scoring + phase thresholds
 │   ├── web_search.py            # Tavily live market research
+│   ├── llm_graph/
+│   │   ├── council_graph.py     # LangGraph StateGraph — parallel 5-agent council
+│   │   └── checkpointer.py      # AsyncPostgresSaver (resilience — resumes on failure)
 │   ├── core/
 │   │   ├── config.py            # Settings via pydantic-settings
 │   │   └── auth.py              # Clerk JWT verification + admin role
@@ -130,7 +134,6 @@ socra/
 │           ├── LandingPage.tsx  # Entry — idea input, examples, mode selection
 │           ├── SessionPage.tsx  # Standard mode: Chat → Council → Masterplan
 │           ├── TribunalPage.tsx # Tribunal mode: 3 judges → verdicts
-│           ├── PitchDeckView.tsx
 │           ├── CardPage.tsx     # Public score card (/card/:id)
 │           ├── SharePage.tsx    # Public masterplan view (/share/:id)
 │           └── ComparePage.tsx  # Side-by-side comparison (/compare/:id1/:id2)
@@ -236,7 +239,6 @@ Live web research enriches each report
 Chairman synthesizes → Masterplan
 Devil's Advocate critiques it
         ↓
-Optional: Pitch deck (9 slides)
 Optional: Tribunal (3 judges × 4 rounds → Pass/Fail verdicts)
 ```
 
@@ -249,14 +251,13 @@ Optional: Tribunal (3 judges × 4 rounds → Pass/Fail verdicts)
 | POST | `/sessions/` | Create session |
 | GET | `/sessions/{id}` | Get session (public by UUID) |
 | POST | `/sessions/{id}/message/stream` | SSE Socratic chat |
-| POST | `/sessions/{id}/unlock` | Run council + masterplan (SSE) |
-| POST | `/sessions/{id}/pitch-deck` | Generate pitch deck |
+| POST | `/sessions/{id}/unlock` | Run council + masterplan (SSE); `?use_langgraph=true` for LangGraph pipeline |
 | POST | `/sessions/{id}/tribunal/message` | SSE tribunal round |
 | POST | `/sessions/{id}/tribunal/unlock` | Generate verdicts |
 | POST | `/billing/checkout` | Razorpay checkout |
 | POST | `/billing/verify` | Verify payment |
 | GET | `/me` | Current identity + is_admin |
-| GET | `/health` | DB + Langfuse status |
+| GET | `/health` | DB + Langfuse + checkpointer status |
 
 ---
 

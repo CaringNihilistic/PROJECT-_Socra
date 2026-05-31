@@ -1,6 +1,6 @@
 # Socra
 
-> An AI startup evaluator that refuses to give a masterplan until it fully understands your idea. It interrogates the founder Socratically, scores the idea across 5 dimensions, then unlocks a multi-agent council analysis + a synthesized "Chairman's Masterplan" + pitch deck. A second mode — the **Tribunal** — puts the idea on trial before 3 adversarial judges who deliver Pass/Fail verdicts.
+> An AI startup evaluator that refuses to give a masterplan until it fully understands your idea. It interrogates the founder Socratically, scores the idea across 5 dimensions, then unlocks a multi-agent council analysis + a synthesized "Chairman's Masterplan". A second mode — the **Tribunal** — puts the idea on trial before 3 adversarial judges who deliver Pass/Fail verdicts.
 
 ---
 
@@ -18,7 +18,9 @@
 | Cache/queue | Redis (asyncio) | 5.1.0 (provisioned; minimal use) |
 | Config | pydantic-settings | 2.5.0 |
 | LLM SDKs | anthropic 0.40.0, openai 1.50.0 (also Google Gemini + Groq via HTTP) |
-| Observability | langfuse ≥2.0.0 (optional — traces LLM calls) | — |
+| Observability | langfuse ≥3.0.0 (optional — traces LLM calls) | — |
+| Agent orchestration | langgraph ≥0.2.60,<0.3 | — |
+| Graph checkpointing | langgraph-checkpoint-postgres ≥2.0 + psycopg[binary,pool] ≥3.1 | — |
 | Payments | razorpay | 1.4.2 |
 | Auth | Clerk (JWT verify via python-jose) | — |
 | HTTP | httpx | 0.27.0 |
@@ -30,6 +32,7 @@
 | Framework | React | 18.3.1 |
 | Build tool | Vite | 5.3.4 |
 | Styling | Tailwind CSS | 3.4.7 |
+| Fonts | Bricolage Grotesque (display) + Onest (body) + DM Mono (mono) | Google Fonts |
 | State | Zustand | 5.0.0 |
 | Auth | @clerk/clerk-react | 5.0.0 |
 | HTTP | axios | 1.7.0 |
@@ -56,6 +59,27 @@ Key conventions in the LLM layer:
 - Agent/synthesis calls use `_build_agent_msgs` — a single clean user message (idea + founder's answers + web research), **not** the raw Q&A history. Passing Q&A history makes LLMs generate more questions instead of analysis.
 - All messages are sanitized to Anthropic's strict validation (no empty `messages[]`, no consecutive same-role, must start with `user`) before any provider call.
 
+## LangGraph Pipeline (Admin + User Selectable)
+
+The council of 5 agents can run through either the **legacy asyncio pipeline** or a **LangGraph StateGraph** pipeline. Users select their preferred engine in the PaywallModal before unlocking; the choice persists in localStorage.
+
+**Graph topology** (`backend/llm_graph/council_graph.py`):
+```
+START → web_research → agent_finance ─┐
+                     → agent_market  ─┤
+                     → agent_comp   ─┼→ synthesis → devils_advocate → END
+                     → agent_tech   ─┤
+                     → agent_risk   ─┘
+```
+
+- All 5 agents run in the same LangGraph superstep (true parallel)
+- `operator.add` reducer on `agent_reports` merges 5 concurrent outputs
+- `get_stream_writer()` bridges token streaming — existing `_stream_synthesis_tokens()` runs unchanged inside nodes
+- **Phase 2:** `AsyncPostgresSaver` with a separate psycopg v3 pool persists state after each node. If synthesis fails post-agents, `/unlock` resumes at synthesis rather than re-running all 5 agents
+- Falls back to legacy pipeline for stub mode and Groq-only path
+- Enabled via `LANGGRAPH_ENABLED=true` + `?use_langgraph=true` query param on `/unlock`
+- Benchmark: LangGraph 52s vs Legacy 62s at identical cost ($0.022)
+
 ---
 
 ## Project Structure
@@ -64,19 +88,23 @@ Key conventions in the LLM layer:
 PROJECT _STARTUP/
 ├── backend/
 │   ├── main.py                  # FastAPI app, CORS, rate limiting, /health
-│   ├── llm_client.py            # LLM routing, council agents, tribunal, masterplan, pitch deck (largest file)
-│   ├── observability.py         # Langfuse tracing — set_session_context + record_generation (no-ops if keys unset)
+│   ├── llm_client.py            # LLM routing, council agents, tribunal, masterplan (largest file)
+│   ├── observability.py         # Langfuse v4 tracing — ContextVar session propagation, trace_generation()
 │   ├── eval_bar.py              # 5-dimension scoring + phase thresholds
 │   ├── web_search.py            # Tavily live market research
+│   ├── llm_graph/
+│   │   ├── __init__.py
+│   │   ├── council_graph.py     # LangGraph StateGraph — parallel 5-agent council
+│   │   └── checkpointer.py      # AsyncPostgresSaver with separate psycopg pool
 │   ├── core/
 │   │   ├── config.py            # Settings (env vars) via pydantic-settings
-│   │   └── auth.py              # Clerk JWT verification
+│   │   └── auth.py              # Clerk JWT verification + admin role
 │   ├── db/
 │   │   ├── database.py          # Async engine + session + init_db
 │   │   └── models.py            # Session + WaitlistEntry tables
 │   └── api/routes/
 │       ├── sessions.py          # CRUD, admin-mark-paid, assumptions, access checks
-│       ├── architect.py         # Streaming chat, unlock, masterplan, pitch deck, tribunal, admin seed
+│       ├── architect.py         # Streaming chat, unlock (?use_langgraph), masterplan, tribunal, admin seed
 │       ├── billing.py           # Razorpay checkout / webhook / verify
 │       ├── waitlist.py          # Email waitlist signup
 │       ├── followup.py          # Follow-up email capture + admin send
@@ -84,12 +112,12 @@ PROJECT _STARTUP/
 ├── frontend/
 │   └── src/
 │       ├── App.tsx              # Routing (path-based), Clerk provider, payment-return handling
-│       ├── store/sessionStore.ts # Zustand store — all state + API calls + SSE streaming
+│       ├── store/sessionStore.ts # Zustand store — all state + API calls + SSE streaming + pipelinePreference
 │       ├── lib/auth.tsx         # Clerk helpers
 │       └── components/          # Pages + views (see below)
 ├── docker-compose.yml
 ├── .env.example
-└── JOURNEY*.md                  # Build journals (phase-by-phase history)
+└── JOURNEY*.md                  # Build journals (phase-by-phase history, gitignored)
 ```
 
 ---
@@ -100,8 +128,8 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 
 | Component | Purpose |
 |---|---|
-| `LandingPage.tsx` | Entry point — idea input, 3 examples, mode selection (standard vs tribunal) |
-| `SessionPage.tsx` | **Standard mode.** 3-page flow via `view` state: **Chat** (Socratic Q&A) → **Council** (5 agent cards + Devil's Advocate) → **Masterplan** (synthesis + pitch deck). Holds `[DEV]` shortcuts. |
+| `LandingPage.tsx` | Entry point — asymmetric split hero, idea input, 3 examples, mode selection (standard vs tribunal) |
+| `SessionPage.tsx` | **Standard mode.** 3-tab flow via `view` state: **Chat** (Socratic Q&A) → **Council** (5 agent cards 2-col grid + Devil's Advocate) → **Masterplan** (synthesis + export). Pipeline selector + `[DEV]` shortcuts. |
 | `TribunalPage.tsx` | **Tribunal mode.** Sequential streaming interrogation by 3 judges → Pass/Fail verdicts |
 | `PitchDeckView.tsx` | Renders generated pitch deck slides + Devil's Advocate slide |
 | `VerdictCard.tsx` / `TribunalCard.tsx` | Tribunal verdict display |
@@ -117,7 +145,7 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 - `POST /sessions/{id}/admin-mark-paid` — **admin bypass** (sets paid + tribunal_paid; requires caller on `ADMIN_EMAILS` allowlist)
 - `POST /sessions/{id}/admin-seed-conversation` — **admin**: auto-plays a founder conversation, generates the masterplan, marks paid (quality testing)
 - `POST /sessions/{id}/message/stream` — SSE Socratic chat
-- `POST /sessions/{id}/unlock` — run council + masterplan (standard mode)
+- `POST /sessions/{id}/unlock?use_langgraph=true` — run council + masterplan; optional `use_langgraph` query param routes to LangGraph pipeline when `LANGGRAPH_ENABLED=true`
 - `POST /sessions/{id}/pitch-deck` — generate pitch deck
 - `POST /sessions/{id}/tribunal/message` · `POST /sessions/{id}/tribunal/unlock` — tribunal flow
 - `POST /billing/checkout` · `/billing/webhook` · `/billing/verify` — Razorpay
@@ -179,7 +207,8 @@ Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) �
 | `ADMIN_SECRET` | Legacy — no longer used for admin gating (kept for back-compat) | "" |
 | `LANGFUSE_PUBLIC_KEY` | Langfuse observability — public key (safe to expose) | "" |
 | `LANGFUSE_SECRET_KEY` | Langfuse observability — secret key | "" |
-| `LANGFUSE_HOST` | Langfuse host (override for self-hosted) | "https://cloud.langfuse.com" |
+| `LANGFUSE_HOST` | Langfuse host (US server: `https://us.cloud.langfuse.com`) | "https://cloud.langfuse.com" |
+| `LANGGRAPH_ENABLED` | Enable LangGraph council pipeline + Postgres checkpointing | false |
 
 ### Frontend (Vite — must be set at **build time**)
 | Var | Purpose |
@@ -248,24 +277,30 @@ npm run preview      # preview the production build
 
 ## Current Known Issues / Tech Debt
 
-- **Stale marketing copy (static page only):** the old static `index.html` still advertises the removed Bull vs Bear debate and HTML pitch export. (`LandingPage.tsx` — the live React landing page — has been cleaned.) Note: the `debate` *scoring phase* (intake → debate → stress_test → masterplan) is unrelated and still live.
 - **No session ownership check** on most backend endpoints — any caller with a session ID can read/act on it. Needs an owner check tied to `user_id`.
-- **Rate limiting is in-memory & per-process** (`RateLimitMiddleware`) — it does not work correctly across multiple Railway instances.
-- **Admin actions require `ADMIN_EMAILS`** — `admin-mark-paid` / `admin-seed-conversation` are gated on the caller's Clerk identity being on the `ADMIN_EMAILS` allowlist. When Clerk auth isn't configured at all (e.g. pure local dev), every request is treated as admin (open dev mode).
-- **STUB_MODE only works for the 3 landing-page example ideas** — any other idea in stub mode just returns a "set your API key" prompt.
-- **Anonymous → authenticated session migration** is not implemented — sessions started signed-out aren't claimed on sign-in.
-- **Payment state is session-scoped in Zustand** — must be reset on session resume/create or the paywall from a previous session leaks through.
+- **Rate limiting is in-memory & per-process** (`RateLimitMiddleware`) — does not work correctly across multiple Railway instances.
+- **Admin actions require `ADMIN_EMAILS`** — when Clerk auth isn't configured (pure local dev), every request is treated as admin (open dev mode).
+- **STUB_MODE only works for the 3 landing-page example ideas** — any other idea returns a "set your API key" prompt.
+- **Anonymous → authenticated session migration** not implemented — sessions started signed-out aren't claimed on sign-in.
+- **LangGraph MemorySaver fallback** — when `LANGGRAPH_ENABLED=false`, the graph uses `MemorySaver` (in-memory, lost on restart). Set `LANGGRAPH_ENABLED=true` in Railway to activate Postgres checkpointing.
+- **LangGraph Phase 1 only covers the council** — tribunal and Socratic chat still use legacy asyncio pipeline.
 
 ---
 
-## Roadmap (from JOURNEY7)
+## Roadmap
 
-- UI/UX redesign (dark, editorial, premium feel)
-- cron-job.org → daily `POST /admin/send-follow-ups`
-- Custom domain → verify in Resend → update `from` address
-- Socra should answer direct questions (not locked in interrogation-only mode)
-- Outcome tracking ("I built it" / "I pivoted" / "I moved on")
-- Backend session ownership checks on all endpoints
-- Hybrid routing — Sonnet for synthesis + verdicts, Haiku for everything else
-- Anthropic `cache_control` on shared prompt prefix
-- Analytics (PostHog / Plausible)
+### High priority
+- **Session ownership checks** — owner check on all endpoints tied to `user_id`
+- **Hybrid routing** — Sonnet 4.6 for synthesis + verdicts, Haiku 4.5 for chat + agents
+- **Analytics** — PostHog or Plausible for conversion funnel visibility
+- **Outcome tracking** — "I built it / pivoted / moved on" closes the feedback loop
+
+### Medium priority
+- **LangGraph Phase 3** — Tribunal graph with per-round `interrupt()`, retry policies
+- **cron-job.org** — daily `POST /admin/send-follow-ups`
+- **Custom domain + Resend** — verify domain, update `from` address
+- **Socra answers direct questions** — not locked in interrogation-only mode
+
+### Deferred
+- **MCP service** — Socra as MCP server (distribution play, premature now)
+- **AWS deployment** — when Railway becomes the actual constraint
