@@ -63,8 +63,13 @@ async def lifespan(app: FastAPI):
         print("✅ Socra: LLM ready (Groq)")
     else:
         print("⚠️  Socra: no LLM API key set — calls will fail")
+    # LangGraph Postgres checkpointer (Phase 2) — no-op when LANGGRAPH_ENABLED=false
+    from llm_graph.checkpointer import setup_checkpointer
+    await setup_checkpointer()
     yield
-    # Flush any buffered Langfuse events before the process exits
+    # Shutdown: close checkpointer pool, then flush Langfuse events
+    from llm_graph.checkpointer import teardown_checkpointer
+    await teardown_checkpointer()
     from observability import flush as lf_flush
     lf_flush()
 
@@ -133,9 +138,13 @@ async def health():
     from observability import _client as lf_client
     lf_ok = lf_client() is not None
 
+    from llm_graph.checkpointer import get_checkpointer
+    cp_ok = get_checkpointer() is not None
+
     return {
         "status": "ok" if db_ok else "degraded",
         "db": "ok" if db_ok else "error",
         "langfuse": "ok" if lf_ok else "disabled",
-        "version": "0.2.2",
+        "langgraph_checkpointer": "postgres" if cp_ok else "memory",
+        "version": "0.2.3",
     }

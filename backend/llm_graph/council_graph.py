@@ -1,5 +1,5 @@
 """
-LangGraph council graph — admin-only parallel pipeline (Phase 1).
+LangGraph council graph — parallel pipeline with Postgres checkpointing (Phase 2).
 
 Architecture:
   START -> web_research -> agent_finance ─┐
@@ -11,11 +11,15 @@ Architecture:
 All 5 agent nodes run in parallel (same LangGraph superstep).
 Synthesis waits for all 5 via static edges — LangGraph barrier semantics.
 
-Token streaming uses get_stream_writer() so raw provider streaming
-(_stream_synthesis_tokens) runs unchanged inside the node.
+Checkpointing (Phase 2): AsyncPostgresSaver persists state after each node.
+If synthesis fails after agents complete, the next /unlock call resumes at
+synthesis rather than re-running all 5 agents. Falls back to MemorySaver
+when the Postgres checkpointer is not yet available.
 
-Fallback: stub mode and Groq-only paths delegate to the legacy pipeline
-rather than duplicating that logic here.
+Token streaming: get_stream_writer() surfaces tokens from existing provider
+functions unchanged — LangGraph orchestrates, your code streams.
+
+Fallback: stub mode and Groq-only paths delegate to the legacy pipeline.
 """
 import asyncio
 import operator
@@ -23,7 +27,6 @@ import logging
 from typing import TypedDict, Annotated, Optional
 
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.config import get_stream_writer
 
 from core.config import settings
@@ -117,8 +120,20 @@ async def devils_advocate_node(state: CouncilState) -> dict:
 # Graph assembly — built once, reused across requests
 # ---------------------------------------------------------------------------
 
-_memory = MemorySaver()
 _council_app = None
+
+
+def _get_checkpointer():
+    """
+    Returns AsyncPostgresSaver when available (Phase 2), falls back to
+    MemorySaver so the graph always has a checkpointer.
+    """
+    from llm_graph.checkpointer import get_checkpointer
+    cp = get_checkpointer()
+    if cp is not None:
+        return cp
+    from langgraph.checkpoint.memory import MemorySaver
+    return MemorySaver()
 
 
 def _build_graph() -> object:
@@ -142,7 +157,7 @@ def _build_graph() -> object:
     builder.add_edge("synthesis", "devils_advocate")
     builder.add_edge("devils_advocate", END)
 
-    return builder.compile(checkpointer=_memory)
+    return builder.compile(checkpointer=_get_checkpointer())
 
 
 def get_council_app():
