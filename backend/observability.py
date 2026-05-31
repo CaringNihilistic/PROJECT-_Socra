@@ -6,29 +6,20 @@ Design: ContextVar for session propagation, context manager for each generation.
 Usage:
   1. At the start of each streaming generator or route handler, call:
        set_session_id(session_id)
-     This stores the session UUID in a Python ContextVar. The value is automatically
-     copied into any asyncio.create_task() children spawned afterward (e.g. parallel
-     council agents), so all parallel LLM calls in one request share the same session_id.
-
   2. Inside each LLM provider function, wrap the API call with:
        with trace_generation("anthropic", "claude-haiku-4-5-20251001", input_msgs) as gen:
            result = await provider_api_call(...)
            if gen:
                gen.update(output=result, usage_details={"input_tokens": n, "output_tokens": m})
-     trace_generation reads the current session_id from the ContextVar and attaches it
-     to the Langfuse observation via propagate_attributes, so every generation is tagged
-     with its session. No root span is needed — Langfuse's Sessions view groups all
-     generations that share a session_id.
-
-Why not a root span? FastAPI's StreamingResponse iterates the generator AFTER the route
-handler returns. Context managers opened at route-handler level exit before any streaming
-happens. Using ContextVar + per-generation propagate_attributes sidesteps this completely.
 """
+import sys
+import logging
 import contextvars
 from contextlib import contextmanager, nullcontext
 from typing import Optional, Any
 
-# Stores the current Socra session UUID. Set once per request; read inside each LLM call.
+log = logging.getLogger(__name__)
+
 _session_id_ctx: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "lf_session_id", default=None
 )
@@ -44,32 +35,29 @@ def _client():
         if settings.langfuse_secret_key and settings.langfuse_public_key:
             try:
                 from langfuse import Langfuse
-                import logging as _log
-                # v4 uses base_url= (not host=). Passing it explicitly ensures Railway env
-                # vars take precedence over any SDK defaults.
+                import os
                 _lf_client = Langfuse(
                     public_key=settings.langfuse_public_key,
                     secret_key=settings.langfuse_secret_key,
                     base_url=settings.langfuse_host or "https://cloud.langfuse.com",
+                    # Enable debug via env var: LANGFUSE_DEBUG=true in Railway
+                    debug=os.getenv("LANGFUSE_DEBUG", "").lower() in ("true", "1"),
                 )
                 if _lf_client.auth_check():
-                    _log.getLogger(__name__).info("Langfuse connected — tracing active")
+                    log.info("Langfuse connected — tracing active (base_url=%s)",
+                             settings.langfuse_host or "https://cloud.langfuse.com")
                 else:
-                    _log.getLogger(__name__).warning("Langfuse auth_check failed — check keys")
+                    log.warning("Langfuse auth_check failed — traces will not be sent. Check keys.")
                     _lf_client = None
             except ImportError:
-                import logging
-                logging.getLogger(__name__).warning(
-                    "langfuse package not installed — observability disabled"
-                )
+                log.warning("langfuse package not installed — observability disabled")
             except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning("Langfuse init failed: %s", e)
+                log.warning("Langfuse init failed: %s", e)
     return _lf_client
 
 
 def flush():
-    """Flush pending Langfuse events — call on FastAPI shutdown to avoid losing buffered traces."""
+    """Flush pending Langfuse events — called on FastAPI shutdown."""
     lf = _lf_client
     if lf:
         try:
@@ -79,14 +67,7 @@ def flush():
 
 
 def set_session_id(session_id: Optional[str]) -> None:
-    """Tag all subsequent LLM calls in this async task with the given session UUID.
-
-    Call once at the top of each event_stream() generator or route handler.
-    The ContextVar value is automatically copied into asyncio.create_task() children
-    at task-creation time, so parallel agent calls (council, tribunal) all inherit it.
-
-    No-op when Langfuse is not configured — safe to call unconditionally.
-    """
+    """Tag all LLM calls in this async task with the given session UUID."""
     _session_id_ctx.set(session_id)
 
 
@@ -97,50 +78,57 @@ def trace_generation(
     input: Any,
     metadata: Optional[dict] = None,
 ):
-    """Wrap one LLM API call as a Langfuse generation tagged with the current session.
+    """Wrap one LLM call as a Langfuse generation. No-op when Langfuse is not configured.
 
-    Automatically reads the session_id set by set_session_id() and attaches it to the
-    observation via propagate_attributes — no manual plumbing needed at the call site.
-    Yields None and is a complete no-op when Langfuse is not configured.
-
-    name:   label in Langfuse ("anthropic", "groq", "anthropic/agent", etc.)
-    model:  exact model string ("claude-haiku-4-5-20251001", "gemini-2.0-flash", etc.)
-    input:  the messages/prompt sent to the LLM
-
-    Usage:
-        with trace_generation("anthropic", "claude-haiku-4-5-20251001", msgs) as gen:
-            response = await client.messages.create(...)
-            if gen:
-                gen.update(
-                    output=response.content[0].text,
-                    usage_details={
-                        "input_tokens": response.usage.input_tokens,
-                        "output_tokens": response.usage.output_tokens,
-                    }
-                )
+    Correctly handles both normal exits and exceptions from inside the caller's with-block
+    without triggering the double-yield RuntimeError that the naive try/except pattern causes.
     """
     lf = _client()
     if not lf:
         yield None
         return
-    try:
-        session_id = _session_id_ctx.get()
-        # propagate_attributes attaches session_id to this observation and all
-        # child observations created inside the with block.
-        try:
-            from langfuse import propagate_attributes
-            _prop_ctx = propagate_attributes(session_id=session_id) if session_id else nullcontext()
-        except ImportError:
-            _prop_ctx = nullcontext()
 
-        with _prop_ctx:
-            with lf.start_as_current_observation(
-                as_type="generation",
-                name=name,
-                model=model,
-                input=input,
-                metadata=metadata or {},
-            ) as gen:
-                yield gen
+    # --- Setup phase: enter context managers. If anything here fails, yield None
+    # and return cleanly (one yield, no exception leaks to caller). ---------------
+    session_id = _session_id_ctx.get()
+
+    try:
+        from langfuse import propagate_attributes
+        _prop_ctx = propagate_attributes(session_id=session_id) if session_id else nullcontext()
     except Exception:
+        _prop_ctx = nullcontext()
+
+    try:
+        _prop_ctx.__enter__()
+        obs_ctx = lf.start_as_current_observation(
+            as_type="generation",
+            name=name,
+            model=model,
+            input=input,
+            metadata=metadata or {},
+        )
+        gen = obs_ctx.__enter__()
+    except Exception as e:
+        log.warning("Langfuse observation setup failed (%s): %s", name, e)
         yield None
+        return
+
+    # --- Yield phase: give gen to caller. Capture any caller exception so we can
+    # pass it to __exit__ correctly (Langfuse records the span even on error). ----
+    caller_exc = (None, None, None)
+    try:
+        yield gen
+    except Exception:
+        caller_exc = sys.exc_info()
+        raise
+    finally:
+        # Always exit both context managers, passing the exception info if any.
+        # This is what records the observation in Langfuse.
+        try:
+            obs_ctx.__exit__(*caller_exc)
+        except Exception as e:
+            log.debug("Langfuse obs_ctx exit error: %s", e)
+        try:
+            _prop_ctx.__exit__(*caller_exc)
+        except Exception:
+            pass
