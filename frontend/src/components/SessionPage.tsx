@@ -215,7 +215,7 @@ function DevilsAdvocateCard({ report }: { report: AgentReport }) {
 const BILLING_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID
 
 function PaywallModal() {
-  const { session, createCheckout, paymentRequired, devUnlock, isAdmin } = useSessionStore()
+  const { session, createCheckout, paymentRequired, devUnlock, isAdmin, pipelinePreference, setPipelinePreference } = useSessionStore()
   const [loading, setLoading] = useState(false)
   const [devLoading, setDevLoading] = useState(false)
   const showDev = isAdmin || !BILLING_ENABLED
@@ -277,6 +277,30 @@ function PaywallModal() {
           ))}
         </div>
 
+        {/* Pipeline selector */}
+        <div className="px-7 pb-3 pt-1">
+          <p className="text-[10px] font-mono text-ink-700 mb-2 uppercase tracking-wider">Analysis engine</p>
+          <div className="flex gap-2">
+            {(['legacy', 'langgraph'] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPipelinePreference(p)}
+                className="flex-1 py-2.5 rounded-xl font-mono text-[11px] transition-all"
+                style={{
+                  background: pipelinePreference === p ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${pipelinePreference === p ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                  color: pipelinePreference === p ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.25)',
+                }}
+              >
+                {p === 'langgraph' ? '⬡ LangGraph' : '◎ Legacy'}
+                <span className="block text-[9px] mt-0.5 opacity-60">
+                  {p === 'langgraph' ? '~10s faster' : 'standard'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* CTA */}
         <div className="px-7 pb-7 pt-2">
           <button
@@ -293,7 +317,7 @@ function PaywallModal() {
           </button>
           {showDev && (
             <button
-              onClick={async () => { setDevLoading(true); await devUnlock(); setDevLoading(false) }}
+              onClick={async () => { setDevLoading(true); await devUnlock(pipelinePreference === 'langgraph'); setDevLoading(false) }}
               disabled={devLoading}
               className="w-full py-2.5 rounded-xl text-[12px] font-mono transition-all duration-200 disabled:opacity-50 mt-2"
               style={{ background: 'rgba(255,200,0,0.08)', border: '1px solid rgba(255,200,0,0.2)', color: 'rgba(255,200,0,0.7)' }}
@@ -314,13 +338,13 @@ export function SessionPage() {
   const [input, setInput] = useState('')
   const [copied, setCopied] = useState(false)
   const [masterplanCopied, setMasterplanCopied] = useState(false)
-  const [useLangGraph, setUseLangGraph] = useState(false)
 
   const [view, setView] = useState<'chat' | 'council' | 'masterplan'>('chat')
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching, isUnlocking,
     streamError, savedFlash, lastSentMessage, isAdmin, lastPipeline,
+    pipelinePreference, setPipelinePreference,
     sendMessage, clearSession, devUnlock, devRerunMasterplan, devSeedConversation,
   } = useSessionStore()
   const showDev = isAdmin || !BILLING_ENABLED
@@ -518,7 +542,7 @@ export function SessionPage() {
             <div className="flex items-center gap-2">
               {showDev && (
                 <button
-                  onClick={() => devRerunMasterplan(useLangGraph)}
+                  onClick={() => devRerunMasterplan(pipelinePreference === 'langgraph')}
                   disabled={isUnlocking || isAnalyzing}
                   className="px-3 py-2 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
                   style={{ background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.2)', color: 'rgba(255,200,0,0.65)' }}
@@ -632,22 +656,20 @@ export function SessionPage() {
         {/* Dev/admin shortcuts: skip straight to masterplan, or auto-play a full conversation */}
         {showDev && !masterplan && !isAnalyzing && !isSending && (
           <div className="flex items-center gap-2 self-start flex-wrap">
-            {/* Pipeline toggle — admin only */}
-            {isAdmin && (
-              <button
-                onClick={() => setUseLangGraph(v => !v)}
-                className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all"
-                style={{
-                  background: useLangGraph ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${useLangGraph ? 'rgba(52,211,153,0.35)' : 'rgba(255,255,255,0.1)'}`,
-                  color: useLangGraph ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.3)',
-                }}
-              >
-                {useLangGraph ? '⬡ LangGraph' : '◎ Legacy'}
-              </button>
-            )}
+            {/* Pipeline toggle — visible to all dev/admin users */}
             <button
-              onClick={() => devUnlock(useLangGraph)}
+              onClick={() => setPipelinePreference(pipelinePreference === 'langgraph' ? 'legacy' : 'langgraph')}
+              className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all"
+              style={{
+                background: pipelinePreference === 'langgraph' ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${pipelinePreference === 'langgraph' ? 'rgba(52,211,153,0.35)' : 'rgba(255,255,255,0.1)'}`,
+                color: pipelinePreference === 'langgraph' ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.3)',
+              }}
+            >
+              {pipelinePreference === 'langgraph' ? '⬡ LangGraph' : '◎ Legacy'}
+            </button>
+            <button
+              onClick={() => devUnlock(pipelinePreference === 'langgraph')}
               disabled={isUnlocking}
               className="px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
               style={{ background: 'rgba(255,200,0,0.05)', border: '1px solid rgba(255,200,0,0.15)', color: 'rgba(255,200,0,0.5)' }}

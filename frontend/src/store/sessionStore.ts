@@ -167,6 +167,8 @@ interface SessionStore {
   verifyAndUnlock: (checkoutId: string, sessionId: string) => Promise<void>
   createTribunalCheckout: () => Promise<string | null>
   verifyAndUnlockTribunal: (paymentLinkId: string, sessionId: string) => Promise<void>
+  pipelinePreference: 'legacy' | 'langgraph'
+  setPipelinePreference: (p: 'legacy' | 'langgraph') => void
   devUnlock: (useLangGraph?: boolean) => Promise<void>
   devUnlockTribunal: () => Promise<void>
   devRerunMasterplan: (useLangGraph?: boolean) => Promise<void>
@@ -205,6 +207,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   savedFlash: false,
   lastSentMessage: '',
   lastPipeline: 'legacy' as const,
+  pipelinePreference: (typeof localStorage !== 'undefined'
+    ? (localStorage.getItem('socra_pipeline') as 'legacy' | 'langgraph') || 'legacy'
+    : 'legacy') as 'legacy' | 'langgraph',
   tribunalStreaming: false,
   tribunalActivePersona: null,
   tribunalPersonaStreams: {},
@@ -213,6 +218,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   setAuthToken: (token) => set({ authToken: token }),
   setAuthReady: (ready) => set({ authReady: ready }),
+  setPipelinePreference: (p) => {
+    localStorage.setItem('socra_pipeline', p)
+    set({ pipelinePreference: p })
+  },
   setTokenGetter: (fn) => set({ tokenGetter: fn }),
 
   // Clerk session tokens are short-lived (~60s). Always fetch a fresh one right
@@ -550,7 +559,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   verifyAndUnlock: async (paymentLinkId: string, sessionId: string) => {
-    const { authToken } = get()
+    const { authToken, pipelinePreference } = get()
     set({ isUnlocking: true })
     try {
       await axios.post(
@@ -562,7 +571,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const { data } = await axios.get(`${API_URL}/sessions/${sessionId}`, { headers: authHeaders(authToken) })
       set({ session: data, paymentRequired: false })
 
-      const response = await fetch(`${API_URL}/sessions/${sessionId}/unlock`, {
+      const qs = pipelinePreference === 'langgraph' ? '?use_langgraph=true' : ''
+      const response = await fetch(`${API_URL}/sessions/${sessionId}/unlock${qs}`, {
         method: 'POST',
         headers: authHeaders(authToken),
       })
@@ -592,7 +602,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
           } else if (payload.type === 'done') {
             const updated = payload.session
-            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false })
+            set({
+              session: updated,
+              streamingMessage: '',
+              currentAgentReports: [],
+              isAnalyzing: false,
+              lastPipeline: (payload.pipeline ?? 'legacy') as 'legacy' | 'langgraph',
+            })
             saveToLocalStorage({
               id: updated.id,
               initial_idea: updated.initial_idea,

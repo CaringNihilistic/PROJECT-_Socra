@@ -328,10 +328,9 @@ async def unlock_masterplan(
     if session.masterplan:
         return _serialize(session)  # Already generated — idempotent
 
-    # Resolve pipeline: LangGraph only when explicitly requested by an admin
+    # Resolve pipeline: LangGraph when requested and feature flag is on
     from core.config import settings as _settings
-    admin = await is_admin(authorization)
-    use_lg = use_langgraph and admin and _settings.langgraph_enabled
+    use_lg = use_langgraph and _settings.langgraph_enabled
 
     history = list(session.conversation_history or [])
     original_agent_reports = list(session.agent_reports or [])
