@@ -1,6 +1,6 @@
 import json
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -313,6 +313,7 @@ async def create_pitch_deck(
 @router.post("/{session_id}/unlock")
 async def unlock_masterplan(
     session_id: str,
+    use_langgraph: bool = Query(False, description="Admin-only: use LangGraph pipeline"),
     db: AsyncSession = Depends(get_db),
     authorization: Optional[str] = Header(None),
 ):
@@ -326,6 +327,11 @@ async def unlock_masterplan(
         raise HTTPException(402, "Payment required to unlock masterplan")
     if session.masterplan:
         return _serialize(session)  # Already generated — idempotent
+
+    # Resolve pipeline: LangGraph only when explicitly requested by an admin
+    from core.config import settings as _settings
+    admin = await is_admin(authorization)
+    use_lg = use_langgraph and admin and _settings.langgraph_enabled
 
     history = list(session.conversation_history or [])
     original_agent_reports = list(session.agent_reports or [])
@@ -345,11 +351,21 @@ async def unlock_masterplan(
 
     async def unlock_stream():
         set_session_id(session_id)
-        new_agent_reports: list = []  # always start fresh — don't carry over failed previous attempts
+        new_agent_reports: list = []
         masterplan = None
+        pipeline_label = "langgraph" if use_lg else "legacy"
 
-        async for ma_event in stream_multi_agent_masterplan(history):
-            if ma_event["type"] == "agent_report":
+        # Select pipeline — identical event vocabulary, no changes to SSE mapping
+        if use_lg:
+            from llm_graph.council_graph import stream_council_graph
+            event_gen = stream_council_graph(session_id, history)
+        else:
+            event_gen = stream_multi_agent_masterplan(history)
+
+        async for ma_event in event_gen:
+            if ma_event["type"] == "web_research":
+                yield f"data: {json.dumps({'type': 'web_research', 'queries': ma_event.get('queries', [])})}\n\n"
+            elif ma_event["type"] == "agent_report":
                 new_agent_reports.append(ma_event["report"])
                 yield f"data: {json.dumps({'type': 'agent_report', 'report': ma_event['report']})}\n\n"
             elif ma_event["type"] == "synthesis_token":
@@ -378,7 +394,7 @@ async def unlock_masterplan(
             "agent_reports": new_agent_reports,
             "explanations": get_score_explanation(current_scores),
         }
-        yield f"data: {json.dumps({'type': 'done', 'session': serialized})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'session': serialized, 'pipeline': pipeline_label})}\n\n"
 
     return StreamingResponse(
         unlock_stream(),

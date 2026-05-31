@@ -314,12 +314,13 @@ export function SessionPage() {
   const [input, setInput] = useState('')
   const [copied, setCopied] = useState(false)
   const [masterplanCopied, setMasterplanCopied] = useState(false)
+  const [useLangGraph, setUseLangGraph] = useState(false)
 
   const [view, setView] = useState<'chat' | 'council' | 'masterplan'>('chat')
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching, isUnlocking,
-    streamError, savedFlash, lastSentMessage, isAdmin,
+    streamError, savedFlash, lastSentMessage, isAdmin, lastPipeline,
     sendMessage, clearSession, devUnlock, devRerunMasterplan, devSeedConversation,
   } = useSessionStore()
   const showDev = isAdmin || !BILLING_ENABLED
@@ -503,13 +504,21 @@ export function SessionPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-700 mb-1">The Council</div>
-              <div className="text-[18px] font-display font-bold text-ink-100">Specialist Analysis</div>
+              <div className="flex items-center gap-2">
+                <div className="text-[18px] font-display font-bold text-ink-100">Specialist Analysis</div>
+                {lastPipeline === 'langgraph' && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border"
+                    style={{ color: 'rgba(52,211,153,0.8)', borderColor: 'rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.06)' }}>
+                    ⬡ LangGraph
+                  </span>
+                )}
+              </div>
               <div className="text-[11px] font-mono text-ink-700 mt-1">{specialistReports.length} of 5 advisors</div>
             </div>
             <div className="flex items-center gap-2">
               {showDev && (
                 <button
-                  onClick={() => devRerunMasterplan()}
+                  onClick={() => devRerunMasterplan(useLangGraph)}
                   disabled={isUnlocking || isAnalyzing}
                   className="px-3 py-2 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
                   style={{ background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.2)', color: 'rgba(255,200,0,0.65)' }}
@@ -623,8 +632,22 @@ export function SessionPage() {
         {/* Dev/admin shortcuts: skip straight to masterplan, or auto-play a full conversation */}
         {showDev && !masterplan && !isAnalyzing && !isSending && (
           <div className="flex items-center gap-2 self-start flex-wrap">
+            {/* Pipeline toggle — admin only */}
+            {isAdmin && (
+              <button
+                onClick={() => setUseLangGraph(v => !v)}
+                className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all"
+                style={{
+                  background: useLangGraph ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${useLangGraph ? 'rgba(52,211,153,0.35)' : 'rgba(255,255,255,0.1)'}`,
+                  color: useLangGraph ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.3)',
+                }}
+              >
+                {useLangGraph ? '⬡ LangGraph' : '◎ Legacy'}
+              </button>
+            )}
             <button
-              onClick={() => devUnlock()}
+              onClick={() => devUnlock(useLangGraph)}
               disabled={isUnlocking}
               className="px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
               style={{ background: 'rgba(255,200,0,0.05)', border: '1px solid rgba(255,200,0,0.15)', color: 'rgba(255,200,0,0.5)' }}

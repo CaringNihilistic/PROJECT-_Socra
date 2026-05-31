@@ -167,9 +167,10 @@ interface SessionStore {
   verifyAndUnlock: (checkoutId: string, sessionId: string) => Promise<void>
   createTribunalCheckout: () => Promise<string | null>
   verifyAndUnlockTribunal: (paymentLinkId: string, sessionId: string) => Promise<void>
-  devUnlock: () => Promise<void>
+  devUnlock: (useLangGraph?: boolean) => Promise<void>
   devUnlockTribunal: () => Promise<void>
-  devRerunMasterplan: () => Promise<void>
+  devRerunMasterplan: (useLangGraph?: boolean) => Promise<void>
+  lastPipeline: 'legacy' | 'langgraph'
   devSeedConversation: () => Promise<void>
   saveFollowUpEmail: (sessionId: string, email: string) => Promise<void>
   clearSession: () => void
@@ -203,6 +204,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   streamError: null,
   savedFlash: false,
   lastSentMessage: '',
+  lastPipeline: 'legacy' as const,
   tribunalStreaming: false,
   tribunalActivePersona: null,
   tribunalPersonaStreams: {},
@@ -636,7 +638,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
-  devUnlock: async () => {
+  devUnlock: async (useLangGraph = false) => {
     const { session } = get()
     if (!session) return
     set({ isUnlocking: true })
@@ -647,7 +649,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       })
       set({ paymentRequired: false })
 
-      const response = await fetch(`${API_URL}/sessions/${session.id}/unlock`, {
+      const qs = useLangGraph ? '?use_langgraph=true' : ''
+      const response = await fetch(`${API_URL}/sessions/${session.id}/unlock${qs}`, {
         method: 'POST',
         headers: authHeaders(token),
       })
@@ -673,7 +676,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
           } else if (payload.type === 'done') {
             const updated = payload.session
-            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false })
+            set({
+              session: updated,
+              streamingMessage: '',
+              currentAgentReports: [],
+              isAnalyzing: false,
+              lastPipeline: (payload.pipeline ?? 'legacy') as 'legacy' | 'langgraph',
+            })
           }
         }
       }
@@ -713,7 +722,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
-  devRerunMasterplan: async () => {
+  devRerunMasterplan: async (useLangGraph = false) => {
     const { session } = get()
     if (!session) return
     set({ isUnlocking: true, currentAgentReports: [] })
@@ -722,7 +731,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, { headers: authHeaders(token) })
       set({ paymentRequired: false })
 
-      const response = await fetch(`${API_URL}/sessions/${session.id}/unlock`, {
+      const qs = useLangGraph ? '?use_langgraph=true' : ''
+      const response = await fetch(`${API_URL}/sessions/${session.id}/unlock${qs}`, {
         method: 'POST', headers: authHeaders(token),
       })
       if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
@@ -747,7 +757,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             set((s) => ({ streamingMessage: s.streamingMessage + payload.delta }))
           } else if (payload.type === 'done') {
             const updated = payload.session
-            set({ session: updated, streamingMessage: '', currentAgentReports: [], isAnalyzing: false })
+            set({
+              session: updated,
+              streamingMessage: '',
+              currentAgentReports: [],
+              isAnalyzing: false,
+              lastPipeline: (payload.pipeline ?? 'legacy') as 'legacy' | 'langgraph',
+            })
           }
         }
       }

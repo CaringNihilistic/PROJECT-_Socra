@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     langfuse_public_key: str = ""  # Langfuse observability — public key (safe to expose)
     langfuse_secret_key: str = ""  # Langfuse observability — secret key
     langfuse_host: str = "https://cloud.langfuse.com"  # Override for self-hosted Langfuse
+    langgraph_enabled: bool = False  # Admin-only LangGraph pipeline (LANGGRAPH_ENABLED=true)
 
     @property
     def admin_identifiers(self) -> set[str]:
