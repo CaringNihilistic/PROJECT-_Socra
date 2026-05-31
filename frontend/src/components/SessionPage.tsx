@@ -6,7 +6,7 @@ import { useAuth, useClerk, UserButton } from '@clerk/clerk-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { AgentReport, Assumption } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
-import { PitchDeckView } from './PitchDeckView'
+
 
 import { FollowUpEmailCapture } from './FollowUpEmailCapture'
 import { CLERK_ENABLED } from '../lib/auth'
@@ -256,8 +256,8 @@ function PaywallModal() {
           {[
             { icon: '🏛', label: 'The Council — 5 AI advisors', sub: 'The Banker, Oracle, Challenger, Builder, Skeptic' },
             { icon: '📄', label: "Chairman's Masterplan", sub: '2,000+ word strategic & technical verdict' },
-            { icon: '💡', label: 'Devil\'s advocate', sub: 'The 5 reasons this fails' },
-            { icon: '🎤', label: 'Investor pitch deck', sub: '10-slide narrative, exportable HTML' },
+            { icon: '💡', label: "Devil's advocate", sub: 'The 5 reasons this fails' },
+            { icon: '↓', label: 'Exportable as .md', sub: 'Copy or download the full masterplan' },
           ].map(({ icon, label, sub }) => (
             <div key={label} className="flex items-start gap-3">
               <span className="text-base flex-shrink-0 mt-0.5">{icon}</span>
@@ -313,19 +313,36 @@ function PaywallModal() {
 export function SessionPage() {
   const [input, setInput] = useState('')
   const [copied, setCopied] = useState(false)
-  const [deckLoading, setDeckLoading] = useState(false)
-  const [showDeck, setShowDeck] = useState(false)
+  const [masterplanCopied, setMasterplanCopied] = useState(false)
 
   const [view, setView] = useState<'chat' | 'council' | 'masterplan'>('chat')
   const {
     session, isSending, streamingMessage, currentChoices,
     currentAgentReports, isAnalyzing, isResearching, isUnlocking,
     streamError, savedFlash, lastSentMessage, isAdmin,
-    sendMessage, clearSession, generatePitchDeck, devUnlock, devRerunMasterplan, devSeedConversation,
+    sendMessage, clearSession, devUnlock, devRerunMasterplan, devSeedConversation,
   } = useSessionStore()
   const showDev = isAdmin || !BILLING_ENABLED
 
   const [cardCopied, setCardCopied] = useState(false)
+
+  const handleCopyMasterplan = () => {
+    if (!masterplan) return
+    navigator.clipboard.writeText(masterplan).then(() => {
+      setMasterplanCopied(true)
+      setTimeout(() => setMasterplanCopied(false), 2000)
+    })
+  }
+
+  const handleDownload = () => {
+    if (!masterplan || !session) return
+    const slug = session.initial_idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    const blob = new Blob([masterplan], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `socra-${slug}.md`; a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const handleShare = () => {
     const url = `${window.location.origin}/share/${session?.id}`
@@ -356,7 +373,7 @@ export function SessionPage() {
 
   if (!session) return null
 
-  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports, pitch_deck } = session
+  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports } = session
 
   const phaseColor = PHASE_COLOR[phase] || '#8a8578'
   const phaseIdx = PHASE_STEPS.findIndex(p => p.key === phase)
@@ -512,46 +529,24 @@ export function SessionPage() {
               <div className="text-[18px] font-display font-bold text-ink-100">Chairman's Masterplan</div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={handleShare} className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all">{copied ? '✓ Copied' : '↗ Share'}</button>
-              <button onClick={handleShareCard} className="text-[10px] font-mono text-ink-700 hover:text-amber-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all">{cardCopied ? '✓ Copied' : '🃏 Card'}</button>
-              <a href={`/?compare=${session.id}`} className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all">↔ Compare</a>
-            </div>
-          </div>
-
-          {/* Pitch deck CTA */}
-          <div className="rounded-xl p-5 flex items-center justify-between gap-4"
-            style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.12)' }}>
-            <div>
-              <div className="text-[12px] font-mono text-amber-400/80 uppercase tracking-[0.1em] mb-1">Investor Pitch Deck</div>
-              <div className="text-[12px] text-ink-500">10-slide narrative — exportable as HTML</div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
               <button
-                onClick={() => {
-                  const slug = session.initial_idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-                  const blob = new Blob([masterplan], { type: 'text/markdown' })
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a'); a.href = url; a.download = `socra-${slug}.md`; a.click()
-                  URL.revokeObjectURL(url)
-                }}
-                className="px-3 py-2 rounded-lg text-[11px] font-mono transition-all"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.35)' }}
+                onClick={handleCopyMasterplan}
+                className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all"
+              >{masterplanCopied ? '✓ Copied' : '⎘ Copy'}</button>
+              <button
+                onClick={handleDownload}
+                className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all"
               >↓ .md</button>
               <button
-                onClick={async () => {
-                  if (pitch_deck) { setShowDeck(v => !v); return }
-                  setDeckLoading(true); await generatePitchDeck(); setDeckLoading(false); setShowDeck(true)
-                }}
-                disabled={deckLoading}
-                className="px-4 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#08070a' }}
-              >{deckLoading ? 'Generating…' : pitch_deck ? (showDeck ? '▲ Hide Deck' : '▼ View Deck') : '⬡ Generate Pitch Deck'}</button>
+                onClick={handleShare}
+                className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all"
+              >{copied ? '✓ Copied' : '↗ Share'}</button>
+              <button
+                onClick={handleShareCard}
+                className="text-[10px] font-mono text-ink-700 hover:text-amber-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all"
+              >{cardCopied ? '✓ Copied' : '🃏 Card'}</button>
             </div>
           </div>
-
-          {showDeck && pitch_deck && (
-            <PitchDeckView deck={pitch_deck} devilReport={devilReport} />
-          )}
 
           {/* Masterplan body */}
           <div className="rounded-2xl border overflow-hidden"
