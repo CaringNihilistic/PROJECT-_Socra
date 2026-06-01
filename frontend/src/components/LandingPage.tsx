@@ -478,7 +478,7 @@ export function LandingPage() {
                   onMouseEnter={() => setMode('tribunal')}
                 >
                   <span className="text-[12px] font-semibold text-amber-400">Quick Tribunal</span>
-                  <span className="text-[10px] font-mono text-ink-700">₹199 · Pass/Fail verdict</span>
+                  <span className="text-[10px] font-mono text-ink-700">Free · Pass/Fail verdict</span>
                 </button>
 
                 {/* Full analysis button */}
@@ -496,7 +496,7 @@ export function LandingPage() {
                   <span className="text-[12px] font-semibold" style={{ color: idea.trim() ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.3)' }}>
                     Full Analysis
                   </span>
-                  <span className="text-[10px] font-mono text-ink-700">₹499 · Masterplan + deck</span>
+                  <span className="text-[10px] font-mono text-ink-700">Free · Masterplan + council</span>
                 </button>
 
                 {isLoading && (
@@ -720,13 +720,13 @@ export function LandingPage() {
       {/* ── Pricing ──────────────────────────────────────────────────────────── */}
       <section id="pricing" className="relative z-10 py-20 px-6 text-center">
         <div className="max-w-2xl mx-auto">
-          <SectionHeading>One price. No surprises.</SectionHeading>
+          <SectionHeading>Everything is free.</SectionHeading>
           <p className="text-ink-500 mb-10" style={{ fontSize: '15px' }}>
-            The conversation is free. Pay only when your masterplan is ready.
+            No paywalls. Use Socra fully at no cost. Donate if it helped you think clearly.
           </p>
 
           <div className="grid sm:grid-cols-3 gap-4 text-left mb-6">
-            {/* Free */}
+            {/* Conversation — free */}
             <div className="rounded-2xl p-6 border border-ink-800/50" style={{ background: 'rgba(255,255,255,0.02)' }}>
               <p className="text-[12px] font-mono font-semibold text-ink-500 uppercase tracking-wider mb-3">Conversation</p>
               <div className="flex items-end gap-1 mb-1">
@@ -750,16 +750,16 @@ export function LandingPage() {
               </a>
             </div>
 
-            {/* Tribunal */}
+            {/* Tribunal — free, optional donation */}
             <div className="rounded-2xl p-6 border relative overflow-hidden"
               style={{ borderColor: 'rgba(232,93,38,0.25)', background: 'linear-gradient(135deg, rgba(232,93,38,0.04) 0%, rgba(245,158,11,0.02) 100%)' }}>
               <div className="absolute top-3 right-3 text-[10px] font-mono text-orange-400/70 border border-orange-400/20 bg-orange-400/5 px-2 py-0.5 rounded-full">
-                One-time
+                Optional donation
               </div>
               <p className="text-[12px] font-mono font-semibold text-orange-400/80 uppercase tracking-wider mb-3">Tribunal</p>
               <div className="flex items-end gap-1 mb-1">
-                <span className="font-display text-3xl font-extrabold text-ink-100">₹199</span>
-                <span className="text-ink-500 mb-1 text-[13px]">/session</span>
+                <span className="font-display text-3xl font-extrabold text-ink-100">Free</span>
+                <span className="text-ink-500 mb-1 text-[13px]">· donate ₹199</span>
               </div>
               <p className="text-[12px] text-ink-500 mb-5">Faster verdict, brutal judges</p>
               <div className="space-y-2 mb-6">
@@ -781,18 +781,18 @@ export function LandingPage() {
               </a>
             </div>
 
-            {/* Full Analysis */}
+            {/* Full Analysis — free, optional donation */}
             <div className="rounded-2xl p-6 border relative overflow-hidden"
               style={{ borderColor: 'rgba(245,158,11,0.3)', background: 'linear-gradient(135deg, rgba(245,158,11,0.04) 0%, rgba(52,211,153,0.02) 100%)' }}>
               <div className="absolute top-3 right-3 text-[10px] font-mono text-amber-400/70 border border-amber-400/20 bg-amber-400/5 px-2 py-0.5 rounded-full">
-                One-time
+                Optional donation
               </div>
               <p className="text-[12px] font-mono font-semibold text-amber-400/80 uppercase tracking-wider mb-3">Full Analysis</p>
               <div className="flex items-end gap-1 mb-1">
-                <span className="font-display text-3xl font-extrabold text-ink-100">₹499</span>
-                <span className="text-ink-500 mb-1 text-[13px]">/session</span>
+                <span className="font-display text-3xl font-extrabold text-ink-100">Free</span>
+                <span className="text-ink-500 mb-1 text-[13px]">· donate ₹499</span>
               </div>
-              <p className="text-[12px] text-ink-500 mb-5">Unlocks when score is ready</p>
+              <p className="text-[12px] text-ink-500 mb-5">Runs when your score is ready</p>
               <div className="space-y-2 mb-6">
                 {[
                   '5 specialist advisors',
@@ -814,9 +814,9 @@ export function LandingPage() {
           </div>
 
           <p className="text-[12px] text-ink-700">
-            Payment via Razorpay. UPI, cards, net banking accepted.{' '}
+            Donations processed via Razorpay. UPI, cards, net banking accepted.{' '}
             <a href="#waitlist" className="text-amber-500/60 hover:text-amber-400 transition-colors">
-              Need a team plan? Talk to us.
+              Want to support the project? Reach out.
             </a>
           </p>
         </div>

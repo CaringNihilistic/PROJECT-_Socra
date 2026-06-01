@@ -116,7 +116,6 @@ async def send_message_stream(
     # Capture all session state before entering the async generator
     initial_idea = session.initial_idea
     turn_number = session.turn_number
-    is_paid = bool(getattr(session, "paid", False))
     original_assumptions = [
         {"text": a, "status": "unknown"} if isinstance(a, str) else a
         for a in (session.assumptions or [])
@@ -197,28 +196,6 @@ async def send_message_stream(
                 new_agent_reports: list = []  # always start fresh on each masterplan generation
 
                 if new_phase == "masterplan" and not masterplan:
-                    if not is_paid:
-                        # Gate: save progress, emit payment_required, stop.
-                        # Always fires — /unlock or /dev-paid handles the next step.
-                        await db.execute(
-                            update(Session)
-                            .where(Session.id == session_id)
-                            .values(
-                                conversation_history=full_history,
-                                problem_clarity=updated_scores["problem_clarity"],
-                                scale_constraints=updated_scores["scale_constraints"],
-                                tech_context=updated_scores["tech_context"],
-                                success_definition=updated_scores["success_definition"],
-                                risk_awareness=updated_scores["risk_awareness"],
-                                phase="masterplan",
-                                turn_number=new_turn_number,
-                                assumptions=new_assumptions,
-                            )
-                        )
-                        await db.commit()
-                        yield f"data: {json.dumps({'type': 'payment_required', 'session_id': session_id})}\n\n"
-                        return
-
                     # Multi-agent pipeline: stream each specialist report as it arrives,
                     # then stream the synthesis tokens
                     async for ma_event in stream_multi_agent_masterplan(full_history):
@@ -323,8 +300,6 @@ async def unlock_masterplan(
     if not session:
         raise HTTPException(404, "Session not found")
     await _check_session_access(session, authorization)
-    if not session.paid:
-        raise HTTPException(402, "Payment required to unlock masterplan")
     if session.masterplan:
         return _serialize(session)  # Already generated — idempotent
 
@@ -421,7 +396,6 @@ async def send_tribunal_message(
     if round_number > 4:
         raise HTTPException(400, "Tribunal complete — use /tribunal/unlock to generate verdicts")
 
-    is_tribunal_paid = bool(getattr(session, "tribunal_paid", False))
     initial_idea = session.initial_idea
 
     async def event_stream():
@@ -450,11 +424,6 @@ async def send_tribunal_message(
                 yield f"data: {json.dumps({'type': 'round_complete', 'round': round_number, 'tribunal_history': updated_history})}\n\n"
 
                 if round_number >= 4:
-                    if not is_tribunal_paid:
-                        # Always gate — /tribunal/unlock or /dev-paid handles the next step.
-                        yield f"data: {json.dumps({'type': 'payment_required', 'session_id': session_id})}\n\n"
-                        return
-
                     verdicts = await generate_tribunal_verdicts(updated_history, initial_idea)
                     await db.execute(
                         update(Session)
@@ -483,9 +452,6 @@ async def unlock_tribunal_verdicts(
     if not session:
         raise HTTPException(404, "Session not found")
     await _check_session_access(session, authorization)
-    if not session.tribunal_paid:
-        raise HTTPException(402, "Payment required to unlock tribunal verdicts")
-
     if session.tribunal_verdicts:
         return {"verdicts": session.tribunal_verdicts}
 

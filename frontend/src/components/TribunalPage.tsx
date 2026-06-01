@@ -182,26 +182,92 @@ function PersonaColumn({
   )
 }
 
+function TribunalDonationNote() {
+  const { createTribunalCheckout } = useSessionStore()
+  const [loading, setLoading] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+
+  if (!BILLING_ENABLED || dismissed) return null
+
+  const handleDonate = async () => {
+    setLoading(true)
+    const url = await createTribunalCheckout()
+    setLoading(false)
+    if (url) window.location.href = url
+  }
+
+  return (
+    <div style={{
+      marginTop: '32px',
+      padding: '20px 24px',
+      background: 'rgba(245,158,11,0.04)',
+      border: '1px solid rgba(245,158,11,0.12)',
+      borderRadius: '14px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '16px',
+      flexWrap: 'wrap',
+    }}>
+      <div>
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', margin: '0 0 4px', fontFamily: "'Onest', sans-serif" }}>
+          Tribunal is free. Support if it helped.
+        </p>
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>
+          A ₹199 donation covers the LLM costs for this session.
+        </p>
+      </div>
+      <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+        <button
+          onClick={handleDonate}
+          disabled={loading}
+          style={{
+            padding: '10px 20px',
+            background: 'rgba(245,158,11,0.1)',
+            border: '1px solid rgba(245,158,11,0.25)',
+            borderRadius: '10px',
+            color: 'rgba(245,158,11,0.9)',
+            fontSize: '12px',
+            fontFamily: "'DM Mono', monospace",
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {loading ? 'Redirecting…' : 'Donate ₹199'}
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          style={{
+            padding: '10px 16px',
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: '10px',
+            color: 'rgba(255,255,255,0.2)',
+            fontSize: '12px',
+            fontFamily: "'DM Mono', monospace",
+            cursor: 'pointer',
+          }}
+        >
+          Later
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function TribunalPage() {
   const session = useSessionStore((s) => s.session)
   const tribunalStreaming = useSessionStore((s) => s.tribunalStreaming)
   const tribunalActivePersona = useSessionStore((s) => s.tribunalActivePersona)
   const tribunalPersonaStreams = useSessionStore((s) => s.tribunalPersonaStreams)
-  const tribunalPaymentRequired = useSessionStore((s) => s.tribunalPaymentRequired)
   const isUnlocking = useSessionStore((s) => s.isUnlocking)
   const sendTribunalMessage = useSessionStore((s) => s.sendTribunalMessage)
-  const createTribunalCheckout = useSessionStore((s) => s.createTribunalCheckout)
-  const devUnlockTribunal = useSessionStore((s) => s.devUnlockTribunal)
-  const isAdmin = useSessionStore((s) => s.isAdmin)
   const authReady = useSessionStore((s) => s.authReady)
   const clearSession = useSessionStore((s) => s.clearSession)
-  const showDev = isAdmin || !BILLING_ENABLED
   // Auth is "resolved" when Clerk is disabled (no token expected) or it has finished loading.
   const authResolved = !CLERK_ENABLED || authReady
 
   const [input, setInput] = useState('')
-  const [checkoutLoading, setCheckoutLoading] = useState(false)
-  const [devUnlockLoading, setDevUnlockLoading] = useState(false)
   const [autoSent, setAutoSent] = useState(false)
   const [selectedTab, setSelectedTab] = useState(0)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -227,19 +293,12 @@ export function TribunalPage() {
     if (idx !== -1) setSelectedTab(idx)
   }, [isMobile, tribunalActivePersona])
 
-  const canSend = !tribunalStreaming && !tribunalPaymentRequired && !verdicts && completedRounds < 4 && input.trim()
+  const canSend = !tribunalStreaming && !verdicts && completedRounds < 4 && input.trim()
 
   const handleSend = () => {
     if (!canSend) return
     sendTribunalMessage(input.trim())
     setInput('')
-  }
-
-  const handleCheckout = async () => {
-    setCheckoutLoading(true)
-    const url = await createTribunalCheckout()
-    setCheckoutLoading(false)
-    if (url) window.location.href = url
   }
 
   if (!session) return null
@@ -306,6 +365,8 @@ export function TribunalPage() {
               New idea
             </button>
           </div>
+
+          {BILLING_ENABLED && <TribunalDonationNote />}
         </div>
       </div>
     )
@@ -457,91 +518,7 @@ export function TribunalPage() {
         })}
       </div>
 
-      {/* Payment gate overlay */}
-      {tribunalPaymentRequired && (
-        <div style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(8,8,8,0.92)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 50, backdropFilter: 'blur(8px)',
-        }}>
-          <div style={{
-            maxWidth: '440px', width: '100%',
-            padding: '48px 40px',
-            background: 'linear-gradient(145deg, #0f0e0d, #0a0a12)',
-            border: '1px solid rgba(245,158,11,0.2)',
-            borderRadius: '20px',
-            textAlign: 'center',
-            boxShadow: '0 0 60px rgba(245,158,11,0.08)',
-          }}>
-            <div style={{ fontSize: '32px', marginBottom: '16px' }}>⚖️</div>
-            <h3 style={{
-              fontSize: '20px', color: 'rgba(255,255,255,0.92)',
-              margin: '0 0 12px',
-              fontFamily: "'Onest', sans-serif",
-              fontWeight: 600,
-            }}>
-              4 rounds complete.
-            </h3>
-            <p style={{
-              fontSize: '14px', color: 'rgba(255,255,255,0.45)',
-              margin: '0 0 32px', lineHeight: 1.6,
-            }}>
-              The tribunal has deliberated. Unlock the Pass/Fail verdicts from all three judges — plus the shareable card founders post on LinkedIn.
-            </p>
-
-            <div style={{
-              display: 'flex', alignItems: 'baseline', justifyContent: 'center',
-              gap: '6px', marginBottom: '28px',
-            }}>
-              <span style={{ fontSize: '40px', fontWeight: 700, color: '#f59e0b', fontFamily: "'DM Mono', monospace" }}>
-                ₹199
-              </span>
-              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)' }}>one-time</span>
-            </div>
-
-            <button
-              onClick={handleCheckout}
-              disabled={checkoutLoading}
-              style={{
-                width: '100%', padding: '16px',
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                border: 'none', borderRadius: '12px',
-                color: '#000', fontSize: '14px', fontWeight: 700,
-                cursor: checkoutLoading ? 'not-allowed' : 'pointer',
-                letterSpacing: '0.05em',
-                opacity: checkoutLoading ? 0.7 : 1,
-              }}
-            >
-              {checkoutLoading ? 'Redirecting…' : 'Unlock Verdict →'}
-            </button>
-
-            {showDev && (
-              <button
-                onClick={async () => { setDevUnlockLoading(true); await devUnlockTribunal(); setDevUnlockLoading(false) }}
-                disabled={devUnlockLoading}
-                style={{
-                  width: '100%', padding: '12px',
-                  marginTop: '10px',
-                  background: 'rgba(255,200,0,0.06)',
-                  border: '1px solid rgba(255,200,0,0.2)',
-                  borderRadius: '10px',
-                  color: 'rgba(255,200,0,0.65)',
-                  fontSize: '12px', fontFamily: "'DM Mono', monospace",
-                  cursor: devUnlockLoading ? 'not-allowed' : 'pointer',
-                  opacity: devUnlockLoading ? 0.6 : 1,
-                }}
-              >
-                {devUnlockLoading ? 'Unlocking…' : (isAdmin ? '[ADMIN] Skip payment & unlock' : '[DEV] Skip payment & unlock')}
-              </button>
-            )}
-
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginTop: '16px', lineHeight: 1.5 }}>
-              Secure payment via Razorpay. Instant unlock after payment.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Payment overlay removed — tribunal verdicts are free */}
 
       {/* Unlocking overlay */}
       {isUnlocking && (
@@ -561,7 +538,7 @@ export function TribunalPage() {
       )}
 
       {/* Input area */}
-      {!tribunalPaymentRequired && !verdicts && (
+      {!verdicts && (
         <div style={{
           padding: '16px 24px 24px',
           borderTop: '1px solid rgba(255,255,255,0.05)',
@@ -592,7 +569,7 @@ export function TribunalPage() {
                 completedRounds === 0 ? 'The tribunal will begin shortly…' :
                 'Your response to all three judges…'
               }
-              disabled={tribunalStreaming || tribunalPaymentRequired || !!verdicts || completedRounds >= 4}
+              disabled={tribunalStreaming || !!verdicts || completedRounds >= 4}
               rows={2}
               style={{
                 flex: 1,

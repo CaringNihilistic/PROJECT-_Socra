@@ -214,120 +214,62 @@ function DevilsAdvocateCard({ report }: { report: AgentReport }) {
 
 const BILLING_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID
 
-function PaywallModal() {
-  const { session, createCheckout, paymentRequired, devUnlock, isAdmin, pipelinePreference, setPipelinePreference } = useSessionStore()
+function DonationCard({ onDismiss }: { onDismiss: () => void }) {
+  const { session, createCheckout } = useSessionStore()
   const [loading, setLoading] = useState(false)
-  const [devLoading, setDevLoading] = useState(false)
-  const showDev = isAdmin || !BILLING_ENABLED
+  const [donated, setDonated] = useState(false)
 
-  if (!paymentRequired || !session) return null
+  if (!BILLING_ENABLED || !session) return null
 
-  const handlePay = async () => {
+  const handleDonate = async () => {
     setLoading(true)
     const url = await createCheckout()
     if (url) {
       window.location.href = url
     } else {
+      setDonated(true)
       setLoading(false)
     }
   }
 
+  if (donated) return null
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      style={{ background: 'rgba(8,8,9,0.85)', backdropFilter: 'blur(12px)' }}>
-      <div className="max-w-md w-full rounded-2xl border overflow-hidden fade-up"
-        style={{ borderColor: 'rgba(52,211,153,0.2)', background: 'rgba(10,10,11,0.97)' }}>
-        {/* Header */}
-        <div className="px-7 pt-7 pb-5 border-b" style={{ borderColor: 'rgba(52,211,153,0.1)' }}>
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-2 h-2 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 8px #34d399' }} />
-            <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-emerald-400/70">Analysis ready</span>
-          </div>
-          <h2 className="text-[22px] font-display font-bold text-ink-50 leading-tight mb-2">
-            Unlock your masterplan
-          </h2>
-          <p className="text-[13px] text-ink-500 leading-relaxed">
-            Socra has finished interrogating your idea. Your full analysis is ready to generate.
+    <div className="rounded-2xl border fade-up"
+      style={{ borderColor: 'rgba(52,211,153,0.12)', background: 'rgba(52,211,153,0.02)' }}>
+      <div className="px-6 py-5 flex items-start gap-4">
+        <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5"
+          style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
+          <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-ink-200 mb-1">Socra is free. Support it if it helped.</p>
+          <p className="text-[12px] text-ink-600 leading-relaxed">
+            No paywall, no lock-in. If this analysis helped you think more clearly about your idea, a ₹499 donation keeps the LLM costs covered.
           </p>
-        </div>
-
-        {/* What you get */}
-        <div className="px-7 py-5 flex flex-col gap-2.5">
-          {[
-            { icon: '🏛', label: 'The Council, 5 AI advisors', sub: 'The Banker, Oracle, Challenger, Builder, Skeptic' },
-            { icon: '📄', label: "Chairman's Masterplan", sub: '2,000+ word strategic & technical verdict' },
-            { icon: '💡', label: "Devil's advocate", sub: 'The 5 reasons this fails' },
-            { icon: '↓', label: 'Exportable as .md', sub: 'Copy or download the full masterplan' },
-          ].map(({ icon, label, sub }) => (
-            <div key={label} className="flex items-start gap-3">
-              <span className="text-base flex-shrink-0 mt-0.5">{icon}</span>
-              <div>
-                <div className="text-[13px] text-ink-200 font-medium">{label}</div>
-                <div className="text-[11px] text-ink-600 font-mono mt-0.5">{sub}</div>
-              </div>
-              <div className="ml-auto flex-shrink-0 mt-1">
-                <div className="w-4 h-4 rounded-full flex items-center justify-center"
-                  style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)' }}>
-                  <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pipeline selector */}
-        <div className="px-7 pb-3 pt-1">
-          <p className="text-[10px] font-mono text-ink-700 mb-2 uppercase tracking-wider">Analysis engine</p>
-          <div className="flex gap-2">
-            {(['legacy', 'langgraph'] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPipelinePreference(p)}
-                className="flex-1 py-2.5 rounded-xl font-mono text-[11px] transition-all"
-                style={{
-                  background: pipelinePreference === p ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${pipelinePreference === p ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.08)'}`,
-                  color: pipelinePreference === p ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.25)',
-                }}
-              >
-                {p === 'langgraph' ? '⬡ LangGraph' : '◎ Legacy'}
-                <span className="block text-[9px] mt-0.5 opacity-60">
-                  {p === 'langgraph' ? '~10s faster' : 'standard'}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="px-7 pb-7 pt-2">
-          <button
-            onClick={handlePay}
-            disabled={loading}
-            className="w-full py-3.5 rounded-xl font-display font-bold text-[15px] transition-all duration-200 disabled:opacity-50"
-            style={{
-              background: loading ? 'rgba(52,211,153,0.3)' : 'linear-gradient(135deg, #34d399, #10b981)',
-              color: '#08070a',
-              boxShadow: loading ? 'none' : '0 4px 24px rgba(52,211,153,0.25)',
-            }}
-          >
-            {loading ? 'Redirecting to payment…' : 'Unlock for ₹499 →'}
-          </button>
-          {showDev && (
+          <div className="flex items-center gap-2 mt-3">
             <button
-              onClick={async () => { setDevLoading(true); await devUnlock(pipelinePreference === 'langgraph'); setDevLoading(false) }}
-              disabled={devLoading}
-              className="w-full py-2.5 rounded-xl text-[12px] font-mono transition-all duration-200 disabled:opacity-50 mt-2"
-              style={{ background: 'rgba(255,200,0,0.08)', border: '1px solid rgba(255,200,0,0.2)', color: 'rgba(255,200,0,0.7)' }}
+              onClick={handleDonate}
+              disabled={loading}
+              className="px-4 py-2 rounded-xl font-mono text-[12px] font-semibold transition-all disabled:opacity-50"
+              style={{
+                background: 'rgba(52,211,153,0.1)',
+                border: '1px solid rgba(52,211,153,0.25)',
+                color: 'rgba(52,211,153,0.9)',
+              }}
             >
-              {devLoading ? 'Unlocking…' : (isAdmin ? '[ADMIN] Skip payment & unlock' : '[DEV] Skip payment & unlock')}
+              {loading ? 'Redirecting…' : 'Donate ₹499'}
             </button>
-          )}
-          <p className="text-center text-[11px] font-mono text-ink-700 mt-3">
-            One-time payment · Secure checkout via Razorpay · No subscription
-          </p>
+            <button
+              onClick={onDismiss}
+              className="px-4 py-2 rounded-xl font-mono text-[12px] transition-all"
+              style={{ color: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              Maybe later
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -350,6 +292,7 @@ export function SessionPage() {
   const showDev = isAdmin || !BILLING_ENABLED
 
   const [cardCopied, setCardCopied] = useState(false)
+  const [showDonation, setShowDonation] = useState(true)
 
   const handleCopyMasterplan = () => {
     if (!masterplan) return
@@ -427,8 +370,7 @@ export function SessionPage() {
         backgroundImage: `radial-gradient(ellipse at 50% 0%, ${phaseColor}08 0%, transparent 55%)`,
       }}>
 
-      {/* Paywall modal — shown when billing is enabled and masterplan is locked */}
-      <PaywallModal />
+      {/* Removed paywall — analysis is free, donation is optional */}
 
       {/* Unlock in-progress overlay */}
       {isUnlocking && (
@@ -626,6 +568,8 @@ export function SessionPage() {
             </div>
           </div>
 
+
+          {showDonation && <DonationCard onDismiss={() => setShowDonation(false)} />}
 
           <div className="h-6" />
         </div>

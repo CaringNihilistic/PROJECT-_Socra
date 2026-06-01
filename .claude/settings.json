@@ -80,7 +80,9 @@
       "PowerShell(Copy-Item \"$env:TEMP\\\\ui-ux-pro-max-SKILL.md\" \"c:\\\\PROJECT _STARTUP\\\\.claude\\\\commands\\\\ui-ux-pro-max.md\" -Force; Write-Output \"Installed: $\\(\\(Get-Item 'c:\\\\PROJECT _STARTUP\\\\.claude\\\\commands\\\\ui-ux-pro-max.md'\\).Length\\) bytes\")",
       "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\PROJECT _STARTUP\\\\frontend\"; Remove-Item -Recurse -Force node_modules, package-lock.json -ErrorAction SilentlyContinue; Write-Output \"Cleaned. Running npm install...\")",
       "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\PROJECT _STARTUP\\\\frontend\"; npm install 2>&1 | Select-Object -Last 10)",
-      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\PROJECT _STARTUP\\\\frontend\"; npm run dev 2>&1 | Select-Object -First 15)"
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\PROJECT _STARTUP\\\\frontend\"; npm run dev 2>&1 | Select-Object -First 15)",
+      "Bash(which node *)",
+      "Read(//usr/local/bin/**)"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",
