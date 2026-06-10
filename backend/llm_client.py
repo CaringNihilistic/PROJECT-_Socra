@@ -1281,11 +1281,11 @@ Return ONLY a valid JSON object, no preamble or commentary before or after it:
             data.setdefault("score", 50)
             data.setdefault("verdict", "Insufficient context to form a clear verdict.")
             data.setdefault("key_insight", "")
-            # Enforce score/pass consistency: pass requires score >= 60, fail caps at 59
-            if data["pass"] and data["score"] < 60:
-                data["score"] = 60
-            elif not data["pass"] and data["score"] >= 60:
-                data["score"] = 59
+            # Enforce score/pass consistency: pass requires score >= 65, fail caps at 64
+            if data["pass"] and data["score"] < 65:
+                data["score"] = 65
+            elif not data["pass"] and data["score"] >= 65:
+                data["score"] = 64
             verdicts[persona["key"]] = {
                 "name": persona["name"],
                 "icon": persona["icon"],

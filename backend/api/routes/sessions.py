@@ -64,6 +64,16 @@ def _serialize(session: Session) -> dict:
     }
 
 
+def _serialize_public(session: Session) -> dict:
+    """Public/shareable view of a session — omits the private conversation
+    transcripts. Used for share/card/compare links when the requester is not
+    the session owner or an admin."""
+    data = _serialize(session)
+    data["conversation_history"] = []
+    data["tribunal_history"] = []
+    return data
+
+
 def _serialize_summary(session: Session) -> dict:
     scores = {
         "problem_clarity": session.problem_clarity,
@@ -86,18 +96,22 @@ def _serialize_summary(session: Session) -> dict:
     }
 
 
-async def _check_session_access(session: Session, authorization: Optional[str]) -> None:
-    """Raise 403 if an authenticated session is accessed by a different user.
-    Anonymous sessions (user_id=None) are accessible by anyone who knows the UUID.
-    Admins (ADMIN_EMAILS allowlist) can access any session."""
+async def _is_owner_or_admin(session: Session, authorization: Optional[str]) -> bool:
+    """Anonymous sessions (user_id=None) are an unguessable-UUID capability —
+    anyone who knows the id counts as the owner. Authenticated sessions belong
+    to their creator, or to an admin (ADMIN_EMAILS allowlist)."""
     if not session.user_id:
-        return
+        return True
     requesting_user = await get_user_id(authorization)
     if requesting_user == session.user_id:
-        return
-    if await is_admin(authorization):
-        return
-    raise HTTPException(403, "Access denied")
+        return True
+    return await is_admin(authorization)
+
+
+async def _check_session_access(session: Session, authorization: Optional[str]) -> None:
+    """Raise 403 if an authenticated session is accessed by a different user."""
+    if not await _is_owner_or_admin(session, authorization):
+        raise HTTPException(403, "Access denied")
 
 
 @router.get("/")
@@ -186,15 +200,21 @@ async def create_session(
 async def get_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
 ):
     # Public read-by-UUID: the session UUID is an unguessable capability and the
     # shareable card / share / compare pages are public (no auth). Mutations
     # (messages, unlock, admin actions, assumptions) remain ownership/admin-gated.
+    # An authenticated session's full data (including the conversation
+    # transcript) is only returned to its owner or an admin; anyone else
+    # accessing it via a shared link gets the redacted public view.
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(404, "Session not found")
-    return _serialize(session)
+    if await _is_owner_or_admin(session, authorization):
+        return _serialize(session)
+    return _serialize_public(session)
 
 
 @router.post("/{session_id}/admin-mark-paid")

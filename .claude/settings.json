@@ -85,7 +85,10 @@
       "Read(//usr/local/bin/**)",
       "Skill(claude-api)",
       "Skill(claude-api:*)",
-      "WebFetch(domain:docs.anthropic.com)"
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(python -m py_compile api/routes/sessions.py llm_client.py)",
+      "Bash(ls JOURNEY*.md)",
+      "Bash(ls *.md)"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",
