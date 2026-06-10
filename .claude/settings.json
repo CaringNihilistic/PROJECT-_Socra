@@ -82,7 +82,10 @@
       "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\PROJECT _STARTUP\\\\frontend\"; npm install 2>&1 | Select-Object -Last 10)",
       "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\PROJECT _STARTUP\\\\frontend\"; npm run dev 2>&1 | Select-Object -First 15)",
       "Bash(which node *)",
-      "Read(//usr/local/bin/**)"
+      "Read(//usr/local/bin/**)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "WebFetch(domain:docs.anthropic.com)"
     ],
     "additionalDirectories": [
       "c:\\PROJECT _STARTUP\\.claude",

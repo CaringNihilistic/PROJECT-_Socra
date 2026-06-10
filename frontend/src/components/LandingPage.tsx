@@ -753,10 +753,12 @@ export function LandingPage() {
             {/* Tribunal — free, optional donation */}
             <div className="rounded-2xl p-6 border relative overflow-hidden"
               style={{ borderColor: 'rgba(232,93,38,0.25)', background: 'linear-gradient(135deg, rgba(232,93,38,0.04) 0%, rgba(245,158,11,0.02) 100%)' }}>
-              <div className="absolute top-3 right-3 text-[10px] font-mono text-orange-400/70 border border-orange-400/20 bg-orange-400/5 px-2 py-0.5 rounded-full">
-                Optional donation
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <p className="text-[12px] font-mono font-semibold text-orange-400/80 uppercase tracking-wider">Tribunal</p>
+                <div className="text-[10px] font-mono text-orange-400/70 border border-orange-400/20 bg-orange-400/5 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  Optional donation
+                </div>
               </div>
-              <p className="text-[12px] font-mono font-semibold text-orange-400/80 uppercase tracking-wider mb-3">Tribunal</p>
               <div className="flex items-end gap-1 mb-1">
                 <span className="font-display text-3xl font-extrabold text-ink-100">Free</span>
                 <span className="text-ink-500 mb-1 text-[13px]">· donate ₹199</span>
@@ -784,10 +786,12 @@ export function LandingPage() {
             {/* Full Analysis — free, optional donation */}
             <div className="rounded-2xl p-6 border relative overflow-hidden"
               style={{ borderColor: 'rgba(245,158,11,0.3)', background: 'linear-gradient(135deg, rgba(245,158,11,0.04) 0%, rgba(52,211,153,0.02) 100%)' }}>
-              <div className="absolute top-3 right-3 text-[10px] font-mono text-amber-400/70 border border-amber-400/20 bg-amber-400/5 px-2 py-0.5 rounded-full">
-                Optional donation
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <p className="text-[12px] font-mono font-semibold text-amber-400/80 uppercase tracking-wider">Full Analysis</p>
+                <div className="text-[10px] font-mono text-amber-400/70 border border-amber-400/20 bg-amber-400/5 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  Optional donation
+                </div>
               </div>
-              <p className="text-[12px] font-mono font-semibold text-amber-400/80 uppercase tracking-wider mb-3">Full Analysis</p>
               <div className="flex items-end gap-1 mb-1">
                 <span className="font-display text-3xl font-extrabold text-ink-100">Free</span>
                 <span className="text-ink-500 mb-1 text-[13px]">· donate ₹499</span>
