@@ -140,7 +140,7 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 | `FollowUpEmailCapture.tsx` | Email capture for follow-up nudges |
 
 ### Backend Routes
-- `POST /sessions/` — create session · `GET /sessions/` — list · `GET /sessions/{id}` — fetch
+- `POST /sessions/` — create session · `GET /sessions/` — list · `GET /sessions/{id}` — fetch (full payload incl. conversation/tribunal transcripts for the owner/admin; a redacted public view, used by `/share`, `/card`, `/compare`, for everyone else)
 - `GET /me` — returns `{user_id, email, is_admin}` for the current Clerk token (frontend uses it to show admin shortcuts)
 - `POST /sessions/{id}/admin-mark-paid` — **admin bypass** (sets paid + tribunal_paid; requires caller on `ADMIN_EMAILS` allowlist)
 - `POST /sessions/{id}/admin-seed-conversation` — **admin**: auto-plays a founder conversation, generates the masterplan, marks paid (quality testing)
@@ -277,7 +277,9 @@ npm run preview      # preview the production build
 
 ## Current Known Issues / Tech Debt
 
-- **No session ownership check** on most backend endpoints — any caller with a session ID can read/act on it. Needs an owner check tied to `user_id`.
+- **Session ownership checks are partial** — `GET /sessions/{id}` now returns the redacted `_serialize_public()` view (no `conversation_history`/`tribunal_history`) to non-owners of authenticated sessions via `_is_owner_or_admin()` (Phase 10). Anonymous sessions (`user_id=None`) remain a public "unguessable UUID" capability by design. Mutation endpoints already used `_check_session_access`. A full endpoint-by-endpoint audit is still outstanding.
+- **No automated tests or CI** anywhere in the repo (no `test_*.py`, `*.test.ts`, or `.github/workflows`) — flagged as the single highest-leverage gap, especially given live Razorpay webhooks.
+- **`backend/llm_client.py` is ~1,700 lines (god-file)** — holds provider clients, streaming, prompt builders, council agents, tribunal personas, and verdict scoring. Should be split into an `llm/` package.
 - **Rate limiting is in-memory & per-process** (`RateLimitMiddleware`) — does not work correctly across multiple Railway instances.
 - **Admin actions require `ADMIN_EMAILS`** — when Clerk auth isn't configured (pure local dev), every request is treated as admin (open dev mode).
 - **STUB_MODE only works for the 3 landing-page example ideas** — any other idea returns a "set your API key" prompt.
@@ -290,12 +292,16 @@ npm run preview      # preview the production build
 ## Roadmap
 
 ### High priority
-- **Session ownership checks** — owner check on all endpoints tied to `user_id`
+- **Automated test suite + CI** — pytest for `eval_bar.py`, webhook signature verification, verdict consistency, ownership checks; GitHub Actions running `pytest` + `npm run build`. Flagged as the single highest-leverage change in the Phase 10 portfolio review.
+- **Session ownership checks** — full endpoint-by-endpoint audit; `GET /sessions/{id}` is scoped (Phase 10) but other endpoints still need review
 - **Hybrid routing** — Sonnet 4.6 for synthesis + verdicts, Haiku 4.5 for chat + agents
 - **Analytics** — PostHog or Plausible for conversion funnel visibility
 - **Outcome tracking** — "I built it / pivoted / moved on" closes the feedback loop
 
 ### Medium priority
+- **Split `backend/llm_client.py`** (~1,700 lines) into an `llm/` package (`providers`, `council`, `tribunal`, `prompts`)
+- **Adopt Alembic for DB migrations** — replace the hand-written `ALTER TABLE ... IF NOT EXISTS` startup stack in `db/database.py`
+- **Remove `@ts-ignore`** suppressions on Clerk imports in `LandingPage.tsx` / `SessionPage.tsx`
 - **LangGraph Phase 3** — Tribunal graph with per-round `interrupt()`, retry policies
 - **cron-job.org** — daily `POST /admin/send-follow-ups`
 - **Custom domain + Resend** — verify domain, update `from` address
