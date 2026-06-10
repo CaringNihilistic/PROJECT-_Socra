@@ -15,7 +15,7 @@ function AuthButton() {
   if (isSignedIn) return <UserButton afterSignOutUrl="/" />
   return (
     <button onClick={() => openSignIn()}
-      className="text-xs font-mono text-ink-500 hover:text-ink-300 border border-ink-800 hover:border-ink-700 px-3 py-1.5 rounded-lg transition-all">
+      className="text-xs font-mono text-ink-400 hover:text-ink-300 border border-ink-800 hover:border-ink-700 px-3 py-1.5 rounded-lg transition-all">
       Sign in
     </button>
   )
@@ -130,7 +130,7 @@ function LiveDemo() {
         <span className="w-2.5 h-2.5 rounded-full bg-[#e05555]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#e8a030]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#3cba82]" />
-        <span className="ml-2 text-[11px] font-mono text-ink-700 flex-1">socra · architect session</span>
+        <span className="ml-2 text-[11px] font-mono text-ink-500 flex-1">socra · architect session</span>
         {/* Phase tabs */}
         <div className="flex items-center gap-1">
           {PHASE_TABS.map(t => (
@@ -152,27 +152,27 @@ function LiveDemo() {
         {demo.phase === 'eval' && (
           <div className="space-y-4">
             <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700 mb-2.5">Context Score</p>
+              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-400 mb-2.5">Context Score</p>
               <div className="space-y-2 mb-3">
                 {DIMS.map(d => {
                   const val = demo.dims[d.id as keyof Dims]
                   return (
                     <div key={d.id} className="grid items-center gap-3" style={{ gridTemplateColumns: '120px 1fr 28px' }}>
-                      <span className="text-[11px] text-ink-500">{d.label}</span>
+                      <span className="text-[11px] text-ink-400">{d.label}</span>
                       <div className="h-1.5 rounded-full bg-ink-800 overflow-hidden">
                         <div className="h-full rounded-full transition-all duration-[1400ms] ease-[cubic-bezier(.4,0,.2,1)]"
                           style={{ width: `${val}%`, background: d.color, boxShadow: val > 0 ? `0 0 8px ${d.color}60` : 'none' }} />
                       </div>
-                      <span className="text-[10px] font-mono text-ink-600 text-right tabular-nums">{val}</span>
+                      <span className="text-[10px] font-mono text-ink-400 text-right tabular-nums">{val}</span>
                     </div>
                   )
                 })}
               </div>
               <div className="flex items-center justify-between px-3 py-2 rounded-lg"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <span className="text-[11px] text-ink-500">Overall readiness</span>
+                <span className="text-[11px] text-ink-400">Overall readiness</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-mono text-ink-600">{statusText}</span>
+                  <span className="text-[10px] font-mono text-ink-400">{statusText}</span>
                   <span className="font-display text-lg text-amber-400 tabular-nums">{demo.total}%</span>
                 </div>
               </div>
@@ -194,7 +194,7 @@ function LiveDemo() {
                 </div>
               )}
               {demo.showChallenge && (
-                <div className="ml-8 text-[11px] text-ink-500 px-3 py-2 rounded-lg leading-relaxed fade-up"
+                <div className="ml-8 text-[11px] text-ink-400 px-3 py-2 rounded-lg leading-relaxed fade-up"
                   style={{ background: 'rgba(224,85,85,0.05)', border: '1px solid rgba(224,85,85,0.12)' }}>
                   <span className="text-[10px] font-mono text-[#e05555] mr-1.5">⚡ CHALLENGE:</span>
                   Airbnb took 10 years and $6B to build marketplace trust. What's your day-one plan for the chicken-and-egg problem?
@@ -208,8 +208,8 @@ function LiveDemo() {
         {demo.phase === 'agents' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">The Council</p>
-              <span className="text-[10px] font-mono text-ink-800 tabular-nums">{demo.agentCount} / 3 seats</span>
+              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-400">The Council</p>
+              <span className="text-[10px] font-mono text-ink-400 tabular-nums">{demo.agentCount} / 3 seats</span>
             </div>
             {demo.searching && (
               <div className="flex items-center gap-2 fade-up">
@@ -225,13 +225,13 @@ function LiveDemo() {
                   <span className="text-[11px] font-mono font-semibold uppercase tracking-wider"
                     style={{ color: a.color }}>{a.title}</span>
                 </div>
-                <p className="text-[12px] text-ink-500 leading-relaxed">{a.snippet}</p>
+                <p className="text-[12px] text-ink-400 leading-relaxed">{a.snippet}</p>
               </div>
             ))}
             {demo.agentCount < 3 && !demo.searching && (
               <div className="rounded-xl border border-ink-800/40 px-4 py-3 flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full border-2 border-ink-700/60 border-t-transparent animate-spin flex-shrink-0" />
-                <span className="text-[11px] font-mono text-ink-800">Analyzing…</span>
+                <span className="text-[11px] font-mono text-ink-400">Analyzing…</span>
               </div>
             )}
           </div>
@@ -241,7 +241,7 @@ function LiveDemo() {
         {demo.phase === 'pitch' && (
           <div className="space-y-3 fade-up">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Pitch Deck</p>
+              <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-400">Pitch Deck</p>
               <span className="text-[10px] font-mono text-amber-500/50">Slide 01 of 09</span>
             </div>
             <div className="rounded-xl border overflow-hidden"
@@ -260,7 +260,7 @@ function LiveDemo() {
                     'Avg ₹8,000/month wasted on unused coworking memberships',
                     'No unified marketplace with real-time availability exists today',
                   ].map((b) => (
-                    <div key={b} className="flex gap-2 text-[12px] text-ink-500">
+                    <div key={b} className="flex gap-2 text-[12px] text-ink-400">
                       <span className="text-amber-500/50 flex-shrink-0 mt-0.5">·</span>{b}
                     </div>
                   ))}
@@ -404,16 +404,16 @@ export function LandingPage() {
           <div className="hidden md:flex items-center gap-5">
             {['How it works', 'Features', 'Pricing'].map((l, i) => (
               <a key={l} href={`#${['how', 'features', 'pricing'][i]}`}
-                className="text-[13px] text-ink-600 hover:text-ink-300 transition-colors">{l}</a>
+                className="text-[13px] text-ink-400 hover:text-ink-300 transition-colors">{l}</a>
             ))}
           </div>
         </div>
         <div className="flex items-center gap-3">
           {CLERK_ENABLED && <AuthButton />}
-          <a href="#waitlist"
+          <a href="#start"
             className="text-[13px] font-semibold px-4 py-1.5 rounded-lg transition-all active:scale-[0.97]"
             style={{ background: 'linear-gradient(135deg,#f59e0b,#e85d26)', color: '#080809' }}>
-            Get early access
+            Start free
           </a>
         </div>
       </nav>
@@ -423,7 +423,7 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-[1fr,460px] xl:grid-cols-[1fr,500px] gap-10 xl:gap-16 items-start min-h-[calc(100dvh-72px)]">
 
-        {/* Left: content column */}
+        {/* Main: headline + input */}
         <div className="flex flex-col pt-6 lg:pt-14">
 
         <div className="inline-flex items-center gap-2 text-[11px] font-mono text-amber-400/60 border border-amber-400/15 bg-amber-400/5 px-3.5 py-1.5 rounded-full mb-6 self-start">
@@ -440,11 +440,11 @@ export function LandingPage() {
           <span className="text-ink-400">kill you.</span>
         </h1>
 
-        <p className="text-ink-500 font-mono mb-3 max-w-lg" style={{ fontSize: '15px' }}>
+        <p className="text-ink-400 font-mono mb-3 max-w-lg" style={{ fontSize: '15px' }}>
           ChatGPT tells you how to build it. Socra tells you if you should.
         </p>
 
-        <p className="text-ink-500 leading-relaxed mb-8 max-w-[46ch]" style={{ fontSize: '16px' }}>
+        <p className="text-ink-400 leading-relaxed mb-8 max-w-[46ch]" style={{ fontSize: '16px' }}>
           Interrogates your assumptions. Stress-tests your model. Delivers a verdict before you commit.
         </p>
 
@@ -478,7 +478,7 @@ export function LandingPage() {
                   onMouseEnter={() => setMode('tribunal')}
                 >
                   <span className="text-[12px] font-semibold text-amber-400">Quick Tribunal</span>
-                  <span className="text-[10px] font-mono text-ink-700">Free · Pass/Fail verdict</span>
+                  <span className="text-[10px] font-mono text-ink-400">Free · Pass/Fail verdict</span>
                 </button>
 
                 {/* Full analysis button */}
@@ -496,13 +496,13 @@ export function LandingPage() {
                   <span className="text-[12px] font-semibold" style={{ color: idea.trim() ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.3)' }}>
                     Full Analysis
                   </span>
-                  <span className="text-[10px] font-mono text-ink-700">Free · Masterplan + council</span>
+                  <span className="text-[10px] font-mono text-ink-400">Free · Masterplan + council</span>
                 </button>
 
                 {isLoading && (
                   <div className="flex items-center gap-1.5 px-3">
                     <div className="w-3 h-3 rounded-full border-2 border-amber-400/40 border-t-amber-400 animate-spin" />
-                    <span className="text-[11px] text-ink-700 font-mono">Starting…</span>
+                    <span className="text-[11px] text-ink-400 font-mono">Starting…</span>
                   </div>
                 )}
               </div>
@@ -518,21 +518,32 @@ export function LandingPage() {
           {['The Council, 5 AI advisors', 'Real web research', "Chairman's Masterplan", "Devil's advocate"].map((t) => (
             <div key={t} className="flex items-center gap-1.5">
               <div className="w-1 h-1 rounded-full bg-ink-700" />
-              <span className="text-[11px] text-ink-700 font-mono">{t}</span>
+              <span className="text-[11px] text-ink-400 font-mono">{t}</span>
             </div>
           ))}
         </div>
 
+        </div>{/* end main column */}
+
+        {/* LiveDemo — visible on all breakpoints, sticky + spans both rows on lg+ */}
+        <div className="flex flex-col lg:pt-14 lg:sticky lg:top-24 lg:[grid-row:span_2]">
+          <p className="text-[10px] font-mono tracking-[0.12em] text-ink-400 mb-4 uppercase">Live session</p>
+          <LiveDemo />
+        </div>
+
+        {/* Extra: examples + recent sessions */}
+        <div className="flex flex-col">
+
         {/* Examples */}
         <div className="w-full max-w-[560px]">
-          <p className="text-[10px] font-mono text-ink-800 mb-3">or try an example</p>
+          <p className="text-[10px] font-mono text-ink-400 mb-3">or try an example</p>
           <div className="flex flex-col gap-1.5">
             {examples.map((ex, i) => (
               <button key={i} onClick={() => { setIdea(ex); inputRef.current?.focus() }}
                 className="group text-left px-4 py-3 rounded-xl border border-ink-800/40 hover:border-ink-700/60 hover:bg-ink-900/30 transition-all active:scale-[0.99]">
                 <div className="flex items-start gap-3">
-                  <span className="text-[10px] font-mono text-ink-800 group-hover:text-ink-700 mt-0.5 flex-shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="text-[13px] text-ink-600 group-hover:text-ink-400 transition-colors leading-relaxed">{ex}</span>
+                  <span className="text-[10px] font-mono text-ink-500 group-hover:text-ink-400 mt-0.5 flex-shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="text-[13px] text-ink-400 group-hover:text-ink-200 transition-colors leading-relaxed">{ex}</span>
                 </div>
               </button>
             ))}
@@ -543,7 +554,7 @@ export function LandingPage() {
         {sessionHistory.length > 0 && (
           <div className="w-full max-w-[600px] mt-8 border-t border-ink-800/40 pt-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-700">Recent sessions</span>
+              <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-400">Recent sessions</span>
               <div className="flex items-center gap-3">
                 {compareId && (
                   <span className="text-[10px] font-mono text-amber-400/70 animate-pulse">
@@ -576,7 +587,7 @@ export function LandingPage() {
                           ⚖️
                         </span>
                       )}
-                      <p className="flex-1 text-[13px] text-ink-600 group-hover:text-ink-400 transition-colors truncate leading-relaxed">{s.initial_idea}</p>
+                      <p className="flex-1 text-[13px] text-ink-400 group-hover:text-ink-200 transition-colors truncate leading-relaxed">{s.initial_idea}</p>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {isTribunal ? (
                           s.tribunal_verdict_grade ? (
@@ -620,13 +631,7 @@ export function LandingPage() {
           </div>
         )}
 
-        </div>{/* end left column */}
-
-        {/* Right: LiveDemo — the hero's visual asset */}
-        <div className="hidden lg:flex flex-col pt-14 lg:sticky lg:top-24">
-          <p className="text-[10px] font-mono tracking-[0.12em] text-ink-700 mb-4 uppercase">Live session</p>
-          <LiveDemo />
-        </div>
+        </div>{/* end extra column */}
 
         </div>{/* end grid */}
         </div>{/* end max-w-7xl */}
@@ -637,7 +642,7 @@ export function LandingPage() {
         <div className="ticker-track flex gap-0">
           {[...Array(2)].flatMap(() =>
             ['The Council, 5 AI advisors', 'Real web research', 'Tribunal mode', "Devil's advocate", 'Assumption tracker', "Chairman's masterplan", 'Shareable score card', 'We say no, with evidence'].map((t) => (
-              <span key={t + Math.random()} className="flex items-center gap-2 px-8 text-[12px] font-mono text-ink-700">
+              <span key={t + Math.random()} className="flex items-center gap-2 px-8 text-[12px] font-mono text-ink-500">
                 {t} <span className="text-amber-500/40">◆</span>
               </span>
             ))
@@ -663,8 +668,8 @@ export function LandingPage() {
                 'Accelerator feedback is one-way with no real-time interrogation',
                 'Nobody names the assumption that kills this in year 1',
               ].map((t) => (
-                <div key={t} className="flex gap-2.5 text-[13px] text-ink-500 mb-3 leading-snug">
-                  <span className="text-ink-700 flex-shrink-0">→</span>{t}
+                <div key={t} className="flex gap-2.5 text-[13px] text-ink-400 mb-3 leading-snug">
+                  <span className="text-ink-500 flex-shrink-0">→</span>{t}
                 </div>
               ))}
             </div>
@@ -698,7 +703,7 @@ export function LandingPage() {
             {features.map((f, i) => (
               <div key={f.title}
                 className={`group rounded-xl overflow-hidden border border-ink-800/50 hover:border-ink-700/60 transition-all duration-300 ${
-                  i === 0 ? 'sm:col-span-2 lg:col-span-2' : ''
+                  i === 0 ? 'lg:col-span-2' : ''
                 }`}
                 style={{ background: 'rgba(255,255,255,0.012)' }}
                 onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 8px 32px ${f.tc}12` }}
@@ -721,18 +726,18 @@ export function LandingPage() {
       <section id="pricing" className="relative z-10 py-20 px-6 text-center">
         <div className="max-w-2xl mx-auto">
           <SectionHeading>Everything is free.</SectionHeading>
-          <p className="text-ink-500 mb-10" style={{ fontSize: '15px' }}>
+          <p className="text-ink-400 mb-10" style={{ fontSize: '15px' }}>
             No paywalls. Use Socra fully at no cost. Donate if it helped you think clearly.
           </p>
 
           <div className="grid sm:grid-cols-3 gap-4 text-left mb-6">
             {/* Conversation — free */}
             <div className="rounded-2xl p-6 border border-ink-800/50" style={{ background: 'rgba(255,255,255,0.02)' }}>
-              <p className="text-[12px] font-mono font-semibold text-ink-500 uppercase tracking-wider mb-3">Conversation</p>
+              <p className="text-[12px] font-mono font-semibold text-ink-400 uppercase tracking-wider mb-3">Conversation</p>
               <div className="flex items-end gap-1 mb-1">
                 <span className="font-display text-3xl font-extrabold text-ink-100">Free</span>
               </div>
-              <p className="text-[12px] text-ink-500 mb-5">Always. No account needed.</p>
+              <p className="text-[12px] text-ink-400 mb-5">Always. No account needed.</p>
               <div className="space-y-2 mb-6">
                 {[
                   'Socratic interrogation',
@@ -761,9 +766,9 @@ export function LandingPage() {
               </div>
               <div className="flex items-end gap-1 mb-1">
                 <span className="font-display text-3xl font-extrabold text-ink-100">Free</span>
-                <span className="text-ink-500 mb-1 text-[13px]">· donate ₹199</span>
+                <span className="text-ink-400 mb-1 text-[13px]">· donate ₹199</span>
               </div>
-              <p className="text-[12px] text-ink-500 mb-5">Faster verdict, brutal judges</p>
+              <p className="text-[12px] text-ink-400 mb-5">Faster verdict, brutal judges</p>
               <div className="space-y-2 mb-6">
                 {[
                   '3 adversarial judges',
@@ -794,9 +799,9 @@ export function LandingPage() {
               </div>
               <div className="flex items-end gap-1 mb-1">
                 <span className="font-display text-3xl font-extrabold text-ink-100">Free</span>
-                <span className="text-ink-500 mb-1 text-[13px]">· donate ₹499</span>
+                <span className="text-ink-400 mb-1 text-[13px]">· donate ₹499</span>
               </div>
-              <p className="text-[12px] text-ink-500 mb-5">Runs when your score is ready</p>
+              <p className="text-[12px] text-ink-400 mb-5">Runs when your score is ready</p>
               <div className="space-y-2 mb-6">
                 {[
                   '5 specialist advisors',
@@ -817,7 +822,7 @@ export function LandingPage() {
             </div>
           </div>
 
-          <p className="text-[12px] text-ink-700">
+          <p className="text-[12px] text-ink-400">
             Donations processed via Razorpay. UPI, cards, net banking accepted.{' '}
             <a href="#waitlist" className="text-amber-500/60 hover:text-amber-400 transition-colors">
               Want to support the project? Reach out.
@@ -833,8 +838,8 @@ export function LandingPage() {
             style={{ fontSize: 'clamp(32px, 4vw, 52px)' }}>
             Find out if your idea<br /><em className="text-amber-400 not-italic">is worth the risk.</em>
           </h2>
-          <p className="text-ink-500 mb-8" style={{ fontSize: '15px' }}>
-            Join 240+ founders who used Socra before they quit their job.
+          <p className="text-ink-400 mb-8" style={{ fontSize: '15px' }}>
+            Join the founders who use Socra before they quit their job.
           </p>
           {waitlistDone ? (
             <div className="px-5 py-4 rounded-xl border border-emerald-500/25 bg-emerald-500/5 text-emerald-400 text-[14px]">
@@ -859,7 +864,7 @@ export function LandingPage() {
               )}
             </div>
           )}
-          <p className="text-[12px] text-ink-800 mt-4 font-mono">No spam. No pitch decks. Just early access when we're ready.</p>
+          <p className="text-[12px] text-ink-400 mt-4 font-mono">No spam. No pitch decks. Just early access when we're ready.</p>
         </div>
       </section>
 
@@ -867,12 +872,12 @@ export function LandingPage() {
       <footer className="relative z-10 border-t border-ink-800/40 px-8 py-6 flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-400/60" />
-          <span className="font-display text-[15px] text-ink-600">Socra</span>
+          <span className="font-display text-[15px] text-ink-400">Socra</span>
         </div>
-        <p className="text-[12px] text-ink-800 font-mono">© 2026 Socra. Built in India 🇮🇳</p>
+        <p className="text-[12px] text-ink-400 font-mono">© 2026 Socra. Built in India 🇮🇳</p>
         <div className="flex gap-5">
           {['Twitter', 'LinkedIn', 'GitHub', 'Privacy'].map(l => (
-            <a key={l} href="#" className="text-[12px] text-ink-700 hover:text-ink-500 transition-colors">{l}</a>
+            <a key={l} href="#" className="text-[12px] text-ink-400 hover:text-ink-200 transition-colors">{l}</a>
           ))}
         </div>
       </footer>
