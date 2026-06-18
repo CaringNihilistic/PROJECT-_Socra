@@ -78,6 +78,12 @@ async def create_checkout(req: CheckoutRequest, db: AsyncSession = Depends(get_d
     return {"checkout_url": link["short_url"], "payment_link_id": link["id"]}
 
 
+def _verify_signature(payload: bytes, received_sig: str, secret: str) -> bool:
+    """Verify a Razorpay webhook HMAC-SHA256 signature using constant-time comparison."""
+    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(received_sig, expected)
+
+
 @router.post("/webhook")
 async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """Razorpay webhook — payment_link.paid marks session paid (standard or tribunal)."""
@@ -87,13 +93,7 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
     payload = await request.body()
     received_sig = request.headers.get("x-razorpay-signature", "")
 
-    expected = hmac.new(
-        settings.razorpay_webhook_secret.encode(),
-        payload,
-        hashlib.sha256,
-    ).hexdigest()
-
-    if not hmac.compare_digest(received_sig, expected):
+    if not _verify_signature(payload, received_sig, settings.razorpay_webhook_secret):
         raise HTTPException(400, "Invalid signature")
 
     import json
