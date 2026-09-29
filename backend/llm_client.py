@@ -600,19 +600,25 @@ async def _stream_llm_tokens(system: str, messages: list[dict]):
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         full_text = ""
-        with trace_generation("anthropic/stream", "claude-haiku-4-5-20251001", input_data) as gen:
-            async with client.messages.stream(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=2500,
-                system=system,
-                messages=messages,
-            ) as stream:
-                async for text in stream.text_stream:
-                    full_text += text
-                    yield text
-            if gen:
-                gen.update(output=full_text[:4000])
-        return
+        try:
+            with trace_generation("anthropic/stream", "claude-haiku-4-5-20251001", input_data) as gen:
+                async with client.messages.stream(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=2500,
+                    system=system,
+                    messages=messages,
+                ) as stream:
+                    async for text in stream.text_stream:
+                        full_text += text
+                        yield text
+                if gen:
+                    gen.update(output=full_text[:4000])
+            return
+        except Exception as e:
+            if full_text:
+                raise  # failed mid-stream: the caller already has partial text
+            # Dead/unfunded key or outage before any output: fall through to Google/Groq
+            _log.getLogger(__name__).warning("Anthropic streaming failed, falling back: %s", e)
     if settings.google_api_key:
         yielded = 0
         full_text = ""
@@ -1133,9 +1139,9 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
                         usage_details={"input_tokens": u.input_tokens, "output_tokens": u.output_tokens},
                     )
                 return result
-        except anthropic.BadRequestError as e:
-            _log.getLogger(__name__).error("Anthropic agent 400 — falling through to Google: %s | roles=%s", e, [m["role"] for m in safe_msgs])
-            # Fall through to Google/Groq rather than surfacing the error
+        except Exception as e:
+            # Any Anthropic failure (bad request, dead/unfunded key, outage): fall through to Google/Groq
+            _log.getLogger(__name__).warning("Anthropic agent call failed, falling back: %s | roles=%s", e, [m["role"] for m in safe_msgs])
     if settings.google_api_key:
         try:
             return await _call_google(system, messages, max_tokens=900)
@@ -1147,7 +1153,7 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
     with trace_generation("groq/agent", GROQ_FAST_MODEL, input_data) as gen:
         response = await client.chat.completions.create(
             model=GROQ_FAST_MODEL,
-            max_tokens=400,
+            max_tokens=900,  # reasoning model: thinking shares this budget
             messages=[{"role": "system", "content": system}, *messages],
         )
         result = response.choices[0].message.content or ""
@@ -1316,7 +1322,11 @@ Format as a numbered list. Be direct and honest."""
     content = ""
     try:
         if settings.anthropic_api_key:
-            content = await _call_anthropic(system, trigger_msg, max_tokens=800)
+            try:
+                content = await _call_anthropic(system, trigger_msg, max_tokens=800)
+            except Exception as e:
+                import logging as _log
+                _log.getLogger(__name__).warning("Anthropic devil's advocate failed, falling back: %s", e)
         elif settings.google_api_key:
             try:
                 content = await _call_google(system, trigger_msg, max_tokens=800)
@@ -1439,19 +1449,24 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         full_text = ""
-        with trace_generation("anthropic/synthesis", "claude-haiku-4-5-20251001", input_data) as gen:
-            async with client.messages.stream(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=3000,
-                system=system,
-                messages=safe_msgs,
-            ) as stream:
-                async for text in stream.text_stream:
-                    full_text += text
-                    yield text
-            if gen:
-                gen.update(output=full_text[:4000])
-        return
+        try:
+            with trace_generation("anthropic/synthesis", "claude-haiku-4-5-20251001", input_data) as gen:
+                async with client.messages.stream(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=3000,
+                    system=system,
+                    messages=safe_msgs,
+                ) as stream:
+                    async for text in stream.text_stream:
+                        full_text += text
+                        yield text
+                if gen:
+                    gen.update(output=full_text[:4000])
+            return
+        except Exception as e:
+            if full_text:
+                raise  # failed mid-stream: the caller already has partial text
+            _log.getLogger(__name__).warning("Anthropic synthesis failed, falling back: %s", e)
     if settings.google_api_key:
         yielded = 0
         full_text = ""
