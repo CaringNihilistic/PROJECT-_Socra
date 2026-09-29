@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from db.database import get_db
 from db.models import Session
 from eval_bar import apply_delta, compute_total_score, get_phase, get_refusal_message, get_score_explanation
-from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck, stream_tribunal_turn, generate_tribunal_verdicts
+from llm_client import call_architect_llm, stream_architect_llm, stream_multi_agent_masterplan, stream_followup_llm, generate_pitch_deck
 from api.routes.sessions import _serialize, _check_session_access
 from core.auth import is_admin
 from llm_client import generate_founder_answer
@@ -375,95 +375,6 @@ async def unlock_masterplan(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
-
-
-@router.post("/{session_id}/tribunal/message")
-async def send_tribunal_message(
-    session_id: str,
-    req: MessageRequest,
-    db: AsyncSession = Depends(get_db),
-    authorization: Optional[str] = Header(None),
-):
-    result = await db.execute(select(Session).where(Session.id == session_id))
-    session = result.scalar_one_or_none()
-    if not session:
-        raise HTTPException(404, "Session not found")
-    await _check_session_access(session, authorization)
-
-    tribunal_history = list(session.tribunal_history or [])
-    round_number = len(tribunal_history) // 4 + 1
-
-    if round_number > 4:
-        raise HTTPException(400, "Tribunal complete — use /tribunal/unlock to generate verdicts")
-
-    initial_idea = session.initial_idea
-
-    async def event_stream():
-        set_session_id(session_id)
-        updated_history = tribunal_history + [{"role": "user", "content": req.content}]
-
-        async for event in stream_tribunal_turn(tribunal_history, req.content, round_number):
-            if event["type"] == "persona_token":
-                yield f"data: {json.dumps({'type': 'persona_token', 'persona': event['persona'], 'delta': event['delta']})}\n\n"
-            elif event["type"] == "persona_done":
-                updated_history.append({
-                    "role": "assistant",
-                    "persona": event["persona"],
-                    "content": event["content"],
-                })
-                yield f"data: {json.dumps({'type': 'persona_done', 'persona': event['persona'], 'content': event['content']})}\n\n"
-            elif event["type"] == "round_done":
-                await db.execute(
-                    update(Session)
-                    .where(Session.id == session_id)
-                    .values(tribunal_history=updated_history, mode="tribunal")
-                )
-                await db.commit()
-
-                # Always emit round_complete so frontend has the full history
-                yield f"data: {json.dumps({'type': 'round_complete', 'round': round_number, 'tribunal_history': updated_history})}\n\n"
-
-                if round_number >= 4:
-                    verdicts = await generate_tribunal_verdicts(updated_history, initial_idea)
-                    await db.execute(
-                        update(Session)
-                        .where(Session.id == session_id)
-                        .values(tribunal_verdicts=verdicts)
-                    )
-                    await db.commit()
-                    yield f"data: {json.dumps({'type': 'tribunal_verdict', 'verdicts': verdicts})}\n\n"
-
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-@router.post("/{session_id}/tribunal/unlock")
-async def unlock_tribunal_verdicts(
-    session_id: str,
-    db: AsyncSession = Depends(get_db),
-    authorization: Optional[str] = Header(None),
-):
-    """Generate verdicts for a tribunal_paid session (idempotent)."""
-    result = await db.execute(select(Session).where(Session.id == session_id))
-    session = result.scalar_one_or_none()
-    if not session:
-        raise HTTPException(404, "Session not found")
-    await _check_session_access(session, authorization)
-    if session.tribunal_verdicts:
-        return {"verdicts": session.tribunal_verdicts}
-
-    set_session_id(session_id)
-    verdicts = await generate_tribunal_verdicts(
-        list(session.tribunal_history or []), session.initial_idea
-    )
-    await db.execute(
-        update(Session).where(Session.id == session_id).values(tribunal_verdicts=verdicts)
-    )
-    await db.commit()
-    return {"verdicts": verdicts}
 
 
 @router.post("/{session_id}/admin-seed-conversation")

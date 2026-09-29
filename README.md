@@ -1,6 +1,6 @@
 # Socra — AI Startup Evaluator
 
-> An AI that refuses to give you a masterplan until it fully understands your idea. It interrogates founders Socratically, scores the idea across 5 dimensions, then unlocks a multi-agent council analysis and a synthesized Chairman's Masterplan. A second mode — the **Tribunal** — puts the idea on trial before 3 adversarial judges who deliver Pass/Fail verdicts.
+> An AI that refuses to give you a masterplan until it fully understands your idea. It interrogates founders Socratically, scores the idea across 5 dimensions, then unlocks a multi-agent council analysis and a synthesized Chairman's Masterplan.
 
 ---
 
@@ -10,8 +10,7 @@ Most AI tools tell you what you want to hear. Socra doesn't.
 
 It runs founders through a structured Socratic interrogation — asking targeted questions, challenging vague answers, and scoring their idea across 5 dimensions in real time. Only when the idea is fully understood does it unlock a specialist council of 5 AI advisors, each analyzing a different aspect of the business, followed by a synthesized masterplan from "The Chairman."
 
-**Standard Mode:** Socratic Q&A → Eval scoring → Council of 5 agents → Chairman's Masterplan  
-**Tribunal Mode:** 3 adversarial judges (Investor, Customer, Competitor) interrogate the founder over 4 rounds, then deliver Pass/Fail verdicts with scores
+**Flow:** Socratic Q&A → Eval scoring → Council of 5 agents → Chairman's Masterplan  
 
 ---
 
@@ -43,12 +42,6 @@ Runs in parallel once the eval threshold is reached:
 
 ### Chairman's Masterplan
 Synthesizes all 5 council reports into a definitive plan: tech stack table, 3 implementation phases, risk register with specific mitigations, first 3 files to write.
-
-### Tribunal Mode
-3 adversarial personas interrogate the founder over 4 rounds, each from their own perspective. After round 4:
-- Each judge delivers a Pass/Fail verdict with a score (0–100) and rubric
-- Composite grade: GREENLIT / STRONG / CHALLENGED / REJECTED
-- Shareable verdict card
 
 ### Shareable Links
 - `/card/:id` — public score card (dimensions + phase)
@@ -95,7 +88,7 @@ The council of 5 agents can also run through a **LangGraph pipeline** — user-s
 | Auth | @clerk/clerk-react |
 
 ### Infrastructure
-- **Hosting:** Railway (backend + frontend as separate services)
+- **Hosting:** Render free tier ([render.yaml](render.yaml)) + Neon free Postgres
 - **Local dev:** Docker Compose
 
 ---
@@ -106,7 +99,7 @@ The council of 5 agents can also run through a **LangGraph pipeline** — user-s
 socra/
 ├── backend/
 │   ├── main.py                  # FastAPI app, CORS, rate limiting, /health
-│   ├── llm_client.py            # LLM routing, council agents, tribunal, masterplan
+│   ├── llm_client.py            # LLM routing, council agents, masterplan
 │   ├── observability.py         # Langfuse v4 tracing (optional)
 │   ├── eval_bar.py              # 5-dimension scoring + phase thresholds
 │   ├── web_search.py            # Tavily live market research
@@ -121,7 +114,7 @@ socra/
 │   │   └── models.py            # Session + WaitlistEntry tables
 │   └── api/routes/
 │       ├── sessions.py          # Session CRUD + admin endpoints
-│       ├── architect.py         # Streaming chat, unlock, masterplan, tribunal
+│       ├── architect.py         # Streaming chat, unlock, masterplan
 │       ├── billing.py           # Razorpay checkout / webhook / verify
 │       ├── waitlist.py          # Email waitlist
 │       ├── followup.py          # Follow-up email capture
@@ -133,7 +126,6 @@ socra/
 │       └── components/
 │           ├── LandingPage.tsx  # Entry — idea input, examples, mode selection
 │           ├── SessionPage.tsx  # Standard mode: Chat → Council → Masterplan
-│           ├── TribunalPage.tsx # Tribunal mode: 3 judges → verdicts
 │           ├── CardPage.tsx     # Public score card (/card/:id)
 │           ├── SharePage.tsx    # Public masterplan view (/share/:id)
 │           └── ComparePage.tsx  # Side-by-side comparison (/compare/:id1/:id2)
@@ -238,8 +230,6 @@ Live web research enriches each report
         ↓
 Chairman synthesizes → Masterplan
 Devil's Advocate critiques it
-        ↓
-Optional: Tribunal (3 judges × 4 rounds → Pass/Fail verdicts)
 ```
 
 ---
@@ -252,8 +242,6 @@ Optional: Tribunal (3 judges × 4 rounds → Pass/Fail verdicts)
 | GET | `/sessions/{id}` | Get session (public by UUID) |
 | POST | `/sessions/{id}/message/stream` | SSE Socratic chat |
 | POST | `/sessions/{id}/unlock` | Run council + masterplan (SSE); `?use_langgraph=true` for LangGraph pipeline |
-| POST | `/sessions/{id}/tribunal/message` | SSE tribunal round |
-| POST | `/sessions/{id}/tribunal/unlock` | Generate verdicts |
 | POST | `/billing/checkout` | Razorpay checkout |
 | POST | `/billing/verify` | Verify payment |
 | GET | `/me` | Current identity + is_admin |
@@ -263,9 +251,14 @@ Optional: Tribunal (3 judges × 4 rounds → Pass/Fail verdicts)
 
 ## Deployment
 
-Deployed on Railway. Push to `main` → auto-build via Dockerfiles.
+Runs on free tiers: **Render** for the app and **Neon** for Postgres. [render.yaml](render.yaml) is a Render Blueprint that defines both services:
 
-Backend env vars are set in the Railway backend service. Frontend `VITE_*` vars are set in the Railway frontend service and are baked in at build time — changing them requires a rebuild.
+- `socra-backend` — Docker web service (free plan; sleeps after 15 min idle, ~1 min cold start)
+- `socra-frontend` — static site with an SPA rewrite so `/share`, `/card` and `/compare` links resolve
+
+Push to `main` → Render auto-deploys. Secrets are prompted for when the Blueprint is first created.
+
+Frontend `VITE_*` vars are baked in at build time — changing them requires a rebuild.
 
 ---
 

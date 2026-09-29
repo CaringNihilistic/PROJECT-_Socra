@@ -1,6 +1,6 @@
 # Socra
 
-> An AI startup evaluator that refuses to give a masterplan until it fully understands your idea. It interrogates the founder Socratically, scores the idea across 5 dimensions, then unlocks a multi-agent council analysis + a synthesized "Chairman's Masterplan". A second mode — the **Tribunal** — puts the idea on trial before 3 adversarial judges who deliver Pass/Fail verdicts.
+> An AI startup evaluator that refuses to give a masterplan until it fully understands your idea. It interrogates the founder Socratically, scores the idea across 5 dimensions, then unlocks a multi-agent council analysis + a synthesized "Chairman's Masterplan".
 
 ---
 
@@ -15,7 +15,7 @@
 | ORM | SQLAlchemy (asyncio) | 2.0.35 |
 | DB driver | asyncpg | 0.29.0 |
 | Database | PostgreSQL | 15 |
-| Cache/queue | Redis (asyncio) | 5.1.0 (provisioned; minimal use) |
+| Cache/queue | Redis (asyncio) | 5.1.0 (in requirements + local compose only; no code uses it, not provisioned in prod) |
 | Config | pydantic-settings | 2.5.0 |
 | LLM SDKs | anthropic 0.40.0, openai 1.50.0 (also Google Gemini + Groq via HTTP) |
 | Observability | langfuse ≥3.0.0 (optional — traces LLM calls) | — |
@@ -39,7 +39,7 @@
 | Markdown | react-markdown 9.0.0 + remark-gfm 4.0.1 |
 
 ### Infra
-- **Hosting:** Railway (backend + frontend deployed as separate services)
+- **Hosting:** Render free tier via [render.yaml](render.yaml) — backend = Docker web service, frontend = static site. Database = Neon free Postgres (Render's free Postgres is deleted after 30 days).
 - **Local dev:** Docker Compose (postgres + redis + backend + frontend)
 
 ---
@@ -88,7 +88,7 @@ START → web_research → agent_finance ─┐
 PROJECT _STARTUP/
 ├── backend/
 │   ├── main.py                  # FastAPI app, CORS, rate limiting, /health
-│   ├── llm_client.py            # LLM routing, council agents, tribunal, masterplan (largest file)
+│   ├── llm_client.py            # LLM routing, council agents, masterplan (largest file)
 │   ├── observability.py         # Langfuse v4 tracing — ContextVar session propagation, trace_generation()
 │   ├── eval_bar.py              # 5-dimension scoring + phase thresholds
 │   ├── web_search.py            # Tavily live market research
@@ -104,7 +104,7 @@ PROJECT _STARTUP/
 │   │   └── models.py            # Session + WaitlistEntry tables
 │   └── api/routes/
 │       ├── sessions.py          # CRUD, admin-mark-paid, assumptions, access checks
-│       ├── architect.py         # Streaming chat, unlock (?use_langgraph), masterplan, tribunal, admin seed
+│       ├── architect.py         # Streaming chat, unlock (?use_langgraph), masterplan, admin seed
 │       ├── billing.py           # Razorpay checkout / webhook / verify
 │       ├── waitlist.py          # Email waitlist signup
 │       ├── followup.py          # Follow-up email capture + admin send
@@ -128,11 +128,10 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 
 | Component | Purpose |
 |---|---|
-| `LandingPage.tsx` | Entry point — asymmetric split hero, idea input, 3 examples, mode selection (standard vs tribunal) |
+| `LandingPage.tsx` | Entry point — asymmetric split hero, idea input, 3 examples, recent sessions + compare picker |
 | `SessionPage.tsx` | **Standard mode.** 3-tab flow via `view` state: **Chat** (Socratic Q&A) → **Council** (5 agent cards 2-col grid + Devil's Advocate) → **Masterplan** (synthesis + export). Pipeline selector + `[DEV]` shortcuts. |
-| `TribunalPage.tsx` | **Tribunal mode.** Sequential streaming interrogation by 3 judges → Pass/Fail verdicts |
 | `PitchDeckView.tsx` | Renders generated pitch deck slides + Devil's Advocate slide |
-| `VerdictCard.tsx` / `TribunalCard.tsx` | Tribunal verdict display |
+| `VerdictCard.tsx` | Score card rendered on the public `/card/:id` page |
 | `CardPage.tsx` | **Public** shareable score card (`/card/:id`) |
 | `SharePage.tsx` | **Public** read-only masterplan view (`/share/:id`) |
 | `ComparePage.tsx` | **Public** side-by-side comparison of two sessions (`/compare/:id1/:id2`) |
@@ -140,29 +139,26 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 | `FollowUpEmailCapture.tsx` | Email capture for follow-up nudges |
 
 ### Backend Routes
-- `POST /sessions/` — create session · `GET /sessions/` — list · `GET /sessions/{id}` — fetch (full payload incl. conversation/tribunal transcripts for the owner/admin; a redacted public view, used by `/share`, `/card`, `/compare`, for everyone else)
+- `POST /sessions/` — create session · `GET /sessions/` — list · `GET /sessions/{id}` — fetch (full payload incl. the conversation transcript for the owner/admin; a redacted public view, used by `/share`, `/card`, `/compare`, for everyone else)
 - `GET /me` — returns `{user_id, email, is_admin}` for the current Clerk token (frontend uses it to show admin shortcuts)
-- `POST /sessions/{id}/admin-mark-paid` — **admin bypass** (sets paid + tribunal_paid; requires caller on `ADMIN_EMAILS` allowlist)
+- `POST /sessions/{id}/admin-mark-paid` — **admin bypass** (sets paid; requires caller on `ADMIN_EMAILS` allowlist)
 - `POST /sessions/{id}/admin-seed-conversation` — **admin**: auto-plays a founder conversation, generates the masterplan, marks paid (quality testing)
 - `POST /sessions/{id}/message/stream` — SSE Socratic chat
 - `POST /sessions/{id}/unlock?use_langgraph=true` — run council + masterplan; optional `use_langgraph` query param routes to LangGraph pipeline when `LANGGRAPH_ENABLED=true`
 - `POST /sessions/{id}/pitch-deck` — generate pitch deck
-- `POST /sessions/{id}/tribunal/message` · `POST /sessions/{id}/tribunal/unlock` — tribunal flow
 - `POST /billing/checkout` · `/billing/webhook` · `/billing/verify` — Razorpay
 - `POST /waitlist` · `POST /sessions/{id}/follow-up` · `POST /admin/send-follow-ups`
 - `GET /health` — checks real DB connection
 
 ---
 
-## Council Agents & Tribunal Judges
+## Council Agents
 
-**Council (standard mode, 5 specialists, run in parallel):**
+**Council (5 specialists, run in parallel):**
 - 💼 The Banker (finance/unit economics) · 🔮 The Oracle (market/TAM) · ⚔️ The Challenger (competition) · 🔧 The Builder (tech) · 🎯 The Skeptic (risk)
 - Then a Devil's Advocate critique + Chairman's Masterplan synthesis.
 
-**Tribunal (3 adversarial judges, sequential, 4 rounds then verdict):**
-- 💰 The Investor · 👤 The Customer · ⚔️ The Competitor
-- Verdicts use a scoring rubric (65+ = Pass) with cross-pollination (each judge sees the full transcript) and score/pass consistency enforcement.
+> **Tribunal mode was removed.** The `sessions.mode` column is kept only so legacy `"tribunal"` rows are hidden from `GET /sessions/` and 404 on `GET /sessions/{id}`. Every new session is `"standard"`.
 
 ---
 
@@ -184,7 +180,7 @@ Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) �
 
 ## Environment Variables
 
-### Backend (`.env` / Railway)
+### Backend (`.env` / Render)
 | Var | Purpose | Default |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Primary LLM | "" |
@@ -193,14 +189,13 @@ Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) �
 | `OPENAI_API_KEY` | (optional) | "" |
 | `TAVILY_API_KEY` | Live market research | "" |
 | `STUB_MODE` | Offline demo (true = no real LLM) | "true" |
-| `DATABASE_URL` | Postgres connection | local docker |
-| `REDIS_URL` | Redis connection | local docker |
+| `DATABASE_URL` | Postgres connection. Neon/Render-style URLs work as-is: `sslmode`/`channel_binding` are translated for asyncpg in `db/database.py`. Use Neon's **direct** (non-pooled) string. | local docker |
+| `REDIS_URL` | Redis connection (unused by code) | local docker |
 | `SECRET_KEY` | App secret | dev placeholder |
 | `CLERK_SECRET_KEY` | Clerk JWT verification | "" |
 | `CLERK_FRONTEND_API_URL` | Clerk issuer (e.g. `https://xxx.clerk.accounts.dev`) | "" |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | Payments | "" |
 | `RAZORPAY_PRICE_AMOUNT` | Masterplan price in paise | 49900 (₹499) |
-| `RAZORPAY_TRIBUNAL_AMOUNT` | Tribunal price in paise | 19900 (₹199) |
 | `RESEND_API_KEY` | Follow-up emails | "" |
 | `FRONTEND_ORIGIN` | CORS allowed origin | localhost:5173 |
 | `ADMIN_EMAILS` | Comma-separated allowlist of admin Clerk emails (or user IDs). Grants payment bypass, skip-to-masterplan, conversation seeding, and view-any-session. Verified via the caller's Clerk token. | "" |
@@ -246,13 +241,15 @@ npm run dev          # dev server (Vite)
 npm run build        # tsc typecheck + production build → dist/
 npm run preview      # preview the production build
 ```
-> `npm run build` runs `tsc` first — **unused variables/imports fail the build.** This breaks Railway deploys; keep the TS clean.
+> `npm run build` runs `tsc` first — **unused variables/imports fail the build.** This breaks deploys; keep the TS clean.
 
-### Deploy (Railway)
-- Push to `main` → Railway auto-builds both services from their `Dockerfile`s.
-- Backend `Dockerfile`: python:3.11-slim, binds `${PORT}`.
-- Frontend `Dockerfile`: multi-stage node:20-alpine build, served with `serve` on `${PORT}`. **`VITE_*` vars are baked in at build time** — changing them requires a rebuild, not just a restart.
-- Set all backend secrets in the Railway service env. Set `VITE_*` vars on the frontend service.
+### Deploy (Render free tier + Neon)
+- [render.yaml](render.yaml) is a Render Blueprint defining both services. Push to `main` → Render auto-deploys.
+- **Backend** (`socra-backend`): Docker web service built from `backend/Dockerfile` (python:3.11-slim, binds `${PORT}`). Free plan **sleeps after 15 min idle; the next request cold-starts in ~1 min**.
+- **Frontend** (`socra-frontend`): static site (`npm run build` → `frontend/dist`) with a `/.* → /index.html` rewrite so `/share`, `/card`, `/compare` resolve. `frontend/Dockerfile` is only used by local compose. **`VITE_*` vars are baked in at build time** — changing them requires a rebuild.
+- **Database**: Neon free Postgres (0.5 GB, 100 CU-hours/month, scales to zero after 5 min). Don't add keep-warm pings to `/health` — it queries the DB, keeps Neon awake 24/7 and exhausts the free compute budget.
+- `FRONTEND_ORIGIN` must exactly match the frontend URL (no trailing slash): CORS and the Razorpay callback allowlist both derive from it.
+- Set `VITE_RAZORPAY_KEY_ID` in production — when unset, `BILLING_ENABLED` is false and every visitor sees the `[DEV]` shortcuts.
 
 ---
 
@@ -277,36 +274,35 @@ npm run preview      # preview the production build
 
 ## Current Known Issues / Tech Debt
 
-- **Session ownership checks are partial** — `GET /sessions/{id}` now returns the redacted `_serialize_public()` view (no `conversation_history`/`tribunal_history`) to non-owners of authenticated sessions via `_is_owner_or_admin()` (Phase 10). Anonymous sessions (`user_id=None`) remain a public "unguessable UUID" capability by design. Mutation endpoints already used `_check_session_access`. A full endpoint-by-endpoint audit is still outstanding.
+- **Session ownership checks are partial** — `GET /sessions/{id}` now returns the redacted `_serialize_public()` view (no `conversation_history`) to non-owners of authenticated sessions via `_is_owner_or_admin()` (Phase 10). Anonymous sessions (`user_id=None`) remain a public "unguessable UUID" capability by design. Mutation endpoints already used `_check_session_access`. A full endpoint-by-endpoint audit is still outstanding.
 - **No automated tests or CI** anywhere in the repo (no `test_*.py`, `*.test.ts`, or `.github/workflows`) — flagged as the single highest-leverage gap, especially given live Razorpay webhooks.
-- **`backend/llm_client.py` is ~1,700 lines (god-file)** — holds provider clients, streaming, prompt builders, council agents, tribunal personas, and verdict scoring. Should be split into an `llm/` package.
-- **Rate limiting is in-memory & per-process** (`RateLimitMiddleware`) — does not work correctly across multiple Railway instances.
+- **`backend/llm_client.py` is ~1,550 lines (god-file)** — holds provider clients, streaming, prompt builders, council agents, and synthesis. Should be split into an `llm/` package.
+- **Rate limiting is in-memory & per-process** (`RateLimitMiddleware`) — does not work correctly across multiple instances.
 - **Admin actions require `ADMIN_EMAILS`** — when Clerk auth isn't configured (pure local dev), every request is treated as admin (open dev mode).
 - **STUB_MODE only works for the 3 landing-page example ideas** — any other idea returns a "set your API key" prompt.
 - **Anonymous → authenticated session migration** not implemented — sessions started signed-out aren't claimed on sign-in.
-- **LangGraph MemorySaver fallback** — when `LANGGRAPH_ENABLED=false`, the graph uses `MemorySaver` (in-memory, lost on restart). Set `LANGGRAPH_ENABLED=true` in Railway to activate Postgres checkpointing.
-- **LangGraph Phase 1 only covers the council** — tribunal and Socratic chat still use legacy asyncio pipeline.
+- **LangGraph MemorySaver fallback** — when `LANGGRAPH_ENABLED=false`, the graph uses `MemorySaver` (in-memory, lost on restart). `render.yaml` sets `LANGGRAPH_ENABLED=true` to activate Postgres checkpointing.
+- **LangGraph Phase 1 only covers the council** — Socratic chat still uses the legacy asyncio pipeline.
 
 ---
 
 ## Roadmap
 
 ### High priority
-- **Automated test suite + CI** — pytest for `eval_bar.py`, webhook signature verification, verdict consistency, ownership checks; GitHub Actions running `pytest` + `npm run build`. Flagged as the single highest-leverage change in the Phase 10 portfolio review.
+- **Automated test suite + CI** — pytest for `eval_bar.py`, webhook signature verification, ownership checks; GitHub Actions running `pytest` + `npm run build`. Flagged as the single highest-leverage change in the Phase 10 portfolio review.
 - **Session ownership checks** — full endpoint-by-endpoint audit; `GET /sessions/{id}` is scoped (Phase 10) but other endpoints still need review
 - **Hybrid routing** — Sonnet 4.6 for synthesis + verdicts, Haiku 4.5 for chat + agents
 - **Analytics** — PostHog or Plausible for conversion funnel visibility
 - **Outcome tracking** — "I built it / pivoted / moved on" closes the feedback loop
 
 ### Medium priority
-- **Split `backend/llm_client.py`** (~1,700 lines) into an `llm/` package (`providers`, `council`, `tribunal`, `prompts`)
+- **Split `backend/llm_client.py`** (~1,550 lines) into an `llm/` package (`providers`, `council`, `prompts`)
 - **Adopt Alembic for DB migrations** — replace the hand-written `ALTER TABLE ... IF NOT EXISTS` startup stack in `db/database.py`
 - **Remove `@ts-ignore`** suppressions on Clerk imports in `LandingPage.tsx` / `SessionPage.tsx`
-- **LangGraph Phase 3** — Tribunal graph with per-round `interrupt()`, retry policies
 - **cron-job.org** — daily `POST /admin/send-follow-ups`
 - **Custom domain + Resend** — verify domain, update `from` address
 - **Socra answers direct questions** — not locked in interrogation-only mode
 
 ### Deferred
 - **MCP service** — Socra as MCP server (distribution play, premature now)
-- **AWS deployment** — when Railway becomes the actual constraint
+- **Paid hosting / AWS** — when Render's free-tier cold starts become the actual constraint

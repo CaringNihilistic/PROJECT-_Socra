@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import type { SessionData } from '../store/sessionStore'
 import { VerdictCard } from './VerdictCard'
-import { TribunalCard } from './TribunalCard'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -40,13 +39,8 @@ export function CardPage({ sessionId }: { sessionId: string }) {
     )
   }
 
-  const isTribunal = !!(session.tribunal_verdicts)
   const score = Math.round(session.total_score * 100)
-  const glowColor = isTribunal
-    ? session.tribunal_verdicts!.grade === 'GREENLIT' ? 'rgba(52,211,153,0.06)'
-      : session.tribunal_verdicts!.grade === 'STRONG' ? 'rgba(245,158,11,0.06)'
-      : 'rgba(220,38,38,0.05)'
-    : score >= 80 ? 'rgba(52,211,153,0.06)' : score >= 60 ? 'rgba(245,158,11,0.06)' : 'rgba(232,93,38,0.05)'
+  const glowColor = score >= 80 ? 'rgba(52,211,153,0.06)' : score >= 60 ? 'rgba(245,158,11,0.06)' : 'rgba(232,93,38,0.05)'
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16"
@@ -56,21 +50,13 @@ export function CardPage({ sessionId }: { sessionId: string }) {
       }}>
 
       {/* Card */}
-      {isTribunal ? (
-        <TribunalCard
-          idea={session.initial_idea}
-          verdicts={session.tribunal_verdicts!}
-          sessionId={sessionId}
-        />
-      ) : (
-        <VerdictCard
-          idea={session.initial_idea}
-          totalScore={session.total_score}
-          scores={session.scores}
-          explanations={session.explanations}
-          sessionId={sessionId}
-        />
-      )}
+      <VerdictCard
+        idea={session.initial_idea}
+        totalScore={session.total_score}
+        scores={session.scores}
+        explanations={session.explanations}
+        sessionId={sessionId}
+      />
 
       {/* Action buttons */}
       <div className="mt-6 flex items-center gap-3">

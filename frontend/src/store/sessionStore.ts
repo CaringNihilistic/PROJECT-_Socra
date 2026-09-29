@@ -46,31 +46,6 @@ export interface PitchDeck {
   slides: PitchSlide[]
 }
 
-export interface TribunalTurn {
-  role: 'user' | 'assistant'
-  persona?: string
-  content: string
-}
-
-export interface TribunalPersonaVerdict {
-  name: string
-  icon: string
-  color: string
-  role: string
-  pass: boolean
-  score: number
-  verdict: string
-  key_insight: string
-}
-
-export interface TribunalVerdicts {
-  personas: Record<string, TribunalPersonaVerdict>
-  composite_score: number
-  passes: number
-  total: number
-  grade: 'GREENLIT' | 'STRONG' | 'CHALLENGED' | 'REJECTED'
-}
-
 export interface SessionData {
   id: string
   initial_idea: string
@@ -88,10 +63,6 @@ export interface SessionData {
   refusal?: string | null
   choices?: string[]
   paid?: boolean
-  mode?: string
-  tribunal_history?: TribunalTurn[]
-  tribunal_verdicts?: TribunalVerdicts | null
-  tribunal_paid?: boolean
 }
 
 export interface SessionSummary {
@@ -101,9 +72,6 @@ export interface SessionSummary {
   total_score: number
   has_masterplan: boolean
   created_at: string | null
-  mode?: string
-  tribunal_rounds_done?: number
-  tribunal_verdict_grade?: string | null
 }
 
 const LS_KEY = 'socra_recent_sessions'
@@ -139,38 +107,26 @@ interface SessionStore {
   authToken: string | null
   tokenGetter: (() => Promise<string | null>) | null
   isAdmin: boolean
-  authReady: boolean
   paymentRequired: boolean
   isUnlocking: boolean
   streamError: 'timeout' | 'network' | null
   savedFlash: boolean
   lastSentMessage: string
-  // Tribunal-specific state
-  tribunalStreaming: boolean
-  tribunalActivePersona: string | null
-  tribunalPersonaStreams: Record<string, string>
-  tribunalRound: number
-  tribunalPaymentRequired: boolean
   setAuthToken: (token: string | null) => void
-  setAuthReady: (ready: boolean) => void
   setTokenGetter: (fn: (() => Promise<string | null>) | null) => void
   getFreshToken: () => Promise<string | null>
   loadMe: () => Promise<void>
   loadSessionHistory: () => Promise<void>
-  createSession: (idea: string, mode?: string) => Promise<void>
+  createSession: (idea: string) => Promise<void>
   resumeSession: (sessionId: string) => Promise<void>
   sendMessage: (content: string) => Promise<void>
-  sendTribunalMessage: (content: string) => Promise<void>
   updateAssumptionStatus: (index: number, status: Assumption['status']) => Promise<void>
   generatePitchDeck: () => Promise<void>
   createCheckout: () => Promise<string | null>
   verifyAndUnlock: (checkoutId: string, sessionId: string) => Promise<void>
-  createTribunalCheckout: () => Promise<string | null>
-  verifyAndUnlockTribunal: (paymentLinkId: string, sessionId: string) => Promise<void>
   pipelinePreference: 'legacy' | 'langgraph'
   setPipelinePreference: (p: 'legacy' | 'langgraph') => void
   devUnlock: (useLangGraph?: boolean) => Promise<void>
-  devUnlockTribunal: () => Promise<void>
   devRerunMasterplan: (useLangGraph?: boolean) => Promise<void>
   lastPipeline: 'legacy' | 'langgraph'
   devSeedConversation: () => Promise<void>
@@ -200,7 +156,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   authToken: null,
   tokenGetter: null,
   isAdmin: false,
-  authReady: false,
   paymentRequired: false,
   isUnlocking: false,
   streamError: null,
@@ -210,14 +165,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   pipelinePreference: (typeof localStorage !== 'undefined'
     ? (localStorage.getItem('socra_pipeline') as 'legacy' | 'langgraph') || 'legacy'
     : 'legacy') as 'legacy' | 'langgraph',
-  tribunalStreaming: false,
-  tribunalActivePersona: null,
-  tribunalPersonaStreams: {},
-  tribunalRound: 1,
-  tribunalPaymentRequired: false,
 
   setAuthToken: (token) => set({ authToken: token }),
-  setAuthReady: (ready) => set({ authReady: ready }),
   setPipelinePreference: (p) => {
     localStorage.setItem('socra_pipeline', p)
     set({ pipelinePreference: p })
@@ -262,13 +211,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
-  createSession: async (idea: string, mode = 'standard') => {
-    set({ isLoading: true, sessionError: null, paymentRequired: false, tribunalPaymentRequired: false, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isUnlocking: false })
+  createSession: async (idea: string) => {
+    set({ isLoading: true, sessionError: null, paymentRequired: false, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isUnlocking: false })
     const authToken = await get().getFreshToken()
     try {
       const { data } = await axios.post<SessionData>(
         `${API_URL}/sessions/`,
-        { idea, mode },
+        { idea },
         { headers: authHeaders(authToken) },
       )
       set({ session: data, currentChoices: data.choices ?? [], sessionError: null })
@@ -279,9 +228,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         total_score: data.total_score,
         has_masterplan: !!data.masterplan,
         created_at: new Date().toISOString(),
-        mode: data.mode ?? 'standard',
-        tribunal_rounds_done: Math.floor((data.tribunal_history?.length ?? 0) / 4),
-        tribunal_verdict_grade: data.tribunal_verdicts?.grade ?? null,
       }
       saveToLocalStorage(summary)
       set((s) => ({ sessionHistory: [summary, ...s.sessionHistory.filter((x) => x.id !== data.id)] }))
@@ -294,15 +240,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   resumeSession: async (sessionId: string) => {
-    set({ isLoading: true, paymentRequired: false, tribunalPaymentRequired: false, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isResearching: false, isUnlocking: false })
+    set({ isLoading: true, paymentRequired: false, streamingMessage: '', currentAgentReports: [], isAnalyzing: false, isResearching: false, isUnlocking: false })
     const authToken = await get().getFreshToken()
     try {
       const { data } = await axios.get<SessionData>(`${API_URL}/sessions/${sessionId}`, {
         headers: authHeaders(authToken),
       })
-      // Restore tribunal round from history length
-      const tRound = Math.floor((data.tribunal_history?.length ?? 0) / 4) + 1
-      set({ session: data, tribunalRound: tRound })
+      set({ session: data })
     } finally {
       set({ isLoading: false })
     }
@@ -385,7 +329,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
               total_score: updated.total_score,
               has_masterplan: !!updated.masterplan,
               created_at: new Date().toISOString(),
-              mode: updated.mode ?? 'standard',
             })
           }
         }
@@ -398,107 +341,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     } finally {
       if (tokenTimer) clearTimeout(tokenTimer)
       set({ isSending: false, streamingMessage: '', isAnalyzing: false, isResearching: false })
-    }
-  },
-
-  sendTribunalMessage: async (content: string) => {
-    const { session, tribunalRound } = get()
-    if (!session) return
-    const authToken = await get().getFreshToken()
-
-    set({
-      tribunalStreaming: true,
-      tribunalActivePersona: null,
-      tribunalPersonaStreams: {},
-    })
-
-    // Watchdog: if no SSE data arrives for 90s the provider stream has stalled —
-    // abort so the UI recovers instead of freezing forever. Reset on every chunk.
-    const controller = new AbortController()
-    let watchdog: ReturnType<typeof setTimeout> | undefined
-    const armWatchdog = () => {
-      if (watchdog) clearTimeout(watchdog)
-      watchdog = setTimeout(() => controller.abort(), 90000)
-    }
-
-    try {
-      armWatchdog()
-      const response = await fetch(`${API_URL}/sessions/${session.id}/tribunal/message`, {
-        method: 'POST',
-        headers: authHeaders(authToken),
-        body: JSON.stringify({ content }),
-        signal: controller.signal,
-      })
-
-      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        armWatchdog()
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const payload = JSON.parse(line.slice(6))
-
-          if (payload.type === 'persona_token') {
-            set((s) => ({
-              tribunalActivePersona: payload.persona,
-              tribunalPersonaStreams: {
-                ...s.tribunalPersonaStreams,
-                [payload.persona]: (s.tribunalPersonaStreams[payload.persona] ?? '') + payload.delta,
-              },
-            }))
-
-          } else if (payload.type === 'persona_done') {
-            // Lock in the final content for this persona
-            set((s) => ({
-              tribunalActivePersona: null,
-              tribunalPersonaStreams: {
-                ...s.tribunalPersonaStreams,
-                [payload.persona]: payload.content,
-              },
-            }))
-
-          } else if (payload.type === 'round_complete') {
-            const updatedHistory: TribunalTurn[] = payload.tribunal_history
-            set((s) => ({
-              tribunalRound: tribunalRound + 1,
-              tribunalPersonaStreams: {},
-              session: s.session
-                ? { ...s.session, tribunal_history: updatedHistory }
-                : null,
-            }))
-
-          } else if (payload.type === 'payment_required') {
-            // round_complete already fired — history is up to date in session state
-            set({ tribunalPaymentRequired: true })
-
-          } else if (payload.type === 'tribunal_verdict') {
-            set((s) => ({
-              session: s.session
-                ? { ...s.session, tribunal_verdicts: payload.verdicts }
-                : null,
-            }))
-          }
-        }
-      }
-    } catch (err) {
-      const aborted = err instanceof DOMException && err.name === 'AbortError'
-      console.error('[sendTribunalMessage] failed:', err)
-      alert(aborted
-        ? 'The tribunal stalled (no response in 90s). Please send your message again.'
-        : `Tribunal message failed: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      if (watchdog) clearTimeout(watchdog)
-      set({ tribunalStreaming: false, tribunalActivePersona: null })
     }
   },
 
@@ -525,31 +367,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const successUrl = `${window.location.origin}/?sid=${session.id}`
       const { data } = await axios.post<{ checkout_url?: string; already_paid?: boolean }>(
         `${API_URL}/billing/checkout`,
-        { session_id: session.id, success_url: successUrl, mode: 'standard' },
+        { session_id: session.id, success_url: successUrl },
         { headers: authHeaders(authToken) },
       )
       if (data.already_paid) {
         set({ paymentRequired: false })
-        return null
-      }
-      return data.checkout_url ?? null
-    } catch {
-      return null
-    }
-  },
-
-  createTribunalCheckout: async () => {
-    const { session, authToken } = get()
-    if (!session) return null
-    try {
-      const successUrl = `${window.location.origin}/?tribunal_sid=${session.id}`
-      const { data } = await axios.post<{ checkout_url?: string; already_paid?: boolean }>(
-        `${API_URL}/billing/checkout`,
-        { session_id: session.id, success_url: successUrl, mode: 'tribunal' },
-        { headers: authHeaders(authToken) },
-      )
-      if (data.already_paid) {
-        set({ tribunalPaymentRequired: false })
         return null
       }
       return data.checkout_url ?? null
@@ -564,7 +386,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     try {
       await axios.post(
         `${API_URL}/billing/verify`,
-        { payment_link_id: paymentLinkId, session_id: sessionId, mode: 'standard' },
+        { payment_link_id: paymentLinkId, session_id: sessionId },
         { headers: authHeaders(authToken) },
       )
 
@@ -616,41 +438,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
               total_score: updated.total_score,
               has_masterplan: !!updated.masterplan,
               created_at: new Date().toISOString(),
-              mode: updated.mode ?? 'standard',
             })
           }
         }
       }
     } catch { /* silent */ } finally {
       set({ isUnlocking: false, isAnalyzing: false })
-    }
-  },
-
-  verifyAndUnlockTribunal: async (paymentLinkId: string, sessionId: string) => {
-    const { authToken } = get()
-    set({ isUnlocking: true })
-    try {
-      await axios.post(
-        `${API_URL}/billing/verify`,
-        { payment_link_id: paymentLinkId, session_id: sessionId, mode: 'tribunal' },
-        { headers: authHeaders(authToken) },
-      )
-
-      // Unlock generates verdicts
-      const { data } = await axios.post(
-        `${API_URL}/sessions/${sessionId}/tribunal/unlock`,
-        {},
-        { headers: authHeaders(authToken) },
-      )
-
-      set((s) => ({
-        tribunalPaymentRequired: false,
-        session: s.session
-          ? { ...s.session, tribunal_paid: true, tribunal_verdicts: data.verdicts }
-          : null,
-      }))
-    } catch { /* silent */ } finally {
-      set({ isUnlocking: false })
     }
   },
 
@@ -707,34 +500,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       alert(`Dev unlock failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       set({ isUnlocking: false, isAnalyzing: false })
-    }
-  },
-
-  devUnlockTribunal: async () => {
-    const { session } = get()
-    if (!session) return
-    set({ isUnlocking: true })
-    try {
-      const token = await get().getFreshToken()
-      await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, {
-        headers: authHeaders(token),
-      })
-      const { data } = await axios.post(
-        `${API_URL}/sessions/${session.id}/tribunal/unlock`,
-        {},
-        { headers: authHeaders(token) },
-      )
-      set((s) => ({
-        tribunalPaymentRequired: false,
-        session: s.session
-          ? { ...s.session, tribunal_paid: true, tribunal_verdicts: data.verdicts }
-          : null,
-      }))
-    } catch (err) {
-      console.error('[devUnlockTribunal] failed:', err)
-      alert(`Dev unlock failed: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      set({ isUnlocking: false })
     }
   },
 
@@ -845,10 +610,5 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     streamError: null,
     savedFlash: false,
     lastSentMessage: '',
-    tribunalStreaming: false,
-    tribunalActivePersona: null,
-    tribunalPersonaStreams: {},
-    tribunalRound: 1,
-    tribunalPaymentRequired: false,
   }),
 }))

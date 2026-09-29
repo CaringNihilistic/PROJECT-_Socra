@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
     razorpay_price_amount: int = 49900       # paise; 49900 = ₹499
-    razorpay_tribunal_amount: int = 19900    # paise; 19900 = ₹199
     resend_api_key: str = ""
     frontend_origin: str = "http://localhost:5173"
     admin_secret: str = ""  # Legacy — retained for back-compat; admin actions now use admin_emails

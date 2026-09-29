@@ -64,10 +64,6 @@ async def send_follow_up_emails(
     failed = 0
     async with httpx.AsyncClient() as client:
         for sess in sessions:
-            grade = None
-            if sess.tribunal_verdicts and isinstance(sess.tribunal_verdicts, dict):
-                grade = sess.tribunal_verdicts.get("composite_grade")
-
             scores = [sess.problem_clarity, sess.scale_constraints, sess.tech_context,
                       sess.success_definition, sess.risk_awareness]
             if all(s is not None for s in scores):
@@ -80,7 +76,7 @@ async def send_follow_up_emails(
             if len(sess.initial_idea or "") > 80:
                 idea_short += "…"
 
-            html = _build_email_html(idea_short, grade, score_line, sess.created_at)
+            html = _build_email_html(idea_short, score_line, sess.created_at)
 
             resp = await client.post(
                 "https://api.resend.com/emails",
@@ -106,19 +102,7 @@ async def send_follow_up_emails(
     return {"sent": sent, "failed": failed, "total": len(sessions)}
 
 
-def _build_email_html(idea: str, grade: str | None, score_line: str, created_at) -> str:
-    grade_color = {
-        "GREENLIT": "#34d399",
-        "STRONG": "#f59e0b",
-        "CHALLENGED": "#e85d26",
-        "REJECTED": "#dc2626",
-    }.get(grade or "", "#8a8578")
-
-    grade_badge = (
-        f'<span style="color:{grade_color};font-weight:700;">{grade}</span>. '
-        if grade else ""
-    )
-
+def _build_email_html(idea: str, score_line: str, created_at) -> str:
     run_date = ""
     if created_at:
         try:
@@ -144,7 +128,7 @@ def _build_email_html(idea: str, grade: str | None, score_line: str, created_at)
       <tr><td style="padding:20px 36px 0;">
         <p style="margin:0;font-size:14px;color:#8a8578;line-height:1.75;">
           {f'On {run_date}, you' if run_date else 'You'} ran <strong style="color:#f5f0e8;">"{idea}"</strong> through Socra's interrogation.
-          {grade_badge}{score_line}
+          {score_line}
         </p>
         <p style="margin:16px 0 0;font-size:14px;color:#8a8578;line-height:1.75;">
           90 days is enough time to have shipped, pivoted, or moved on entirely.

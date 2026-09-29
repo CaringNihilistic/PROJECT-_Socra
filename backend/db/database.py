@@ -1,11 +1,30 @@
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from core.config import settings
 
-db_url = settings.database_url.replace("postgresql://", "postgresql+asyncpg://")
+
+def _asyncpg_url(raw: str) -> tuple[URL, dict]:
+    """Turn a libpq-style DATABASE_URL into an asyncpg URL + connect args.
+
+    Managed Postgres hosts (Neon, Render) hand out URLs like
+    postgres://...?sslmode=require&channel_binding=require. asyncpg rejects
+    those libpq query params as unknown connect() kwargs, so strip them and
+    pass the SSL mode through asyncpg's own `ssl` argument instead.
+    """
+    url = make_url(raw).set(drivername="postgresql+asyncpg")
+    query = dict(url.query)
+    sslmode = query.pop("sslmode", None)
+    query.pop("channel_binding", None)
+    connect_args = {"ssl": sslmode} if sslmode and sslmode != "disable" else {}
+    return url.set(query=query), connect_args
+
+
+db_url, _connect_args = _asyncpg_url(settings.database_url)
 
 engine = create_async_engine(
     db_url,
+    connect_args=_connect_args,
     echo=False,
     pool_pre_ping=True,
     pool_size=10,
@@ -42,15 +61,6 @@ async def init_db():
         ))
         await conn.execute(text(
             "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS mode VARCHAR DEFAULT 'standard'"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS tribunal_history JSONB DEFAULT '[]'::jsonb"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS tribunal_verdicts JSONB"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS tribunal_paid BOOLEAN DEFAULT FALSE"
         ))
         await conn.execute(text(
             "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS follow_up_email VARCHAR(320)"

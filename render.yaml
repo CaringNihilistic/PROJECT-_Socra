@@ -1,0 +1,77 @@
+# Render Blueprint — free-tier deploy for Socra.
+#
+# Backend:  Docker web service on the free plan. Sleeps after 15 min without
+#           traffic; the next request takes ~1 min to cold-start.
+# Frontend: static site (free, never sleeps).
+# Database: NOT provisioned here. Render's free Postgres is deleted 30 days after
+#           creation, so use a free Neon database and paste its connection
+#           string (with "Connection pooling" turned OFF) into DATABASE_URL.
+# Redis:    not needed — nothing in the backend uses it.
+#
+# Every `sync: false` value is prompted for when the Blueprint is first created.
+
+services:
+  - type: web
+    name: socra-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL            # Neon direct connection string
+        sync: false
+      - key: FRONTEND_ORIGIN         # https://<frontend>.onrender.com (no trailing slash)
+        sync: false
+      - key: STUB_MODE               # config defaults to "true"; must be off in production
+        value: "false"
+      - key: SECRET_KEY              # also the X-Admin-Secret for POST /admin/send-follow-ups
+        generateValue: true
+      - key: LANGGRAPH_ENABLED
+        value: "true"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_FRONTEND_API_URL
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+      - key: LANGFUSE_HOST
+        sync: false
+
+  - type: web
+    name: socra-frontend
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    # SPA fallback: /share/:id, /card/:id and /compare/:a/:b are client-side routes
+    routes:
+      - type: rewrite
+        source: /.*
+        destination: /index.html
+    envVars:                         # VITE_* are baked in at build time
+      - key: VITE_API_URL            # https://<backend>.onrender.com (no trailing slash)
+        sync: false
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_RAZORPAY_KEY_ID    # leave unset and every visitor sees the [DEV] shortcuts
+        sync: false

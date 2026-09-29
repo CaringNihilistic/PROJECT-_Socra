@@ -21,7 +21,6 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 class CreateSessionRequest(BaseModel):
     idea: str = Field(..., min_length=1, max_length=2000)
-    mode: str = "standard"  # "standard" | "tribunal"
 
 
 class AssumptionUpdateRequest(BaseModel):
@@ -57,20 +56,15 @@ def _serialize(session: Session) -> dict:
         "pitch_deck": session.pitch_deck,
         "explanations": get_score_explanation(scores),
         "paid": bool(session.paid),
-        "mode": session.mode or "standard",
-        "tribunal_history": session.tribunal_history or [],
-        "tribunal_verdicts": session.tribunal_verdicts,
-        "tribunal_paid": bool(session.tribunal_paid),
     }
 
 
 def _serialize_public(session: Session) -> dict:
     """Public/shareable view of a session — omits the private conversation
-    transcripts. Used for share/card/compare links when the requester is not
+    transcript. Used for share/card/compare links when the requester is not
     the session owner or an admin."""
     data = _serialize(session)
     data["conversation_history"] = []
-    data["tribunal_history"] = []
     return data
 
 
@@ -82,7 +76,6 @@ def _serialize_summary(session: Session) -> dict:
         "success_definition": session.success_definition,
         "risk_awareness": session.risk_awareness,
     }
-    tribunal_history = session.tribunal_history or []
     return {
         "id": session.id,
         "initial_idea": session.initial_idea,
@@ -90,9 +83,6 @@ def _serialize_summary(session: Session) -> dict:
         "total_score": compute_total_score(scores),
         "has_masterplan": session.masterplan is not None,
         "created_at": session.created_at.isoformat() if session.created_at else None,
-        "mode": session.mode or "standard",
-        "tribunal_rounds_done": len(tribunal_history) // 4,
-        "tribunal_verdict_grade": (session.tribunal_verdicts or {}).get("grade"),
     }
 
 
@@ -126,12 +116,15 @@ async def list_sessions(
     # Admins may list every session with ?all=1
     if all and await is_admin(authorization):
         result = await db.execute(
-            select(Session).order_by(desc(Session.created_at)).limit(100)
+            select(Session)
+            .where(Session.mode.is_distinct_from("tribunal"))
+            .order_by(desc(Session.created_at))
+            .limit(100)
         )
     else:
         result = await db.execute(
             select(Session)
-            .where(Session.user_id == user_id)
+            .where(Session.user_id == user_id, Session.mode.is_distinct_from("tribunal"))
             .order_by(desc(Session.created_at))
             .limit(20)
         )
@@ -145,22 +138,6 @@ async def create_session(
     authorization: Optional[str] = Header(None),
 ):
     user_id = await get_user_id(authorization)
-
-    if req.mode == "tribunal":
-        session = Session(
-            id=str(uuid.uuid4()),
-            user_id=user_id,
-            initial_idea=req.idea,
-            mode="tribunal",
-            conversation_history=[],
-            assumptions=[],
-            phase="intake",
-            turn_number=0,
-        )
-        db.add(session)
-        await db.commit()
-        await db.refresh(session)
-        return {**_serialize(session), "choices": []}
 
     initial_history = [{"role": "user", "content": req.idea}]
     initial_scores = {k: 0.0 for k in ("problem_clarity", "scale_constraints", "tech_context", "success_definition", "risk_awareness")}
@@ -179,7 +156,7 @@ async def create_session(
         id=str(uuid.uuid4()),
         user_id=user_id,
         initial_idea=req.idea,
-        mode=req.mode,
+        mode="standard",
         conversation_history=initial_history,
         assumptions=llm_response.get("new_assumptions", []),
         problem_clarity=updated_scores["problem_clarity"],
@@ -210,7 +187,8 @@ async def get_session(
     # accessing it via a shared link gets the redacted public view.
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
-    if not session:
+    # Tribunal mode was removed; legacy tribunal rows have no viewable page.
+    if not session or session.mode == "tribunal":
         raise HTTPException(404, "Session not found")
     if await _is_owner_or_admin(session, authorization):
         return _serialize(session)
@@ -235,10 +213,10 @@ async def admin_mark_paid(
         raise HTTPException(404, "Session not found")
 
     await db.execute(
-        update(Session).where(Session.id == session_id).values(paid=True, tribunal_paid=True)
+        update(Session).where(Session.id == session_id).values(paid=True)
     )
     await db.commit()
-    return {"ok": True, "paid": True, "tribunal_paid": True, "session_id": session_id}
+    return {"ok": True, "paid": True, "session_id": session_id}
 
 
 @router.patch("/{session_id}/assumptions")

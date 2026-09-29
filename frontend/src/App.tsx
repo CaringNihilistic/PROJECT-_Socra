@@ -3,7 +3,6 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-react'
 import { useSessionStore } from './store/sessionStore'
 import { LandingPage } from './components/LandingPage'
 import { SessionPage } from './components/SessionPage'
-import { TribunalPage } from './components/TribunalPage'
 import { SharePage } from './components/SharePage'
 import { ComparePage } from './components/ComparePage'
 import { CardPage } from './components/CardPage'
@@ -22,19 +21,13 @@ const CARD_SESSION_ID = cardMatch ? cardMatch[1] : null
 const compareMatch = window.location.pathname.match(/^\/compare\/([^/]+)\/([^/]+)$/)
 const COMPARE_IDS = compareMatch ? [compareMatch[1], compareMatch[2]] as const : null
 
-// Detect Razorpay payment return
-// Standard: /?sid=Y&razorpay_payment_link_id=X&razorpay_payment_link_status=paid
-// Tribunal:  /?tribunal_sid=Y&razorpay_payment_link_id=X&razorpay_payment_link_status=paid
+// Detect Razorpay payment return: /?sid=Y&razorpay_payment_link_id=X&razorpay_payment_link_status=paid
 function getPaymentReturn() {
   const p = new URLSearchParams(window.location.search)
   const status = p.get('razorpay_payment_link_status')
   const linkId = p.get('razorpay_payment_link_id')
   const sid = p.get('sid')
-  const tribunalSid = p.get('tribunal_sid')
-  if (status === 'paid' && linkId) {
-    if (tribunalSid) return { paymentLinkId: linkId, sessionId: tribunalSid, mode: 'tribunal' as const }
-    if (sid) return { paymentLinkId: linkId, sessionId: sid, mode: 'standard' as const }
-  }
+  if (status === 'paid' && linkId && sid) return { paymentLinkId: linkId, sessionId: sid }
   return null
 }
 const PAYMENT_RETURN = getPaymentReturn()
@@ -43,14 +36,12 @@ const PAYMENT_RETURN = getPaymentReturn()
 function ClerkSync() {
   const { getToken, isSignedIn, isLoaded } = useAuth()
   const setAuthToken = useSessionStore((s) => s.setAuthToken)
-  const setAuthReady = useSessionStore((s) => s.setAuthReady)
   const setTokenGetter = useSessionStore((s) => s.setTokenGetter)
   const loadSessionHistory = useSessionStore((s) => s.loadSessionHistory)
   const loadMe = useSessionStore((s) => s.loadMe)
 
   useEffect(() => {
-    // Wait until Clerk has resolved the auth state before signalling readiness,
-    // so token-dependent actions (e.g. tribunal auto-send) don't race the token.
+    // Wait until Clerk has resolved the auth state before touching tokens.
     if (!isLoaded) return
 
     // Register Clerk's getToken so store actions can fetch a FRESH token per request.
@@ -59,7 +50,6 @@ function ClerkSync() {
 
     if (!isSignedIn) {
       setAuthToken(null)
-      setAuthReady(true)
       return
     }
 
@@ -69,7 +59,7 @@ function ClerkSync() {
       await loadMe()
     }
 
-    refresh().finally(() => setAuthReady(true))
+    refresh()
     loadSessionHistory()
 
     // Clerk tokens expire in 1 h — refresh every 45 min
@@ -84,27 +74,18 @@ function AppShell() {
   const session = useSessionStore((s) => s.session)
   const loadSessionHistory = useSessionStore((s) => s.loadSessionHistory)
   const verifyAndUnlock = useSessionStore((s) => s.verifyAndUnlock)
-  const verifyAndUnlockTribunal = useSessionStore((s) => s.verifyAndUnlockTribunal)
-  const resumeSession = useSessionStore((s) => s.resumeSession)
 
   useEffect(() => {
     loadSessionHistory()
 
-    if (PAYMENT_RETURN?.paymentLinkId && PAYMENT_RETURN?.sessionId) {
+    if (PAYMENT_RETURN) {
       window.history.replaceState({}, '', window.location.pathname)
-      if (PAYMENT_RETURN.mode === 'tribunal') {
-        // Load the session first so TribunalPage renders, then unlock verdicts
-        resumeSession(PAYMENT_RETURN.sessionId).then(() => {
-          verifyAndUnlockTribunal(PAYMENT_RETURN!.paymentLinkId, PAYMENT_RETURN!.sessionId)
-        })
-      } else {
-        verifyAndUnlock(PAYMENT_RETURN.paymentLinkId, PAYMENT_RETURN.sessionId)
-      }
+      verifyAndUnlock(PAYMENT_RETURN.paymentLinkId, PAYMENT_RETURN.sessionId)
     }
   }, [])
 
   if (!session) return <LandingPage />
-  return session.mode === 'tribunal' ? <TribunalPage /> : <SessionPage />
+  return <SessionPage />
 }
 
 export default function App() {

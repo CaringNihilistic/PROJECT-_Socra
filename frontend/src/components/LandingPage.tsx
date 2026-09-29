@@ -310,7 +310,6 @@ export function LandingPage() {
   const [waitlistLoading, setWaitlistLoading] = useState(false)
   const [waitlistError, setWaitlistError] = useState('')
   // Compare flow: store the first selected session ID (pre-seeded from ?compare= param)
-  const [mode, setMode] = useState<'standard' | 'tribunal'>('standard')
   const [compareId, setCompareId] = useState<string | null>(() => {
     const p = new URLSearchParams(window.location.search)
     return p.get('compare')
@@ -331,10 +330,10 @@ export function LandingPage() {
     }
   }
 
-  const handleSubmit = async (overrideMode?: 'standard' | 'tribunal') => {
+  const handleSubmit = async () => {
     const trimmed = idea.trim()
     if (!trimmed || isLoading) return
-    await createSession(trimmed, overrideMode ?? mode)
+    await createSession(trimmed)
   }
 
   const handleWaitlist = async () => {
@@ -379,7 +378,6 @@ export function LandingPage() {
     { title: 'The Council, 5 AI Advisors', desc: 'The Banker, Oracle, Challenger, Builder, and Skeptic. Five distinct voices, each looking for a different reason your idea fails. The Chairman synthesizes their verdict.', tc: '#a78bfa' },
     { title: 'Live Web Research', desc: 'The council searches for real competitor data, market sizing, and pricing benchmarks before writing their reports. Named companies, real numbers. Not hallucinations.', tc: '#22d3ee' },
     { title: "Devil's Advocate", desc: '5 specific reasons this plan fails: regulatory exposure, unit economics, timing, competitive response, execution gaps. The critique that saves you 6 months of wrong building.', tc: '#e05555' },
-    { title: 'Tribunal Mode', desc: 'Three adversarial judges (Investor, Customer, Competitor) interrogate you over 4 rounds then deliver a scored Pass/Fail verdict. A faster, harsher test for founders who want a direct answer.', tc: '#f59e0b' },
     { title: 'Idea Comparison', desc: 'Compare two sessions side by side: scores, council reports, and architecture. Useful when deciding between two directions before committing to either.', tc: '#f59e0b' },
     { title: "Chairman's Masterplan", desc: 'Full markdown verdict: system design, tech stack, data model, scaling strategy, and risk register. Synthesized from the council findings. Exportable as .md or shareable via link.', tc: '#34d399' },
   ]
@@ -465,33 +463,16 @@ export function LandingPage() {
             />
             <div className="border-t border-ink-800/60 px-4 py-3">
               <div className="flex items-center gap-2">
-                {/* Tribunal button */}
-                <button
-                  onClick={() => handleSubmit('tribunal')}
-                  disabled={!idea.trim() || isLoading}
-                  className="flex-1 flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-xl border transition-all duration-200 disabled:opacity-30"
-                  style={{
-                    background: mode === 'tribunal' && idea.trim() ? 'rgba(245,158,11,0.08)' : 'transparent',
-                    borderColor: mode === 'tribunal' && idea.trim() ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.06)',
-                    cursor: idea.trim() && !isLoading ? 'pointer' : 'not-allowed',
-                  }}
-                  onMouseEnter={() => setMode('tribunal')}
-                >
-                  <span className="text-[12px] font-semibold text-amber-400">Quick Tribunal</span>
-                  <span className="text-[10px] font-mono text-ink-400">Free · Pass/Fail verdict</span>
-                </button>
-
                 {/* Full analysis button */}
                 <button
-                  onClick={() => handleSubmit('standard')}
+                  onClick={() => handleSubmit()}
                   disabled={!idea.trim() || isLoading}
                   className="flex-1 flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-xl border transition-all duration-200 disabled:opacity-30"
                   style={{
-                    background: mode === 'standard' && idea.trim() ? 'rgba(245,158,11,0.08)' : 'transparent',
-                    borderColor: mode === 'standard' && idea.trim() ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.06)',
+                    background: idea.trim() ? 'rgba(245,158,11,0.08)' : 'transparent',
+                    borderColor: idea.trim() ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.06)',
                     cursor: idea.trim() && !isLoading ? 'pointer' : 'not-allowed',
                   }}
-                  onMouseEnter={() => setMode('standard')}
                 >
                   <span className="text-[12px] font-semibold" style={{ color: idea.trim() ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.3)' }}>
                     Full Analysis
@@ -567,55 +548,28 @@ export function LandingPage() {
             <div className="flex flex-col gap-1.5">
               {sessionHistory.slice(0, 6).map((s) => {
                 const isSelected = s.id === compareId
-                const isTribunal = s.mode === 'tribunal'
-                const gradeColor: Record<string, string> = {
-                  GREENLIT: '#34d399', STRONG: '#f59e0b', CHALLENGED: '#e85d26', REJECTED: '#dc2626',
-                }
-                const tColor = s.tribunal_verdict_grade ? gradeColor[s.tribunal_verdict_grade] ?? '#f59e0b' : '#f59e0b'
                 return (
                   <div key={s.id}
                     className="group flex items-center gap-2 rounded-xl border transition-all"
                     style={{
-                      borderColor: isSelected ? 'rgba(245,158,11,0.35)' : isTribunal ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.06)',
+                      borderColor: isSelected ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.06)',
                       background: isSelected ? 'rgba(245,158,11,0.05)' : 'transparent',
                     }}>
                     <button onClick={() => resumeSession(s.id)} disabled={isLoading}
                       className="flex-1 text-left px-4 py-3 flex items-center gap-3 min-w-0">
-                      {isTribunal && (
-                        <span className="text-[9px] font-mono font-bold tracking-widest px-1.5 py-0.5 rounded border flex-shrink-0"
-                          style={{ color: '#f59e0b', borderColor: 'rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.06)' }}>
-                          ⚖️
-                        </span>
-                      )}
                       <p className="flex-1 text-[13px] text-ink-400 group-hover:text-ink-200 transition-colors truncate leading-relaxed">{s.initial_idea}</p>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {isTribunal ? (
-                          s.tribunal_verdict_grade ? (
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border" style={{
-                              color: tColor, borderColor: `${tColor}35`, background: `${tColor}10`,
-                            }}>
-                              {s.tribunal_verdict_grade}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-mono text-amber-500/50">
-                              {s.tribunal_rounds_done ?? 0}/4 rounds
-                            </span>
-                          )
-                        ) : (
-                          <>
-                            {s.has_masterplan && <span className="text-[10px] font-mono text-emerald-500/60">✓</span>}
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border" style={{
-                              color: PHASE_COLORS[s.phase] ?? '#55545c',
-                              borderColor: `${PHASE_COLORS[s.phase] ?? '#55545c'}30`,
-                              background: `${PHASE_COLORS[s.phase] ?? '#55545c'}08`,
-                            }}>
-                              {Math.round(s.total_score * 100)}%
-                            </span>
-                          </>
-                        )}
+                        {s.has_masterplan && <span className="text-[10px] font-mono text-emerald-500/60">✓</span>}
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border" style={{
+                          color: PHASE_COLORS[s.phase] ?? '#55545c',
+                          borderColor: `${PHASE_COLORS[s.phase] ?? '#55545c'}30`,
+                          background: `${PHASE_COLORS[s.phase] ?? '#55545c'}08`,
+                        }}>
+                          {Math.round(s.total_score * 100)}%
+                        </span>
                       </div>
                     </button>
-                    {!isTribunal && s.has_masterplan && (
+                    {s.has_masterplan && (
                       <button
                         onClick={() => handleCompareClick(s.id)}
                         title={isSelected ? 'Deselect' : compareId ? 'Compare with selected' : 'Select to compare'}
@@ -641,7 +595,7 @@ export function LandingPage() {
       <div className="border-y border-ink-800/40 py-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.015)' }}>
         <div className="ticker-track flex gap-0">
           {[...Array(2)].flatMap(() =>
-            ['The Council, 5 AI advisors', 'Real web research', 'Tribunal mode', "Devil's advocate", 'Assumption tracker', "Chairman's masterplan", 'Shareable score card', 'We say no, with evidence'].map((t) => (
+            ['The Council, 5 AI advisors', 'Real web research', "Devil's advocate", 'Assumption tracker', "Chairman's masterplan", 'Shareable score card', 'We say no, with evidence'].map((t) => (
               <span key={t + Math.random()} className="flex items-center gap-2 px-8 text-[12px] font-mono text-ink-500">
                 {t} <span className="text-amber-500/40">◆</span>
               </span>
@@ -703,7 +657,7 @@ export function LandingPage() {
             {features.map((f, i) => (
               <div key={f.title}
                 className={`group rounded-xl overflow-hidden border border-ink-800/50 hover:border-ink-700/60 transition-all duration-300 ${
-                  i === 0 ? 'lg:col-span-2' : ''
+                  i === 0 ? 'lg:col-span-2' : i === features.length - 1 ? 'sm:col-span-2' : ''
                 }`}
                 style={{ background: 'rgba(255,255,255,0.012)' }}
                 onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 8px 32px ${f.tc}12` }}
@@ -730,7 +684,7 @@ export function LandingPage() {
             No paywalls. Use Socra fully at no cost. Donate if it helped you think clearly.
           </p>
 
-          <div className="grid sm:grid-cols-3 gap-4 text-left mb-6">
+          <div className="grid sm:grid-cols-2 gap-4 text-left mb-6">
             {/* Conversation — free */}
             <div className="rounded-2xl p-6 border border-ink-800/50" style={{ background: 'rgba(255,255,255,0.02)' }}>
               <p className="text-[12px] font-mono font-semibold text-ink-400 uppercase tracking-wider mb-3">Conversation</p>
@@ -752,39 +706,6 @@ export function LandingPage() {
               </div>
               <a href="#start" className="block w-full py-2.5 rounded-xl text-[13px] font-semibold text-center text-ink-300 border border-ink-700 hover:border-ink-600 transition-all">
                 Start free
-              </a>
-            </div>
-
-            {/* Tribunal — free, optional donation */}
-            <div className="rounded-2xl p-6 border relative overflow-hidden"
-              style={{ borderColor: 'rgba(232,93,38,0.25)', background: 'linear-gradient(135deg, rgba(232,93,38,0.04) 0%, rgba(245,158,11,0.02) 100%)' }}>
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <p className="text-[12px] font-mono font-semibold text-orange-400/80 uppercase tracking-wider">Tribunal</p>
-                <div className="text-[10px] font-mono text-orange-400/70 border border-orange-400/20 bg-orange-400/5 px-2 py-0.5 rounded-full whitespace-nowrap">
-                  Optional donation
-                </div>
-              </div>
-              <div className="flex items-end gap-1 mb-1">
-                <span className="font-display text-3xl font-extrabold text-ink-100">Free</span>
-                <span className="text-ink-400 mb-1 text-[13px]">· donate ₹199</span>
-              </div>
-              <p className="text-[12px] text-ink-400 mb-5">Faster verdict, brutal judges</p>
-              <div className="space-y-2 mb-6">
-                {[
-                  '3 adversarial judges',
-                  '4 interrogation rounds',
-                  'Pass/Fail verdict',
-                  'Shareable verdict card',
-                ].map(f => (
-                  <div key={f} className="flex gap-2 text-[13px] text-ink-300">
-                    <span className="text-orange-400/80">✓</span>{f}
-                  </div>
-                ))}
-              </div>
-              <a href="#start"
-                className="block w-full py-2.5 rounded-xl text-[13px] font-semibold text-center transition-all"
-                style={{ background: 'linear-gradient(135deg,#e85d26,#f59e0b)', color: '#080809' }}>
-                Start tribunal
               </a>
             </div>
 

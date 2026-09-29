@@ -28,10 +28,9 @@ class Session(Base):
 
     paid = Column(Boolean, default=False)
 
-    mode = Column(String, default="standard")       # "standard" | "tribunal"
-    tribunal_history = Column(JSON, default=list)
-    tribunal_verdicts = Column(JSON, nullable=True)
-    tribunal_paid = Column(Boolean, default=False)
+    # Always "standard" now. Kept so legacy rows from the removed Tribunal mode
+    # ("tribunal") can be filtered out of lists and lookups.
+    mode = Column(String, default="standard")
 
     follow_up_email = Column(String(320), nullable=True)
     follow_up_sent = Column(Boolean, default=False)
