@@ -21,8 +21,8 @@ services:
     envVars:
       - key: DATABASE_URL            # Neon direct connection string
         sync: false
-      - key: FRONTEND_ORIGIN         # https://<frontend>.onrender.com (no trailing slash)
-        sync: false
+      - key: FRONTEND_ORIGIN         # must exactly match the frontend URL (no trailing slash)
+        value: https://socra-frontend-efmq.onrender.com
       - key: STUB_MODE               # config defaults to "true"; must be off in production
         value: "false"
       - key: SECRET_KEY              # also the X-Admin-Secret for POST /admin/send-follow-ups
@@ -63,14 +63,15 @@ services:
     runtime: static
     buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: ./frontend/dist
-    # SPA fallback: /share/:id, /card/:id and /compare/:a/:b are client-side routes
+    # SPA fallback: /share/:id, /card/:id and /compare/:a/:b are client-side routes.
+    # Render matches a glob here (not a regex) and serves real files like /assets/* first.
     routes:
       - type: rewrite
-        source: /.*
+        source: /*
         destination: /index.html
     envVars:                         # VITE_* are baked in at build time
-      - key: VITE_API_URL            # https://<backend>.onrender.com (no trailing slash)
-        sync: false
+      - key: VITE_API_URL            # backend URL (no trailing slash)
+        value: https://socra-backend-efmq.onrender.com
       - key: VITE_CLERK_PUBLISHABLE_KEY
         sync: false
       - key: VITE_RAZORPAY_KEY_ID    # leave unset and every visitor sees the [DEV] shortcuts
