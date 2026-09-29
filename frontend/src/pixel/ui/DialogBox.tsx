@@ -16,7 +16,7 @@ export function DialogBox({ speaker, sprite, more = false, children }: DialogBox
       <Sprite name={sprite} size={96} />
       <div className="flex flex-col gap-2 min-w-0">
         <p className="font-pixel text-[11px] text-px-ghost">{speaker}</p>
-        <div className="font-read text-[19px] leading-relaxed text-px-ink">
+        <div className="font-term text-[26px] leading-snug text-px-ink">
           {children}
           {more && <span aria-hidden="true" className="pixel-blink font-pixel text-[11px] ml-2">▼</span>}
         </div>

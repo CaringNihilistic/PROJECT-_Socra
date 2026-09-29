@@ -16,6 +16,7 @@ Socra is being fully redesigned as a portfolio showpiece. Decisions made during 
 | In-character tone | Light touch | Fixed in-character lines in the UI; AI output and prompts unchanged |
 | Build approach | Custom pixel kit + one live "battle scene" for the Council | Original, light, accessible; the council animation is driven by the real parallel agent stream |
 | Sprite resolution | 32×32, shown only at whole-number scales | 16×16 looked blown-up at the sizes the app needs |
+| Text font | VT323 for **all** text, Press Start 2P for titles/names | User choice after reviewing the kit (replaces Atkinson Hyperlegible). Readability kept by size: 22px+ for reading |
 
 **The redesign is frontend-only.** No backend routes, prompts or data shapes change.
 
@@ -95,8 +96,7 @@ Type colours from §2 are tokens too (`px-steel`, `px-psychic`, `px-fighting`, `
 | Token | Font | Rule |
 |---|---|---|
 | `font-pixel` | Press Start 2P | Titles and names only. Never below 10px, never for sentences longer than a short label |
-| `font-term` | VT323 | Labels, stats, numbers. Never below 18px (small x-height) |
-| `font-read` | Atkinson Hyperlegible 400/700 | All long text: AI questions, advisor reports, masterplan |
+| `font-term` | VT323 | **All other text**, including AI questions, advisor reports and the masterplan. Never below 20px; 22px+ for anything read at length (small x-height); dialog text 26px |
 
 Loaded from Google Fonts with `display=swap`, **added alongside** the existing Bricolage/Onest/DM Mono so un-migrated screens don't change.
 
@@ -145,7 +145,7 @@ Unknown agent keys return `null` from `councilForAgentKey` so a renamed backend 
 | File | Change |
 |---|---|
 | `frontend/index.html` | Add the three Google Fonts |
-| `frontend/tailwind.config.js` | Add `px-*` colours, `font-pixel/term/read`, `@tailwindcss/typography` plugin, a `pixel` typography modifier (read font body, pixel-font h1–h2 at 12–14px, term-font table heads, `px-plan` links) |
+| `frontend/tailwind.config.js` | Add `px-*` colours, `font-pixel/term`, `@tailwindcss/typography` plugin, a `pixel` typography modifier (VT323 body at 22px, pixel-font h1–h2 at 12–14px, `px-plan` links) |
 | `frontend/src/index.css` | `.pixel-panel`, `.pixel-dialog`, `.pixel-btn` classes; idle-bob keyframes; reduced-motion rule |
 | `frontend/package.json` | Add `@tailwindcss/typography` ^0.5 and `vitest` ^2.1 (Vite 5 compatible); `"test": "vitest run"`. Tests live in `src/pixel/__tests__/` and are type-checked by `tsc` with everything else |
 | `.github/workflows/ci.yml` | New `frontend` job: `npm ci`, `npm run build`, `npm test` |

@@ -17,7 +17,7 @@ const SIZES: SpriteSize[] = [64, 96, 128]
 
 export function PixelPreview() {
   return (
-    <main className="min-h-screen bg-px-night text-px-screen font-read p-10 flex flex-col gap-12">
+    <main className="min-h-screen bg-px-night text-px-screen font-term text-[22px] p-10 flex flex-col gap-12">
       <header className="flex flex-col gap-3">
         <p className="font-term text-[24px] text-px-muted">DEV ONLY · /__pixel</p>
         <h1 className="font-pixel text-2xl leading-relaxed text-px-xp">Pixel kit preview</h1>
@@ -77,7 +77,7 @@ export function PixelPreview() {
               <div key={t.name} className="flex flex-col items-center gap-2">
                 <Sprite name={t.sprite} size={96} label={t.name} />
                 <span className="font-pixel text-[11px]">{t.name.toUpperCase()}</span>
-                <span className="text-px-soft text-sm text-center">{t.line}</span>
+                <span className="text-px-soft text-[20px] text-center">{t.line}</span>
               </div>
             ))}
           </div>
@@ -131,7 +131,7 @@ export function PixelPreview() {
       <PixelPanel title="MARKDOWN · prose-pixel">
         <div className="prose prose-pixel max-w-none">
           <h1>Chairman’s Verdict</h1>
-          <p>Long-form text stays in a readable font. Headings get the pixel face; <strong>bold</strong> and <a href="#top">links</a> use the kit colours.</p>
+          <p>Long-form text is VT323 at 22px. Headings get the pixel face; <strong>bold</strong> and <a href="#top">links</a> use the kit colours.</p>
           <h2>Risk Register</h2>
           <ul>
             <li>FERPA exposure on synced deadline data</li>

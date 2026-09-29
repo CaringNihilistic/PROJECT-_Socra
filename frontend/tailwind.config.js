@@ -48,11 +48,10 @@ export default {
         mono: ['"DM Mono"', 'monospace'],
         sans: ['"Onest"', 'sans-serif'],
         pixel: ['"Press Start 2P"', 'monospace'], // titles & names only, never below 10px
-        term: ['VT323', 'monospace'], // labels & numbers, never below 18px
-        read: ['"Atkinson Hyperlegible"', 'sans-serif'], // all long text
+        term: ['VT323', 'monospace'], // all text: never below 20px, 22px+ for reading
       },
       typography: ({ theme }) => ({
-        // `prose prose-pixel`: readable body, small pixel-face headings
+        // `prose prose-pixel`: VT323 body at 22px (small x-height needs the size), pixel-face headings
         pixel: {
           css: {
             '--tw-prose-body': theme('colors.px.soft'),
@@ -67,7 +66,9 @@ export default {
             '--tw-prose-code': theme('colors.px.xp'),
             '--tw-prose-th-borders': theme('colors.px.edge'),
             '--tw-prose-td-borders': theme('colors.px.edge'),
-            fontFamily: theme('fontFamily.read').join(', '),
+            fontFamily: theme('fontFamily.term').join(', '),
+            fontSize: '22px',
+            lineHeight: '1.4',
             'h1, h2': {
               fontFamily: theme('fontFamily.pixel').join(', '),
               fontWeight: '400',
