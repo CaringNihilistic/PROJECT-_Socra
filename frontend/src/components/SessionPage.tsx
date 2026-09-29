@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 // @ts-ignore
 import { useAuth, useClerk, UserButton } from '@clerk/clerk-react'
 import { useSessionStore } from '../store/sessionStore'
-import type { AgentReport, Assumption } from '../store/sessionStore'
+import type { Assumption } from '../store/sessionStore'
 import { EvalBar } from './EvalBar/EvalBar'
+import { EpisodePlayer } from './council/EpisodePlayer'
+import { Results } from './council/Results'
+import { resultsFromEpisode, resultsFromSession } from '../episode/results'
+import { canReplay } from '../episode/replay'
 
 
 import { FollowUpEmailCapture } from './FollowUpEmailCapture'
@@ -58,8 +61,6 @@ const PHASE_STEPS = [
 const PHASE_COLOR: Record<string, string> = {
   intake: '#8a8578', debate: '#f59e0b', stress_test: '#e85d26', masterplan: '#34d399',
 }
-
-const TOTAL_AGENTS = 5
 
 const STATUS_CYCLE: Record<Assumption['status'], Assumption['status']> = {
   unknown: 'validated',
@@ -137,81 +138,6 @@ function AssumptionsList({ assumptions }: { assumptions: Assumption[] }) {
   )
 }
 
-function AgentReportCard({ report, isNew }: { report: AgentReport; isNew?: boolean }) {
-  const [expanded, setExpanded] = useState(false)
-
-  return (
-    <div
-      className={`rounded-xl border overflow-hidden transition-all duration-300 ${isNew ? 'fade-up' : ''}`}
-      style={{ borderColor: `${report.color}25`, background: `${report.color}06` }}
-    >
-      <button
-        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/[0.02] transition-colors"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className="text-lg flex-shrink-0">{report.icon}</span>
-        <span className="text-[11px] font-mono font-semibold uppercase tracking-wider flex-1 text-left"
-          style={{ color: report.color }}>
-          {report.title}
-        </span>
-        <svg className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-          style={{ color: `${report.color}60` }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {expanded && (
-        <div className="px-4 pb-4 pt-1 border-t" style={{ borderColor: `${report.color}15` }}>
-          <div className="prose prose-invert prose-sm max-w-none
-            prose-p:text-ink-400 prose-p:leading-relaxed prose-p:my-1.5
-            prose-li:text-ink-400 prose-li:my-0.5
-            prose-strong:text-ink-200 prose-ul:my-1">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.content}</ReactMarkdown>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-
-function DevilsAdvocateCard({ report }: { report: AgentReport }) {
-  const [collapsed, setCollapsed] = useState(false)
-  return (
-    <div className="rounded-2xl border overflow-hidden fade-up"
-      style={{ borderColor: 'rgba(239,68,68,0.22)', background: 'rgba(239,68,68,0.025)' }}>
-      <button
-        className="w-full px-5 py-4 flex items-center gap-3 hover:bg-white/[0.01] transition-colors"
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        <span className="text-xl flex-shrink-0">💀</span>
-        <div className="flex-1 text-left">
-          <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-red-400/80">
-            Devil's Advocate
-          </div>
-          <div className="text-[11px] font-mono text-red-600/50 mt-0.5">
-            5 reasons this fails
-          </div>
-        </div>
-        <svg className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-          style={{ color: 'rgba(239,68,68,0.35)' }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {!collapsed && (
-        <div className="px-5 pb-5 pt-1 border-t" style={{ borderColor: 'rgba(239,68,68,0.10)' }}>
-          <div className="prose prose-invert prose-sm max-w-none
-            prose-p:text-red-300/65 prose-li:text-red-300/65 prose-strong:text-red-200/80
-            prose-ol:my-2 prose-ol:space-y-1">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report.content}</ReactMarkdown>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 const BILLING_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID
 
 function DonationCard({ onDismiss }: { onDismiss: () => void }) {
@@ -278,78 +204,43 @@ function DonationCard({ onDismiss }: { onDismiss: () => void }) {
 
 export function SessionPage() {
   const [input, setInput] = useState('')
-  const [copied, setCopied] = useState(false)
-  const [masterplanCopied, setMasterplanCopied] = useState(false)
-
-  const [view, setView] = useState<'chat' | 'council' | 'masterplan'>('chat')
+  const [view, setView] = useState<'chat' | 'results'>('chat')
   const {
-    session, isSending, streamingMessage, currentChoices,
-    currentAgentReports, isAnalyzing, isResearching, isUnlocking,
+    session, isSending, streamingMessage, currentChoices, isUnlocking,
     streamError, savedFlash, lastSentMessage, isAdmin, lastPipeline,
     pipelinePreference, setPipelinePreference,
+    episode, episodeOpen, skipEpisode, closeEpisode, replayEpisode, retryEpisode,
     sendMessage, clearSession, devUnlock, devRerunMasterplan, devSeedConversation,
   } = useSessionStore()
   const showDev = isAdmin || !BILLING_ENABLED
-
-  const [cardCopied, setCardCopied] = useState(false)
   const [showDonation, setShowDonation] = useState(true)
+  const episodeLive = !!episode && episode.beat !== 'done' && episode.beat !== 'failed'
 
-  const handleCopyMasterplan = () => {
-    if (!masterplan) return
-    navigator.clipboard.writeText(masterplan).then(() => {
-      setMasterplanCopied(true)
-      setTimeout(() => setMasterplanCopied(false), 2000)
-    })
-  }
-
-  const handleDownload = () => {
-    if (!masterplan || !session) return
-    const slug = session.initial_idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-    const blob = new Blob([masterplan], { type: 'text/markdown' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `socra-${slug}.md`; a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const handleShare = () => {
-    const url = `${window.location.origin}/share/${session?.id}`
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  const handleShareCard = () => {
-    const url = `${window.location.origin}/card/${session?.id}`
-    navigator.clipboard.writeText(url).then(() => {
-      setCardCopied(true)
-      setTimeout(() => setCardCopied(false), 2000)
-    })
-  }
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [session?.conversation_history.length, isSending, currentAgentReports.length])
+  }, [session?.conversation_history.length, isSending])
 
-  // Auto-navigate to council view when masterplan first arrives
+  // Land on results when the masterplan arrives, or when a running episode is skipped
   useEffect(() => {
-    if (session?.masterplan) setView('council')
+    if (session?.masterplan) setView('results')
   }, [!!session?.masterplan])
+  useEffect(() => {
+    if (episode?.skipped) setView('results')
+  }, [episode?.skipped])
 
   if (!session) return null
 
-  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions, agent_reports } = session
+  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions } = session
 
   const phaseColor = PHASE_COLOR[phase] || '#8a8578'
   const phaseIdx = PHASE_STEPS.findIndex(p => p.key === phase)
 
-  // Prefer stored agent_reports (from DB) over in-progress streaming ones
-  const displayReports = agent_reports?.length ? agent_reports : currentAgentReports
-  const specialistReports = displayReports.filter(r => r.key !== 'devils_advocate')
-  const devilReport = displayReports.find(r => r.key === 'devils_advocate')
+  // A skipped live episode shows its partial results until the saved session arrives
+  const hasResults = !!masterplan || (episodeLive && !!episode?.skipped)
+  const resultsData = episodeLive && episode ? resultsFromEpisode(episode) : resultsFromSession(session)
 
   const handleSend = async () => {
     const trimmed = input.trim()
@@ -372,8 +263,12 @@ export function SessionPage() {
 
       {/* Removed paywall — analysis is free, donation is optional */}
 
-      {/* Unlock in-progress overlay */}
-      {isUnlocking && (
+      {episodeOpen && episode && (
+        <EpisodePlayer episode={episode} onSkip={skipEpisode} onClose={closeEpisode} onRetry={retryEpisode} />
+      )}
+
+      {/* Unlock in-progress overlay (until the episode starts) */}
+      {isUnlocking && !episodeOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center"
           style={{ background: 'rgba(8,8,9,0.7)', backdropFilter: 'blur(8px)' }}>
           <div className="flex flex-col items-center gap-4">
@@ -436,12 +331,12 @@ export function SessionPage() {
             })}
           </div>
 
-          {/* View tabs — only visible once masterplan is unlocked */}
-          {masterplan && (
+          {/* View tabs — visible once there are results */}
+          {hasResults && (
             <div className="flex items-center gap-0 border-t border-ink-800/40 fade-up">
-              {(['chat', 'council', 'masterplan'] as const).map((v) => {
-                const labels = { chat: 'Chat', council: 'Council', masterplan: 'Masterplan' }
-                const icons = { chat: '◎', council: '⬡', masterplan: '▤' }
+              {(['chat', 'results'] as const).map((v) => {
+                const labels = { chat: 'Chat', results: 'Results' }
+                const icons = { chat: '◎', results: '▤' }
                 const isActive = view === v
                 return (
                   <button
@@ -464,114 +359,30 @@ export function SessionPage() {
         </div>
       </div>
 
-      {/* ── VIEW: COUNCIL ─────────────────────────────────────── */}
-      {view === 'council' && masterplan && (
-        <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-700 mb-1">The Council</div>
-              <div className="flex items-center gap-2">
-                <div className="text-[18px] font-display font-bold text-ink-100">Specialist Analysis</div>
-                {lastPipeline === 'langgraph' && (
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border"
-                    style={{ color: 'rgba(52,211,153,0.8)', borderColor: 'rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.06)' }}>
-                    ⬡ LangGraph
-                  </span>
-                )}
-              </div>
-              <div className="text-[11px] font-mono text-ink-700 mt-1">{specialistReports.length} of 5 advisors</div>
-            </div>
-            <div className="flex items-center gap-2">
-              {showDev && (
-                <button
-                  onClick={() => devRerunMasterplan(pipelinePreference === 'langgraph')}
-                  disabled={isUnlocking || isAnalyzing}
-                  className="px-3 py-2 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
-                  style={{ background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.2)', color: 'rgba(255,200,0,0.65)' }}
-                >
-                  {isUnlocking || isAnalyzing ? '…' : (isAdmin ? '[ADMIN] Re-run' : '[DEV] Re-run')}
-                </button>
-              )}
-              <button
-                onClick={() => setView('masterplan')}
-                className="px-4 py-2 rounded-xl font-mono text-[11px] font-semibold transition-all flex items-center gap-1.5"
-                style={{ background: 'linear-gradient(135deg, #34d399, #10b981)', color: '#08070a' }}
-              >
-                ▤ Masterplan
-              </button>
-            </div>
+      {/* ── VIEW: RESULTS ─────────────────────────────────────── */}
+      {view === 'results' && hasResults && (
+        <div className="flex-1 w-full bg-px-night">
+          <div className="max-w-5xl mx-auto px-6 py-10">
+            <Results
+              sessionId={session.id}
+              idea={session.initial_idea}
+              data={resultsData}
+              canReplay={canReplay(session)}
+              onReplay={replayEpisode}
+              rerun={showDev ? {
+                onClick: () => devRerunMasterplan(pipelinePreference === 'langgraph'),
+                busy: isUnlocking || episodeLive,
+                label: isAdmin ? '[ADMIN] RE-RUN' : '[DEV] RE-RUN',
+              } : undefined}
+              pipeline={lastPipeline}
+              footer={
+                <>
+                  <FollowUpEmailCapture sessionId={session.id} />
+                  {showDonation && <DonationCard onDismiss={() => setShowDonation(false)} />}
+                </>
+              }
+            />
           </div>
-
-          <div className="grid sm:grid-cols-2 gap-2 items-start">
-            {specialistReports.map((report) => (
-              <AgentReportCard key={report.key} report={report} isNew={false} />
-            ))}
-          </div>
-
-          {devilReport && <DevilsAdvocateCard report={devilReport} />}
-
-          <FollowUpEmailCapture sessionId={session.id} />
-        </div>
-      )}
-
-      {/* ── VIEW: MASTERPLAN ───────────────────────────────────── */}
-      {view === 'masterplan' && masterplan && (
-        <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <button onClick={() => setView('council')} className="text-[10px] font-mono text-ink-700 hover:text-ink-400 mb-1 transition-colors">← Back to Council</button>
-              <div className="text-[18px] font-display font-bold text-ink-100">Chairman's Masterplan</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCopyMasterplan}
-                className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all"
-              >{masterplanCopied ? '✓ Copied' : '⎘ Copy'}</button>
-              <button
-                onClick={handleDownload}
-                className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all"
-              >↓ .md</button>
-              <button
-                onClick={handleShare}
-                className="text-[10px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all"
-              >{copied ? '✓ Copied' : '↗ Share'}</button>
-              <button
-                onClick={handleShareCard}
-                className="text-[10px] font-mono text-ink-700 hover:text-amber-400 border border-ink-800/50 px-2.5 py-1 rounded-lg transition-all"
-              >{cardCopied ? '✓ Copied' : '🃏 Card'}</button>
-            </div>
-          </div>
-
-          {/* Masterplan body */}
-          <div className="rounded-2xl border overflow-hidden"
-            style={{ borderColor: 'rgba(52,211,153,0.15)', background: 'rgba(52,211,153,0.02)' }}>
-            <div className="flex items-center gap-2 px-5 py-3 border-b" style={{ borderColor: 'rgba(52,211,153,0.1)' }}>
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 6px #34d399' }} />
-              <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-emerald-400/70">Full Strategic Analysis</span>
-            </div>
-            <div className="px-7 py-7 prose prose-invert max-w-none
-              prose-headings:font-display prose-headings:tracking-tight
-              prose-h1:text-[20px] prose-h1:text-ink-50 prose-h1:font-bold prose-h1:mb-3
-              prose-h2:text-[11px] prose-h2:font-semibold prose-h2:uppercase prose-h2:tracking-[0.14em] prose-h2:text-emerald-400/70 prose-h2:mt-9 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-emerald-500/15
-              prose-h3:text-[14px] prose-h3:text-ink-200 prose-h3:font-semibold prose-h3:mt-5 prose-h3:mb-2
-              prose-p:text-ink-400 prose-p:leading-7 prose-p:text-[14px] prose-p:my-2
-              prose-li:text-ink-400 prose-li:text-[14px] prose-li:leading-6 prose-li:my-1
-              prose-ul:my-2 prose-ol:my-2 prose-strong:text-ink-200 prose-strong:font-semibold
-              prose-code:text-amber-300 prose-code:bg-amber-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
-              prose-pre:bg-ink-900/80 prose-pre:border prose-pre:border-ink-800/60 prose-pre:rounded-xl prose-pre:p-4
-              prose-table:text-[13px] prose-table:w-full prose-thead:border-b prose-thead:border-ink-700/50
-              prose-th:text-ink-500 prose-th:font-mono prose-th:text-[10px] prose-th:uppercase prose-th:tracking-wider prose-th:py-2.5 prose-th:px-4 prose-th:font-medium prose-th:bg-ink-900/40
-              prose-td:text-ink-400 prose-td:py-2.5 prose-td:px-4 prose-td:border-b prose-td:border-ink-800/40 prose-td:align-top prose-td:text-[13px] prose-td:leading-relaxed
-              prose-hr:border-ink-800/50 prose-hr:my-6
-              prose-blockquote:border-l-2 prose-blockquote:border-amber-500/30 prose-blockquote:text-ink-500 prose-blockquote:pl-4 prose-blockquote:not-italic">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{masterplan}</ReactMarkdown>
-            </div>
-          </div>
-
-
-          {showDonation && <DonationCard onDismiss={() => setShowDonation(false)} />}
-
-          <div className="h-6" />
         </div>
       )}
 
@@ -587,18 +398,8 @@ export function SessionPage() {
         {/* Assumptions */}
         {assumptions.length > 0 && <AssumptionsList assumptions={assumptions} />}
 
-        {/* Web research indicator */}
-        {isResearching && (
-          <div className="flex items-center gap-2 py-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-            <span className="text-[11px] font-mono text-blue-400/80 animate-pulse">
-              Searching the web...
-            </span>
-          </div>
-        )}
-
         {/* Dev/admin shortcuts: skip straight to masterplan, or auto-play a full conversation */}
-        {showDev && !masterplan && !isAnalyzing && !isSending && (
+        {showDev && !masterplan && !episodeLive && !isSending && (
           <div className="flex items-center gap-2 self-start flex-wrap">
             {/* Pipeline toggle — visible to all dev/admin users */}
             <button
@@ -629,16 +430,6 @@ export function SessionPage() {
             >
               {isUnlocking ? '…' : (isAdmin ? '[ADMIN] Quick-fill conversation' : '[DEV] Quick-fill conversation')}
             </button>
-          </div>
-        )}
-
-        {/* Council streaming indicator (agents loading, no masterplan yet) */}
-        {!masterplan && (specialistReports.length > 0 || isAnalyzing) && (
-          <div className="flex items-center gap-3 py-3 px-4 rounded-xl" style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.1)' }}>
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" style={{ boxShadow: '0 0 6px rgba(245,158,11,0.6)' }} />
-            <span className="text-[12px] font-mono text-amber-400/70">
-              The Council is analysing your idea… {specialistReports.length}/{TOTAL_AGENTS} advisors done
-            </span>
           </div>
         )}
 
@@ -715,14 +506,6 @@ export function SessionPage() {
                     <ReactMarkdown>{streamingMessage}</ReactMarkdown>
                   </div>
                   <span className="inline-block w-[3px] h-4 bg-amber-400/60 animate-pulse rounded-sm ml-0.5 align-middle" />
-                </div>
-              ) : isAnalyzing ? (
-                <div className="flex items-center gap-2 pt-2">
-                  <span className="text-[12px] text-ink-600 font-mono">The Chairman deliberates</span>
-                  {[0, 120, 240].map((delay) => (
-                    <div key={delay} className="w-1 h-1 rounded-full bg-emerald-500/60 animate-bounce"
-                      style={{ animationDelay: `${delay}ms` }} />
-                  ))}
                 </div>
               ) : (
                 <div className="flex items-center gap-1 pt-2">

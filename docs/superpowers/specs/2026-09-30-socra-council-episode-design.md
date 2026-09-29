@@ -23,7 +23,7 @@ Both `POST /sessions/{id}/unlock` and the chat stream (`/message/stream`, when a
 | `web_research {queries}` | first | **Only** on `/unlock`, and only if Tavily is configured. Often absent |
 | `agent_report {report}` ×5 | as each agent finishes | Parallel: **any order**. Keys `finance`, `market`, `competition`, `tech`, `risk` |
 | `synthesis_token {delta}` | plan streaming | ~1,500 tokens. Absent in stub mode |
-| `synthesis_done {text}` | plan finished | `text` is authoritative; may be `""` if synthesis failed |
+| ~~`synthesis_done`~~ | — | **Never reaches the browser** (found in a live run): both routes consume it internally to save the plan. The `done` payload's `session.masterplan` is authoritative, so the client expands `done` into `synthesis_done(text)` + `done` (`toEpisodeEvents`). In stub mode this is the *only* place the plan appears |
 | `agent_report {report}` (`devils_advocate`) | **after** the plan | Absent in stub mode |
 | `done {session, pipeline?}` | last | Full saved session |
 
@@ -36,7 +36,7 @@ A failed agent still sends a report, whose content matches `/analysis unavailabl
 | `events.ts` | `EpisodeEvent` union (the five event types above + `done` + `stream_error`) and `AgentReport` |
 | `sse.ts` | `readSse(response, onEvent)`: one parser for every stream. Splits on blank lines, joins multi-line `data:`, tolerates an event split across network chunks, ignores malformed JSON |
 | `signature.ts` | `signatureLine(content)`: first bullet (`-`, `*`, `•`, `1.`), else the first line that is neither a `#` heading nor a whole-line **bold label** (real reports open with `# The Banker's Verdict` and the Skeptic writes bold-label paragraphs); strips markdown; ≤120 chars cut on a word boundary with `…`. `isFainted(content)` |
-| `sections.ts` | `parseSections(markdown)`: splits the plan on the **shallowest heading level that occurs at least twice** (real plans use `#` sections with `##`/`###` sub-headings, which stay inside their section); whole-line bold lines count as headings only when the plan has no `#` headings at all; cleans numbering/bold; attaches `trainerForHeading`. Text before the first section is an intro presented by Kai |
+| `sections.ts` | `parseSections(markdown)`: picks the heading level whose headings best match the section vocabulary (verdict, tech stack, phase, mvp, growth, moat, risk, files; ties → shallowest; no matches → shallowest level used twice) and splits on it **and every shallower level**. Real plans come in both shapes: `# TECH STACK` with `## What to Build` inside, and `# THE PLAY` wrapping `## Tech Stack`. Deeper headings stay inside their section; empty sections are dropped except the one still streaming; whole-line bold lines count as headings only when the plan has no `#` headings. Text before the first section is an intro presented by Kai |
 | `reducer.ts` | `initialEpisode()`, `episodeReducer(state, event)`: pure |
 | `pacer.ts` | `createPacer({gapMs, onRelease})`: queues events, releases them no faster than beat gaps, merges consecutive plan tokens, `skip()` flushes instantly |
 | `controller.ts` | `createEpisodeController({mode, onChange})`: reducer + pacer; used by the store (live and replay) and by the dev demo |
@@ -63,7 +63,7 @@ skipped: boolean
 - `synthesis_token` → append; plan `writing`; beat `plan`.
 - `synthesis_done` → text replaced by the authoritative text; plan `done`, or `failed` if blank.
 - `devils_advocate` report → glitch `done`/`fainted`; beat `ambush`.
-- `done` → beat `done`; a glitch still `waiting` → `absent`; a seat still `thinking` → `fainted`.
+- `done` → beat `done`; a plan still `writing`/`waiting` → `done` (or `failed` if blank); a glitch still `waiting` → `absent`; a seat still `thinking` → `fainted`.
 - `stream_error` (stream ended without `done`) → beat `failed` unless already `done`.
 
 ### Pacing (live)

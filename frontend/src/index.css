@@ -84,3 +84,22 @@
   .pixel-bob, .pixel-blink { animation: none; }
   .pixel-btn-primary:active:not(:disabled) { transform: none; }
 }
+
+/* Council episode: a 2-step "attack" shake when a creature reports, a red flash on the ambush */
+@keyframes pixel-attack {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.pixel-attack { animation: pixel-attack 0.32s steps(2, end) 1; }
+
+@keyframes pixel-flash {
+  0% { opacity: 0.45; }
+  100% { opacity: 0; }
+}
+.pixel-flash { background: theme('colors.px.glitch'); opacity: 0; animation: pixel-flash 0.6s steps(3, end) 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-attack { animation: none; }
+  .pixel-flash { display: none; }
+}
