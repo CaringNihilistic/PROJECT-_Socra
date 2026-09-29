@@ -84,8 +84,9 @@ Rules are checked in the order Marin → Dex → Kai, so "Risk Register" never f
 | `px-soft` | `#d8d2ee` | body text on dark |
 | `px-xp` | `#ffd23f` | XP, primary actions |
 | `px-plan` | `#3ec7b5` | masterplan, success, stat fill |
-| `px-glitch` | `#e8474c` | Team Glitch, errors |
-| `px-psy` | `#9b7be0` | accent |
+| `px-glitch` | `#e8474c` | Team Glitch and error **fills/borders only** (4.07:1 as text on a panel fails AA) |
+| `px-glitch-text` | `#ff7a7e` | Team Glitch and error **text** (6.24:1 on panel) |
+| `px-psy` | `#9b7be0` | accent fills; text only at 18px+ (4.72:1 on panel) |
 
 Type colours from §2 are tokens too (`px-steel`, `px-psychic`, `px-fighting`, `px-electric`, `px-ghost`). Every text/background pair used must meet WCAG AA (4.5:1; 3:1 at 24px+). Ghost badges use cream text for that reason.
 
@@ -101,6 +102,8 @@ Loaded from Google Fonts with `display=swap`, **added alongside** the existing B
 
 ### Pixel shapes
 
+Shared as CSS classes `.pixel-panel`, `.pixel-dialog`, `.pixel-btn` (not `.px-*`, which reads as Tailwind's padding utility).
+
 - Panel: `border: 4px solid px-ink` + `box-shadow: 0 0 0 4px px-edge`.
 - Dialog box: cream fill, double frame `border 4px ink` + `box-shadow: 0 0 0 4px screen, 0 0 0 8px ink`.
 - Primary button: `px-xp` fill, 4px ink border, `4px 4px 0` ink drop shadow; pressed state removes the shadow and shifts 4px.
@@ -115,7 +118,7 @@ Loaded from Google Fonts with `display=swap`, **added alongside** the existing B
 
 ### Motion
 
-- Idle bob: 2-frame `steps()` animation, 2px, 1.2s.
+- Idle bob: 2-frame `steps()` animation, 2px, 1.2s. **Opt-in** via `<Sprite bob />`; sprites are still by default.
 - All animation is disabled under `prefers-reduced-motion: reduce`.
 
 ## 4. What this sub-project ships
@@ -125,11 +128,11 @@ Loaded from Google Fonts with `display=swap`, **added alongside** the existing B
 | File | Contents |
 |---|---|
 | `sprites.ts` | `PALETTE`, `HALVES` (Appendix A), pure `scale2x`, `shade`, `buildSprite(name) → {fill, d}[]`, memoised per name |
-| `Sprite.tsx` | `<Sprite name size label? />`; `aria-hidden` unless `label` is given, then `role="img"` + `aria-label` |
+| `Sprite.tsx` | `<Sprite name size label? bob? />`; `aria-hidden` unless `label` is given, then `role="img"` + `aria-label` |
 | `cast.ts` | Typed cast table (§2) + `councilForAgentKey(key)`, `stageForPhase(phase)`, `trainerForHeading(heading)` |
 | `ui/PixelPanel.tsx` | Panel with optional title and accent edge colour |
 | `ui/DialogBox.tsx` | Speaker sprite + name + children; optional "▼" more indicator |
-| `ui/XpBar.tsx` | `value` 0–1, `max` 0–1 (next threshold), label "XP 64 / 70 · 6 to evolve" |
+| `ui/XpBar.tsx` | `score` 0–1; derives the next threshold from the phase table. Label "XP 64 / 70 · 6 to evolve"; at Final Form the bar is full and the label reads "FINAL FORM" |
 | `ui/StatBar.tsx` | label + 0–1 value; `role="meter"` with aria values |
 | `ui/TypeBadge.tsx` | Creature type pill using type tokens |
 | `ui/PixelButton.tsx` | `variant: 'primary' \| 'secondary'`, real `<button>`, ≥44px tall |
@@ -143,13 +146,13 @@ Unknown agent keys return `null` from `councilForAgentKey` so a renamed backend 
 |---|---|
 | `frontend/index.html` | Add the three Google Fonts |
 | `frontend/tailwind.config.js` | Add `px-*` colours, `font-pixel/term/read`, `@tailwindcss/typography` plugin, a `pixel` typography modifier (read font body, pixel-font h1–h2 at 12–14px, term-font table heads, `px-plan` links) |
-| `frontend/src/index.css` | `.px-panel`, `.px-dialog`, `.px-btn` utilities; idle-bob keyframes; reduced-motion rule |
-| `frontend/package.json` | Add `@tailwindcss/typography`, `vitest`; `"test": "vitest run"` |
+| `frontend/src/index.css` | `.pixel-panel`, `.pixel-dialog`, `.pixel-btn` classes; idle-bob keyframes; reduced-motion rule |
+| `frontend/package.json` | Add `@tailwindcss/typography` ^0.5 and `vitest` ^2.1 (Vite 5 compatible); `"test": "vitest run"`. Tests live in `src/pixel/__tests__/` and are type-checked by `tsc` with everything else |
 | `.github/workflows/ci.yml` | New `frontend` job: `npm ci`, `npm run build`, `npm test` |
 
 ### The one visible change
 
-Installing `@tailwindcss/typography` activates the 228 `prose*` classes the current screens already use. The masterplan and advisor reports gain real headings, lists and tables **in the current design**. No screen switches to the pixel look in this sub-project.
+Installing `@tailwindcss/typography` activates the 228 `prose*` classes the current screens already use, on **every** markdown surface: chat replies and the council/masterplan views (`SessionPage`), the public `/share` page and `/compare`. They gain real headings, lists and tables **in the current design**. Chat replies will get slightly more vertical spacing between paragraphs. No screen switches to the pixel look in this sub-project.
 
 ## 5. Testing and acceptance
 
