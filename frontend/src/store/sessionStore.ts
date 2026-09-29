@@ -512,7 +512,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       await axios.post(`${API_URL}/sessions/${session.id}/admin-mark-paid`, {}, { headers: authHeaders(token) })
       set({ paymentRequired: false })
 
-      const qs = useLangGraph ? '?use_langgraph=true' : ''
+      const qs = useLangGraph ? '?use_langgraph=true&force=true' : '?force=true'
       const response = await fetch(`${API_URL}/sessions/${session.id}/unlock${qs}`, {
         method: 'POST', headers: authHeaders(token),
       })

@@ -45,7 +45,7 @@ async def _process_message(session, req_content: str, db: AsyncSession):
     masterplan = session.masterplan
     agent_reports = list(session.agent_reports or [])
     if new_phase == "masterplan" and not masterplan:
-        masterplan = await _generate_masterplan_sync(history)
+        masterplan, agent_reports = await _generate_masterplan_sync(history)
 
     session.conversation_history = history
     session.problem_clarity = updated_scores["problem_clarity"]
@@ -67,9 +67,11 @@ async def _process_message(session, req_content: str, db: AsyncSession):
     return _serialize(session), llm_response["message"], get_refusal_message(total), llm_response.get("choices", [])
 
 
-async def _generate_masterplan_sync(conversation_history: list) -> str:
-    """Fallback for the non-streaming route: collect all agent reports then synthesize."""
-    from llm_client import run_all_agents_combined, run_specialist_agent, SPECIALIST_AGENTS, _build_synthesis_prompt, _call_real_llm, _build_agent_msgs
+async def _generate_masterplan_sync(conversation_history: list) -> tuple[str, list]:
+    """Non-streaming council run (used by /message and admin seeding): agents, synthesis,
+    then devil's advocate. Returns (masterplan, agent_reports) — callers must save the
+    reports too, or the Council tab shows "0 of 5 advisors"."""
+    from llm_client import run_all_agents_combined, run_specialist_agent, run_devils_advocate, SPECIALIST_AGENTS, _build_synthesis_prompt, _call_real_llm, _build_agent_msgs
     from core.config import settings
     if settings.anthropic_api_key or settings.google_api_key:
         import asyncio
@@ -80,7 +82,10 @@ async def _generate_masterplan_sync(conversation_history: list) -> str:
         reports = await run_all_agents_combined(conversation_history)
     system = _build_synthesis_prompt(reports)
     msgs = _build_agent_msgs(conversation_history)  # clean single-message format
-    return await _call_real_llm(system, msgs, max_tokens=3000)
+    masterplan = await _call_real_llm(system, msgs, max_tokens=3000)
+    if masterplan:
+        reports.append(await run_devils_advocate(masterplan, conversation_history))
+    return masterplan, reports
 
 
 @router.post("/{session_id}/message")
@@ -291,6 +296,7 @@ async def create_pitch_deck(
 async def unlock_masterplan(
     session_id: str,
     use_langgraph: bool = Query(False, description="Admin-only: use LangGraph pipeline"),
+    force: bool = Query(False, description="Admin-only: regenerate even if a masterplan exists"),
     db: AsyncSession = Depends(get_db),
     authorization: Optional[str] = Header(None),
 ):
@@ -300,8 +306,10 @@ async def unlock_masterplan(
     if not session:
         raise HTTPException(404, "Session not found")
     await _check_session_access(session, authorization)
-    if session.masterplan:
-        return _serialize(session)  # Already generated — idempotent
+    # Idempotent for everyone; an admin can force a regeneration ([ADMIN] Re-run).
+    # Without this, Re-run got the plain-JSON early return and silently did nothing.
+    if session.masterplan and not (force and await is_admin(authorization)):
+        return _serialize(session)
 
     # Resolve pipeline: LangGraph when requested and feature flag is on
     from core.config import settings as _settings
@@ -406,8 +414,9 @@ async def admin_seed_conversation(
 
     # Ensure a masterplan exists even if the eval didn't quite cross the threshold
     if not session.masterplan:
-        masterplan = await _generate_masterplan_sync(list(session.conversation_history or []))
+        masterplan, reports = await _generate_masterplan_sync(list(session.conversation_history or []))
         session.masterplan = masterplan
+        session.agent_reports = reports
         session.phase = "masterplan"
 
     session.paid = True
