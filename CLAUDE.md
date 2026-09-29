@@ -49,8 +49,12 @@
 All LLM calls flow through `backend/llm_client.py`, which routes by priority with automatic fallthrough:
 
 1. **Anthropic Haiku 4.5** (`claude-haiku-4-5-20251001`) — primary
-2. **Google Gemini 2.0 Flash** (`gemini-2.0-flash`) — fallback
-3. **Groq** (`llama-3.1-8b-instant`, `llama-3.3-70b-versatile`) — final fallback
+2. **Google Gemini** (`GOOGLE_MODEL` = `gemini-flash-latest`) — fallback
+3. **Groq** (`GROQ_FAST_MODEL` = `qwen/qwen3.8-27b`, `GROQ_LARGE_MODEL` = `openai/gpt-oss-120b`) — final fallback
+
+Fallback model IDs live in constants at the top of the LLM helpers section of `llm_client.py`. Providers retire them with little notice: in Sep 2026 `gemini-2.0-flash`, `llama-3.1-8b-instant` and `llama-3.3-70b-versatile` all 404'd at once and every call failed with a 503. Both Groq models are reasoning models, so keep their `max_tokens` generous: hidden thinking shares the budget, and a tight cap returns empty content.
+
+**Production runs Groq-only** (no `ANTHROPIC_API_KEY` or `GOOGLE_API_KEY` on Render), which is the tested free path. A Google key on the free tier currently makes turns take minutes, because the OpenAI SDK retries Gemini's 429/503 responses with backoff before falling through to Groq. Anthropic `claude-haiku-4-5-20251001` retires no sooner than 2026-10-15, so check the models page before adding a key.
 
 `STUB_MODE=true` (or no LLM key set) activates canned demo responses that only work for the **3 example ideas on the landing page**.
 

@@ -336,18 +336,26 @@ def _detect_scenario(conversation_history: list[dict]) -> Optional[str]:
 # LLM helpers
 # ---------------------------------------------------------------------------
 
+# Fallback model IDs, in one place: providers retire these with little notice
+# (gemini-2.0-flash, llama-3.1-8b-instant and llama-3.3-70b-versatile all went
+# away at once). A 404 "model not found" from a provider means: update these.
+GOOGLE_MODEL = "gemini-flash-latest"        # Google's alias for its current Flash model
+GROQ_FAST_MODEL = "qwen/qwen3.8-27b"         # chat, eval JSON, combined agents
+GROQ_LARGE_MODEL = "openai/gpt-oss-120b"     # synthesis, devil's advocate
+
+
 async def _call_groq(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
     from openai import AsyncOpenAI
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
     kwargs: dict = {
-        "model": "llama-3.1-8b-instant",
+        "model": GROQ_FAST_MODEL,
         "max_tokens": max_tokens,
         "messages": [{"role": "system", "content": system}, *messages],
     }
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
     input_data = [{"role": "system", "content": system[:1000]}, *messages[-2:]]
-    with trace_generation("groq", "llama-3.1-8b-instant", input_data) as gen:
+    with trace_generation("groq", GROQ_FAST_MODEL, input_data) as gen:
         response = await client.chat.completions.create(**kwargs)
         result = response.choices[0].message.content
         u = response.usage
@@ -393,14 +401,14 @@ async def _call_google(system: str, messages: list[dict], max_tokens: int, json_
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
     )
     kwargs: dict = {
-        "model": "gemini-2.0-flash",
+        "model": GOOGLE_MODEL,
         "max_tokens": max_tokens,
         "messages": [{"role": "system", "content": system}, *messages],
     }
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
     input_data = [{"role": "system", "content": system[:1000]}, *messages[-2:]]
-    with trace_generation("google", "gemini-2.0-flash", input_data) as gen:
+    with trace_generation("google", GOOGLE_MODEL, input_data) as gen:
         response = await client.chat.completions.create(**kwargs)
         u = response.usage
         if u:
@@ -553,7 +561,7 @@ async def _stream_google_tokens(system: str, messages: list[dict], max_tokens: i
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
     )
     stream = await client.chat.completions.create(
-        model="gemini-2.0-flash",
+        model=GOOGLE_MODEL,
         max_tokens=max_tokens,
         messages=[{"role": "system", "content": system}, *messages],
         stream=True,
@@ -566,7 +574,7 @@ async def _stream_google_tokens(system: str, messages: list[dict], max_tokens: i
             yield delta
 
 
-async def _stream_groq_tokens(system: str, messages: list[dict], model: str = "llama-3.1-8b-instant", max_tokens: int = 2500):
+async def _stream_groq_tokens(system: str, messages: list[dict], model: str = GROQ_FAST_MODEL, max_tokens: int = 2500):
     """Async generator for Groq streaming."""
     from openai import AsyncOpenAI
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
@@ -608,7 +616,7 @@ async def _stream_llm_tokens(system: str, messages: list[dict]):
     if settings.google_api_key:
         yielded = 0
         full_text = ""
-        with trace_generation("google/stream", "gemini-2.0-flash", input_data) as gen:
+        with trace_generation("google/stream", GOOGLE_MODEL, input_data) as gen:
             try:
                 async for token in _stream_google_tokens(system, messages):
                     yielded += 1
@@ -622,7 +630,7 @@ async def _stream_llm_tokens(system: str, messages: list[dict]):
             return  # Google worked — don't fall through
         _log.getLogger(__name__).warning("Google returned empty stream — falling back to Groq")
     full_text = ""
-    with trace_generation("groq/stream", "llama-3.1-8b-instant", input_data) as gen:
+    with trace_generation("groq/stream", GROQ_FAST_MODEL, input_data) as gen:
         async for token in _stream_groq_tokens(system, messages):
             full_text += token
             yield token
@@ -737,7 +745,7 @@ async def stream_architect_llm(
         yield {"type": "result", "data": result}
 
     else:
-        # Groq llama-3.1-8b-instant: two-call approach
+        # Groq-only: two-call approach
         # Call 1: stream plain text (no separator/JSON format required)
         import logging as _logging
         conversation_prompt = _build_groq_conversation_prompt(current_scores, turn_number)
@@ -1136,9 +1144,9 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
     from openai import AsyncOpenAI
     client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
     input_data = [{"role": "system", "content": system[:1000]}, *messages[-1:]]
-    with trace_generation("groq/agent", "llama-3.1-8b-instant", input_data) as gen:
+    with trace_generation("groq/agent", GROQ_FAST_MODEL, input_data) as gen:
         response = await client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=GROQ_FAST_MODEL,
             max_tokens=400,
             messages=[{"role": "system", "content": system}, *messages],
         )
@@ -1318,9 +1326,11 @@ Format as a numbered list. Be direct and honest."""
             from openai import AsyncOpenAI
             client = AsyncOpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
             resp = await client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                max_tokens=800,
-                messages=[{"role": "system", "content": system}],
+                model=GROQ_LARGE_MODEL,
+                # Reasoning model: hidden thinking shares this budget, and at 800 it
+                # regularly ran out before writing any critique (empty content).
+                max_tokens=2000,
+                messages=[{"role": "system", "content": system}, *trigger_msg],
             )
             content = resp.choices[0].message.content or ""
         if not content:
@@ -1445,7 +1455,7 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
     if settings.google_api_key:
         yielded = 0
         full_text = ""
-        with trace_generation("google/synthesis", "gemini-2.0-flash", input_data) as gen:
+        with trace_generation("google/synthesis", GOOGLE_MODEL, input_data) as gen:
             try:
                 async for token in _stream_google_tokens(system, safe_msgs, max_tokens=3000):
                     yielded += 1
@@ -1459,8 +1469,8 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
             return
         _log.getLogger(__name__).warning("Google synthesis returned empty — falling back to Groq")
     full_text = ""
-    with trace_generation("groq/synthesis", "llama-3.3-70b-versatile", input_data) as gen:
-        async for token in _stream_groq_tokens(system, safe_msgs, model="llama-3.3-70b-versatile", max_tokens=3000):
+    with trace_generation("groq/synthesis", GROQ_LARGE_MODEL, input_data) as gen:
+        async for token in _stream_groq_tokens(system, safe_msgs, model=GROQ_LARGE_MODEL, max_tokens=3000):
             full_text += token
             yield token
         if gen:
