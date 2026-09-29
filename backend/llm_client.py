@@ -343,6 +343,10 @@ GOOGLE_MODEL = "gemini-flash-latest"        # Google's alias for its current Fla
 GROQ_FAST_MODEL = "qwen/qwen3.8-27b"         # chat, eval JSON, combined agents
 GROQ_LARGE_MODEL = "openai/gpt-oss-120b"     # synthesis, devil's advocate
 
+# The masterplan is ~7 sections. At 3000 tokens every plan was cut off mid-Phase 1/2, so
+# the Risk Register and "First 3 files" never arrived. A complete plan runs ~2.7-5k tokens.
+SYNTHESIS_MAX_TOKENS = 8000
+
 
 async def _call_groq(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
     from openai import AsyncOpenAI
@@ -1453,7 +1457,7 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
             with trace_generation("anthropic/synthesis", "claude-haiku-4-5-20251001", input_data) as gen:
                 async with client.messages.stream(
                     model="claude-haiku-4-5-20251001",
-                    max_tokens=3000,
+                    max_tokens=SYNTHESIS_MAX_TOKENS,
                     system=system,
                     messages=safe_msgs,
                 ) as stream:
@@ -1472,7 +1476,7 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
         full_text = ""
         with trace_generation("google/synthesis", GOOGLE_MODEL, input_data) as gen:
             try:
-                async for token in _stream_google_tokens(system, safe_msgs, max_tokens=3000):
+                async for token in _stream_google_tokens(system, safe_msgs, max_tokens=SYNTHESIS_MAX_TOKENS):
                     yielded += 1
                     full_text += token
                     yield token
@@ -1485,7 +1489,7 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
         _log.getLogger(__name__).warning("Google synthesis returned empty — falling back to Groq")
     full_text = ""
     with trace_generation("groq/synthesis", GROQ_LARGE_MODEL, input_data) as gen:
-        async for token in _stream_groq_tokens(system, safe_msgs, model=GROQ_LARGE_MODEL, max_tokens=3000):
+        async for token in _stream_groq_tokens(system, safe_msgs, model=GROQ_LARGE_MODEL, max_tokens=SYNTHESIS_MAX_TOKENS):
             full_text += token
             yield token
         if gen:

@@ -71,7 +71,7 @@ async def _generate_masterplan_sync(conversation_history: list) -> tuple[str, li
     """Non-streaming council run (used by /message and admin seeding): agents, synthesis,
     then devil's advocate. Returns (masterplan, agent_reports) — callers must save the
     reports too, or the Council tab shows "0 of 5 advisors"."""
-    from llm_client import run_all_agents_combined, run_specialist_agent, run_devils_advocate, SPECIALIST_AGENTS, _build_synthesis_prompt, _call_real_llm, _build_agent_msgs
+    from llm_client import run_all_agents_combined, run_specialist_agent, run_devils_advocate, SPECIALIST_AGENTS, _build_synthesis_prompt, _call_real_llm, _build_agent_msgs, SYNTHESIS_MAX_TOKENS
     from core.config import settings
     if settings.anthropic_api_key or settings.google_api_key:
         import asyncio
@@ -82,7 +82,7 @@ async def _generate_masterplan_sync(conversation_history: list) -> tuple[str, li
         reports = await run_all_agents_combined(conversation_history)
     system = _build_synthesis_prompt(reports)
     msgs = _build_agent_msgs(conversation_history)  # clean single-message format
-    masterplan = await _call_real_llm(system, msgs, max_tokens=3000)
+    masterplan = await _call_real_llm(system, msgs, max_tokens=SYNTHESIS_MAX_TOKENS)
     if masterplan:
         reports.append(await run_devils_advocate(masterplan, conversation_history))
     return masterplan, reports
