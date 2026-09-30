@@ -70,7 +70,10 @@ describe('JourneyDemo', () => {
 
   it('ask: the recorded question and choices', () => {
     const out = stage(0)
-    expect(out).toContain('Who is your user?')
+    // the recorded question's opening run of plain words (before any markdown or punctuation)
+    const opening = JOURNEY.question.replace(/^[*_\s]+/, '').match(/^[A-Za-z0-9 ]+/)![0].trim()
+    expect(opening.length).toBeGreaterThan(3)
+    expect(out.replace(/<[^>]+>/g, '')).toContain(opening)
     for (const c of JOURNEY.choices) expect(out).toContain(esc(c))
   })
 
@@ -81,7 +84,7 @@ describe('JourneyDemo', () => {
 
   it('council, plan and end', () => {
     expect(stage(14000)).toContain('THE COUNCIL')
-    expect(stage(19600)).toContain('CHAIRMAN')
+    expect(stage(19600).toLowerCase()).toContain('chairman')
     expect(stage(21000)).toContain('YOUR TURN.')
   })
 

@@ -52,7 +52,7 @@ A pure timeline plus a player.
 | 15–20 | `plan` | `PlanRelay`, streaming the Verdict section of the fixture plan at a steady rate. |
 | 20–23 | `end` | "Your turn." with `PRESS START ▶`. |
 
-The content is **excerpts of one real recorded run** (`src/landing/__fixtures__/journey.json`: the invoice-chaser idea, interrogated to 87% against production, whose council and masterplan then ran). The question is point 2 of Socra's first question ("**Who is your user?** Solo designers working solo, or are we talking design studios with 5-50 people? …"). The choices are the first three recorded choices, and the pick is choice 0. The stats are the recorded 11% snapshot, then the recorded 42% one. The five council reports are trimmed to ~700 characters; the trim is checked to keep each signature line identical. The plan is the verdict's first paragraph. `journeyFrame` is pure: episode states come from `episodeReducer` over the events due by `t`.
+The content is **one real recorded run** (`src/landing/__fixtures__/journey.json`, re-recorded on 2026-10-01 after the crisp-output prompts): the invoice-chaser idea, interrogated on production until the council ran, then its masterplan. The question is Socra's first reply, the choices are the first three recorded choices (the pick is choice 0), the stats are the recorded first-turn snapshot and the snapshot of the turn that crossed 40%, the five council reports are used whole (they are ~110–145 words each now), and the plan is the Chairman's Verdict section. `journeyFrame` is pure: episode states come from `episodeReducer` over the events due by `t`.
 
 **`components/landing/JourneyDemo.tsx`**:
 - A `PixelPanel` with a scene strip `1 ASK · 2 EVOLVE · 3 COUNCIL · 4 PLAN` (buttons that jump to each scene's start).
