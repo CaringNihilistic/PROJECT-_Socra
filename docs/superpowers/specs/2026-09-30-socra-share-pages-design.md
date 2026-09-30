@@ -29,7 +29,7 @@ The last sub-project: `/card/:id`, `/share/:id`, `/compare/:a/:b`, plus the two 
 - `flavorText(masterplan)`: the first sentence of the verdict's first paragraph (the first non-heading paragraph), stripped of markdown and cut at ≤ 140 characters on a word boundary with "…". It returns `null` without a masterplan.
 - `cardNumber(id)`: `#` plus the first 6 characters of the id, upper-cased.
 
-**`TradingCard`** (fixed 360px wide, so the PNG is the same everywhere; it scales down on narrow phones with a wrapper, never below whole-pixel sprite sizes):
+**`TradingCard`** (fixed 336px wide, so the PNG is the same everywhere and it fits a 375px phone inside the 16px gutters without scaling, which would blur the sprites):
 
 - Header: `IDEA` / stage name, and `HP {score}` right-aligned.
 - Art window: the stage sprite at 128px on `px-screen`.
@@ -51,7 +51,7 @@ The last sub-project: `/card/:id`, `/share/:id`, `/compare/:a/:b`, plus the two 
 - **Header**: `SOCRA` / `MASTERPLAN` and `RUN YOUR IDEA ▶`.
 - **Body**: `Results` with `data = resultsFromSession(session)`, `canReplay(session)`, no re-run and no pipeline tag.
 - **Footer**: a CTA panel: "Think your idea survives the council? Prof. Socra is waiting." with `PRESS START ▶` → `/`.
-- **Watch episode**: `episode/usePlayback.ts` (new) owns a replay `EpisodeController` (`replayEvents(session)`) plus the open/skip/close state. `EpisodePlayer` renders it. Reduced motion skips straight to the end, as in the store.
+- **Watch episode**: `episode/usePlayback.ts` (new) owns a replay `EpisodeController` (`replayEvents(session)`) plus the open/skip/close state. `EpisodePlayer` renders it. As in the store, a replay the visitor asked for plays even under reduced motion (only live runs auto-skip); the episode itself honours reduced motion.
 - **Missing plan / not found**: a pixel panel ("This masterplan doesn't exist, or isn't finished yet.") with `RUN YOUR IDEA ▶`.
 
 `Results` gains no new props: its SHARE LINK / SCORE CARD / COPY PLAN / DOWNLOAD buttons already work for visitors.

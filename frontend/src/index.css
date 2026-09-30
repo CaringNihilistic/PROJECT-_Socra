@@ -2,18 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-.font-display { font-optical-sizing: auto; }
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.fade-up { animation: fadeUp 0.6s ease both; }
-
-@media (prefers-reduced-motion: reduce) {
-  .fade-up { animation: none; opacity: 1; transform: none; }
-}
-
 /* ── Pixel kit (docs/superpowers/specs/2026-09-30-socra-pixel-foundation-design.md §3) ── */
 @layer components {
   .pixel-panel {
@@ -116,4 +104,9 @@
 @media (prefers-reduced-motion: reduce) {
   .pixel-evolve-old { animation: none; opacity: 0; }
   .pixel-flash-white { display: none; }
+}
+
+/* Trading card: a static gold sheen on GREENLIT cards (static, so the PNG export matches) */
+.pixel-holo {
+  background: repeating-linear-gradient(135deg, transparent 0 14px, rgba(255, 210, 63, 0.09) 14px 18px);
 }

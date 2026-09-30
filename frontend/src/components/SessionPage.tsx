@@ -9,6 +9,7 @@ import { EvolutionScene } from './chat/EvolutionScene'
 import { resultsFromEpisode, resultsFromSession } from '../episode/results'
 import { canReplay } from '../episode/replay'
 import { PixelButton } from '../pixel/ui/PixelButton'
+import { PixelPanel } from '../pixel/ui/PixelPanel'
 
 import { FollowUpEmailCapture } from './FollowUpEmailCapture'
 import { CLERK_ENABLED } from '../lib/auth'
@@ -52,63 +53,34 @@ const BILLING_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID
 
 function DonationCard({ onDismiss }: { onDismiss: () => void }) {
   const { session, createCheckout } = useSessionStore()
-  const [loading, setLoading] = useState(false)
-  const [donated, setDonated] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'redirecting' | 'paid' | 'failed'>('idle')
 
-  if (!BILLING_ENABLED || !session) return null
+  if (!BILLING_ENABLED || !session || status === 'paid') return null
 
-  const handleDonate = async () => {
-    setLoading(true)
-    const url = await createCheckout()
-    if (url) {
-      window.location.href = url
-    } else {
-      setDonated(true)
-      setLoading(false)
-    }
+  const donate = async () => {
+    setStatus('redirecting')
+    const result = await createCheckout()
+    if (result === 'already_paid') setStatus('paid')
+    else if (result) window.location.href = result
+    else setStatus('failed') // an error must not look like a finished donation
   }
 
-  if (donated) return null
-
   return (
-    <div className="rounded-2xl border fade-up"
-      style={{ borderColor: 'rgba(52,211,153,0.12)', background: 'rgba(52,211,153,0.02)' }}>
-      <div className="px-6 py-5 flex items-start gap-4">
-        <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5"
-          style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
-          <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-semibold text-ink-200 mb-1">Socra is free. Support it if it helped.</p>
-          <p className="text-[12px] text-ink-600 leading-relaxed">
-            No paywall, no lock-in. If this analysis helped you think more clearly about your idea, a ₹499 donation keeps the LLM costs covered.
-          </p>
-          <div className="flex items-center gap-2 mt-3">
-            <button
-              onClick={handleDonate}
-              disabled={loading}
-              className="px-4 py-2 rounded-xl font-mono text-[12px] font-semibold transition-all disabled:opacity-50"
-              style={{
-                background: 'rgba(52,211,153,0.1)',
-                border: '1px solid rgba(52,211,153,0.25)',
-                color: 'rgba(52,211,153,0.9)',
-              }}
-            >
-              {loading ? 'Redirecting…' : 'Donate ₹499'}
-            </button>
-            <button
-              onClick={onDismiss}
-              className="px-4 py-2 rounded-xl font-mono text-[12px] transition-all"
-              style={{ color: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-            >
-              Maybe later
-            </button>
-          </div>
-        </div>
+    <PixelPanel title="SUPPORT SOCRA" accent="plan">
+      <p className="mb-2 text-px-screen">Socra is free. Support it if it helped.</p>
+      <p className="mb-4 text-px-soft">
+        No paywall, no lock-in. If this analysis helped you think more clearly, a ₹499 donation keeps the LLM costs covered.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <PixelButton disabled={status === 'redirecting'} onClick={donate}>
+          {status === 'redirecting' ? 'OPENING…' : 'DONATE ₹499'}
+        </PixelButton>
+        <PixelButton variant="secondary" onClick={onDismiss}>MAYBE LATER</PixelButton>
       </div>
-    </div>
+      {status === 'failed' && (
+        <p role="alert" className="mt-3 text-px-glitch-text">Couldn’t open the payment page. Please try again later.</p>
+      )}
+    </PixelPanel>
   )
 }
 

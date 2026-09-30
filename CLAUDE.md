@@ -32,11 +32,12 @@
 | Framework | React | 18.3.1 |
 | Build tool | Vite | 5.3.4 |
 | Styling | Tailwind CSS | 3.4.7 |
-| Fonts | Pixel redesign: Press Start 2P (titles) + VT323 (all text). Share/card/compare pages still use Bricolage Grotesque + Onest + DM Mono until redesign step 5 | Google Fonts |
+| Fonts | Press Start 2P (titles and names) + VT323 (all text). Pixel UI throughout | Google Fonts |
 | State | Zustand | 5.0.0 |
 | Auth | @clerk/clerk-react | 5.0.0 |
 | HTTP | axios | 1.7.0 |
 | Markdown | react-markdown 9.0.0 + remark-gfm 4.0.1 |
+| Image export | html-to-image 1.11 (score card → PNG, pixel fonts inlined in `share/pngExport.ts`) |
 
 ### Infra
 - **Hosting:** Render free tier via [render.yaml](render.yaml) — backend = Docker web service, frontend = static site. Database = Neon free Postgres (Render's free Postgres is deleted after 30 days).
@@ -121,6 +122,7 @@ PROJECT _STARTUP/
 │       ├── episode/             # Council episode engine: SSE reader, reducer, pacer, replay (pure, tested)
 │       ├── chat/                # Interrogation helpers: visible turns, dialog line, stages/evolution (pure, tested)
 │       ├── landing/             # Journey demo timeline over a recorded run (pure, tested)
+│       ├── share/               # Card grade/flavour and compare pairs (pure, tested)
 │       ├── lib/auth.tsx         # Clerk helpers
 │       └── components/          # Pages + views (see below)
 ├── docker-compose.yml
@@ -138,11 +140,9 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 |---|---|
 | `LandingPage.tsx` | Pixel **title screen** (NAME YOUR IDEA, 3 STUB_MODE examples, CONTINUE saves + compare picker), **WATCH A RUN** journey demo (`landing/JourneyDemo`, a real recorded run replayed through the real chat/council components; dev: `?journey=<ms>` pins a moment), How it plays, cast, Free to play, Get updates (`/waitlist`) |
 | `SessionPage.tsx` | Pixel header + tabs **Chat** · **Results**. Chat is the **Interrogation battle screen** (`chat/BattleScreen`): your idea as a creature (stage sprite, XP bar, 5 stat bars with Socra's notes), Prof. Socra's dialog, a pre-filling answer menu, field notes (assumptions), a collapsible log; crossing a phase threshold plays the **evolution scene** (`chat/EvolutionScene`, store `evolution`). While the council runs, the pixel **Council episode** overlay plays (`council/EpisodePlayer`); Results (`council/Results`) shows creature cards, Team Glitch and the trainer-presented plan, with **Watch episode** replay. Pipeline selector + `[DEV]` shortcuts. Dev-only pages: `/__pixel`, `/__episode`, `/__chat` |
-| `PitchDeckView.tsx` | Renders generated pitch deck slides + Devil's Advocate slide |
-| `VerdictCard.tsx` | Score card rendered on the public `/card/:id` page |
-| `CardPage.tsx` | **Public** shareable score card (`/card/:id`) |
-| `SharePage.tsx` | **Public** read-only masterplan view (`/share/:id`) |
-| `ComparePage.tsx` | **Public** side-by-side comparison of two sessions (`/compare/:id1/:id2`) |
+| `CardPage.tsx` | **Public** score card (`/card/:id`): the idea as a pixel **trading card** (`share/TradingCard`: HP = score, 5 stats, rarity frame by grade, the Chairman's verdict as flavour text) with DOWNLOAD PNG |
+| `SharePage.tsx` | **Public** masterplan (`/share/:id`): the Results view read-only, with the council episode replayable by visitors (`episode/usePlayback`) |
+| `ComparePage.tsx` | **Public** VS screen (`/compare/:id1/:id2`): the two idea creatures face off, mirrored stat bars, each council creature's two signatures |
 | `FollowUpEmailCapture.tsx` | Email capture for follow-up nudges |
 
 ### Backend Routes
@@ -273,7 +273,7 @@ npm run preview      # preview the production build
 ### Frontend (TypeScript / React)
 - Functional components, named exports (`export function X`).
 - **All** state + API calls + SSE streaming live in the Zustand store (`sessionStore.ts`) — components are mostly presentational.
-- Tailwind utility classes; accent colors and styling often inline via `style={{}}` with rgba values.
+- Tailwind utility classes with the pixel tokens (`px-*` colours, `font-pixel` / `font-term`) and the kit in `pixel/ui`; no inline rgba styling. VT323 text is never below 20px; Press Start 2P never below 10px. Sprites render only at 32/64/96/128px.
 - No router library — routing is manual `window.location.pathname` matching in `App.tsx`.
 - File/code references in markdown use `[text](path)` links, not backticks.
 
@@ -282,7 +282,7 @@ npm run preview      # preview the production build
 ## Current Known Issues / Tech Debt
 
 - **Session ownership checks are partial** — `GET /sessions/{id}` now returns the redacted `_serialize_public()` view (no `conversation_history`) to non-owners of authenticated sessions via `_is_owner_or_admin()` (Phase 10). Anonymous sessions (`user_id=None`) remain a public "unguessable UUID" capability by design. Mutation endpoints already used `_check_session_access`. A full endpoint-by-endpoint audit is still outstanding.
-- **Test coverage is partial** — pytest covers `eval_bar.py` and webhook HMAC; vitest covers the pixel kit, episode engine, chat and landing helpers/components and the store's evolution triggers; CI runs both plus the frontend build. Ownership checks, most of the store and the backend streams are untested.
+- **Test coverage is partial** — pytest covers `eval_bar.py` and webhook HMAC; vitest covers the pixel kit, episode engine, chat, landing and share helpers/components and the store's evolution triggers; CI runs both plus the frontend build. Ownership checks, most of the store and the backend streams are untested.
 - **`backend/llm_client.py` is ~1,550 lines (god-file)** — holds provider clients, streaming, prompt builders, council agents, and synthesis. Should be split into an `llm/` package.
 - **Rate limiting is in-memory & per-process** (`RateLimitMiddleware`) — does not work correctly across multiple instances.
 - **Admin actions require `ADMIN_EMAILS`** — when Clerk auth isn't configured (pure local dev), every request is treated as admin (open dev mode).

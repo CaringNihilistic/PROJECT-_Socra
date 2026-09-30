@@ -25,7 +25,7 @@ export function ChatLog({ turns }: { turns: readonly Turn[] }) {
             t.role === 'assistant' ? (
               <li key={i} className="pixel-dialog px-4 py-3">
                 <p className="font-pixel text-[10px] text-px-ghost">PROF. SOCRA</p>
-                <div className="prose prose-dialog max-w-none text-[22px] leading-snug">
+                <div className="prose prose-dialog max-w-none text-[22px] leading-snug [overflow-wrap:break-word]">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{t.content}</ReactMarkdown>
                 </div>
               </li>

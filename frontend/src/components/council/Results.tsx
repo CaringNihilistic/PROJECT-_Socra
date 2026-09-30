@@ -21,7 +21,8 @@ const MARKDOWN_COMPONENTS = {
 
 function Markdown({ children }: { children: string }) {
   return (
-    <div className="prose prose-pixel max-w-none">
+    // overflow-wrap: long emails, URLs and paths in plans must not widen the page on phones
+    <div className="prose prose-pixel max-w-none [overflow-wrap:break-word]">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{children}</ReactMarkdown>
     </div>
   )

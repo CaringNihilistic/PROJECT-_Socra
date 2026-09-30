@@ -6,19 +6,6 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: {
-          50: '#f0efe8',
-          100: '#d4d2c8',
-          200: '#b4b2a8',
-          300: '#9998a0',
-          400: '#7a7880',
-          500: '#55545c',
-          600: '#3e3d44',
-          700: '#2e2e38',
-          800: '#18181c',
-          900: '#111114',
-          950: '#0a0a0b',
-        },
         // Pixel redesign tokens (docs/superpowers/specs/2026-09-30-socra-pixel-foundation-design.md §3)
         px: {
           night: '#16142b',
@@ -44,9 +31,6 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Bricolage Grotesque"', 'sans-serif'],
-        mono: ['"DM Mono"', 'monospace'],
-        sans: ['"Onest"', 'sans-serif'],
         pixel: ['"Press Start 2P"', 'monospace'], // titles & names only, never below 10px
         term: ['VT323', 'monospace'], // all text: never below 20px, 22px+ for reading
       },

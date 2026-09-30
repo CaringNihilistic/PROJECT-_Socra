@@ -1,92 +1,84 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import type { SessionData } from '../store/sessionStore'
-import { VerdictCard } from './VerdictCard'
+import { PixelButton } from '../pixel/ui/PixelButton'
+import { TradingCard, type CardSession } from './share/TradingCard'
+import { Loading, NotFound, PublicShell, RunYourIdea } from './share/ShareChrome'
+import { downloadPng } from './share/pngExport'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-export function CardPage({ sessionId }: { sessionId: string }) {
-  const [session, setSession] = useState<SessionData | null>(null)
-  const [loading, setLoading] = useState(true)
+const slug = (idea: string) =>
+  idea.slice(0, 40).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+$/, '') || 'idea'
+
+/** The card with its actions; separate from the fetch so it renders in tests. */
+export function CardView({ session }: { session: CardSession }) {
+  const card = useRef<HTMLElement>(null)
+  const [status, setStatus] = useState<'idle' | 'busy' | 'failed'>('idle')
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    axios.get<SessionData>(`${API_URL}/sessions/${sessionId}`)
-      .then(r => setSession(r.data))
-      .finally(() => setLoading(false))
-  }, [sessionId])
+  const download = async () => {
+    if (!card.current) return
+    setStatus('busy')
+    try {
+      await downloadPng(card.current, `socra-card-${slug(session.initial_idea)}.png`)
+      setStatus('idle')
+    } catch {
+      setStatus('failed')
+    }
+  }
 
-  const handleCopy = () => {
+  const copy = () =>
     navigator.clipboard.writeText(window.location.href).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#080809' }}>
-        <div className="w-6 h-6 rounded-full border-2 border-amber-400/40 border-t-amber-400 animate-spin" />
-      </div>
-    )
-  }
-
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#080809' }}>
-        <p className="text-[13px] font-mono text-ink-700">Card not found.</p>
-      </div>
-    )
-  }
-
-  const score = Math.round(session.total_score * 100)
-  const glowColor = score >= 80 ? 'rgba(52,211,153,0.06)' : score >= 60 ? 'rgba(245,158,11,0.06)' : 'rgba(232,93,38,0.05)'
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16"
-      style={{
-        background: '#080809',
-        backgroundImage: `radial-gradient(ellipse at 50% 0%, ${glowColor} 0%, transparent 60%)`,
-      }}>
-
-      {/* Card */}
-      <VerdictCard
-        idea={session.initial_idea}
-        totalScore={session.total_score}
-        scores={session.scores}
-        explanations={session.explanations}
-        sessionId={sessionId}
-      />
-
-      {/* Action buttons */}
-      <div className="mt-6 flex items-center gap-3">
-        <button
-          onClick={handleCopy}
-          className="text-[12px] font-mono px-5 py-2.5 rounded-xl border transition-all duration-200"
-          style={copied ? {
-            color: '#34d399', borderColor: 'rgba(52,211,153,0.35)', background: 'rgba(52,211,153,0.06)',
-          } : {
-            color: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.08)', background: 'transparent',
-          }}
-        >
-          {copied ? '✓ Link copied' : '↗ Copy link'}
-        </button>
-        <a
-          href="/"
-          className="text-[12px] font-mono px-5 py-2.5 rounded-xl border transition-all duration-200"
-          style={{
-            color: '#f59e0b', borderColor: 'rgba(245,158,11,0.25)', background: 'rgba(245,158,11,0.05)',
-          }}
-        >
-          Run your idea →
-        </a>
+    <div className="flex flex-col items-center gap-8">
+      {/* Below 368px the card scrolls sideways rather than scaling (scaling blurs sprites) */}
+      <div className="max-w-full overflow-x-auto">
+        <TradingCard ref={card} session={session} />
       </div>
-
-      {/* Tweet prompt */}
-      <p className="mt-8 text-[11px] font-mono text-ink-800 text-center max-w-xs leading-relaxed">
-        Share your score on LinkedIn or Twitter and tag it{' '}
-        <span className="text-ink-600">#SocraScore</span>
+      <div className="flex flex-wrap justify-center gap-3">
+        <PixelButton disabled={status === 'busy'} onClick={download}>
+          {status === 'busy' ? 'DRAWING…' : 'DOWNLOAD PNG'}
+        </PixelButton>
+        <PixelButton variant="secondary" onClick={copy}>COPY LINK</PixelButton>
+        <RunYourIdea />
+      </div>
+      <p aria-live="polite" className="min-h-[1.5em] text-center text-[20px]">
+        {status === 'failed' ? (
+          <span className="text-px-glitch-text">Couldn’t create the image. Try again, or take a screenshot.</span>
+        ) : copied ? (
+          <span className="text-px-plan">Link copied</span>
+        ) : (
+          <span className="text-px-muted">Post it with #SocraScore</span>
+        )}
       </p>
     </div>
+  )
+}
+
+export function CardPage({ sessionId }: { sessionId: string }) {
+  const [session, setSession] = useState<SessionData | null>(null)
+  const [state, setState] = useState<'loading' | 'ready' | 'missing'>('loading')
+
+  useEffect(() => {
+    axios
+      .get<SessionData>(`${API_URL}/sessions/${sessionId}`)
+      .then(({ data }) => {
+        setSession(data)
+        setState('ready')
+      })
+      .catch(() => setState('missing'))
+  }, [sessionId])
+
+  return (
+    <PublicShell section="SCORE CARD">
+      {state === 'loading' && <Loading what="CARD" />}
+      {state === 'missing' && <NotFound message="This card doesn’t exist. Maybe yours should?" />}
+      {state === 'ready' && session && <CardView session={session} />}
+    </PublicShell>
   )
 }

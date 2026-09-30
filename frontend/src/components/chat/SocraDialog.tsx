@@ -6,7 +6,7 @@ import type { DialogLine } from '../../chat/turns'
 
 function Markdown({ children }: { children: string }) {
   return (
-    <div className="prose prose-dialog max-w-none text-[22px] leading-snug sm:text-[26px]">
+    <div className="prose prose-dialog max-w-none text-[22px] leading-snug [overflow-wrap:break-word] sm:text-[26px]">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
     </div>
   )

@@ -140,7 +140,8 @@ interface SessionStore {
   sendMessage: (content: string) => Promise<void>
   updateAssumptionStatus: (index: number, status: Assumption['status']) => Promise<void>
   generatePitchDeck: () => Promise<void>
-  createCheckout: () => Promise<string | null>
+  /** The Razorpay checkout URL, 'already_paid', or null when it couldn't be created. */
+  createCheckout: () => Promise<string | 'already_paid' | null>
   verifyAndUnlock: (checkoutId: string, sessionId: string) => Promise<void>
   pipelinePreference: 'legacy' | 'langgraph'
   setPipelinePreference: (p: 'legacy' | 'langgraph') => void
@@ -444,7 +445,7 @@ export const useSessionStore = create<SessionStore>((set, get) => {
         )
         if (data.already_paid) {
           set({ paymentRequired: false })
-          return null
+          return 'already_paid'
         }
         return data.checkout_url ?? null
       } catch {
@@ -570,11 +571,13 @@ export const useSessionStore = create<SessionStore>((set, get) => {
 
     saveFollowUpEmail: async (sessionId: string, email: string) => {
       const { authToken } = get()
-      await fetch(`${API_URL}/sessions/${sessionId}/follow-up`, {
+      const res = await fetch(`${API_URL}/sessions/${sessionId}/follow-up`, {
         method: 'POST',
         headers: authHeaders(authToken),
         body: JSON.stringify({ email }),
       })
+      // fetch only rejects on network errors: a 4xx/5xx must not read as "saved"
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
     },
 
     clearSession: () => set({
