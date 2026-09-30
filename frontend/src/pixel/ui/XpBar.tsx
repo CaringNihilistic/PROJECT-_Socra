@@ -7,7 +7,9 @@ interface XpBarProps {
 
 /** Progress toward the next evolution threshold; full at Final Form. */
 export function XpBar({ score }: XpBarProps) {
-  const xp = Math.round(Math.min(1, Math.max(0, score)) * 100)
+  // Round down: 39.8% must not read "XP 40 / 40 · 0 to evolve" while still an egg.
+  // The epsilon absorbs float noise (0.29 * 100 = 28.999…).
+  const xp = Math.floor(Math.min(1, Math.max(0, score)) * 100 + 1e-9)
   const next = nextStage(stageForScore(score))
   const target = next ? Math.round(next.threshold * 100) : 100
   const fill = next ? Math.min(100, (xp / target) * 100) : 100

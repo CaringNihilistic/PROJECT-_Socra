@@ -39,6 +39,9 @@ describe('Sprite', () => {
 describe('XpBar', () => {
   it('shows XP toward the next threshold', () => {
     expect(renderToStaticMarkup(<XpBar score={0.64} />)).toContain('XP 64 / 70 · 6 to evolve')
+    // just under a threshold never reads as full (seen live: 0.398 showed 40 / 40, 0 to evolve)
+    expect(renderToStaticMarkup(<XpBar score={0.398} />)).toContain('XP 39 / 40 · 1 to evolve')
+    expect(renderToStaticMarkup(<XpBar score={0.29} />)).toContain('XP 29 / 40')
   })
 
   it('is full at Final Form', () => {
