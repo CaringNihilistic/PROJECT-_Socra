@@ -3,10 +3,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     anthropic_api_key: str = ""
-    openai_api_key: str = ""
     stub_mode: str = "true"
     database_url: str = "postgresql://socra:socra_dev@localhost:5432/socra_db"
-    redis_url: str = "redis://localhost:6379"
     secret_key: str = "dev_secret_key_change_in_prod"
     clerk_secret_key: str = ""
     clerk_frontend_api_url: str = ""  # e.g. https://xxxx.clerk.accounts.dev
@@ -20,7 +18,7 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     frontend_origin: str = "http://localhost:5173"
     admin_secret: str = ""  # Legacy — retained for back-compat; admin actions now use admin_emails
-    admin_emails: str = ""  # Comma-separated allowlist of admin Clerk emails (or user IDs). Set in Railway env.
+    admin_emails: str = ""  # Comma-separated allowlist of admin Clerk emails (or user IDs). Set in the host env (Render).
     langfuse_public_key: str = ""  # Langfuse observability — public key (safe to expose)
     langfuse_secret_key: str = ""  # Langfuse observability — secret key
     langfuse_host: str = "https://cloud.langfuse.com"  # Override for self-hosted Langfuse
@@ -40,16 +38,16 @@ class Settings(BaseSettings):
 
 
 _s = Settings()
-# Strip every string setting — pasting secrets into hosting dashboards (Railway)
+# Strip every string setting — pasting secrets into hosting dashboards (Render, Railway)
 # frequently appends an invisible trailing newline, which breaks URLs, headers,
 # and comparisons (e.g. a "\n" on CLERK_FRONTEND_API_URL breaks JWKS fetch → all
 # token verification fails). Defensive strip prevents this whole class of bug.
 for _field in (
     "groq_api_key", "anthropic_api_key", "google_api_key", "tavily_api_key",
-    "openai_api_key", "clerk_secret_key", "clerk_frontend_api_url", "admin_secret",
+    "clerk_secret_key", "clerk_frontend_api_url", "admin_secret",
     "admin_emails", "secret_key", "razorpay_key_id", "razorpay_key_secret",
     "razorpay_webhook_secret", "resend_api_key", "frontend_origin",
-    "database_url", "redis_url", "langfuse_public_key", "langfuse_secret_key",
+    "database_url", "langfuse_public_key", "langfuse_secret_key",
     "langfuse_host",
 ):
     _v = getattr(_s, _field, "")

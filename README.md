@@ -1,267 +1,152 @@
-# Socra — AI Startup Evaluator
+<div align="center">
 
-> An AI that refuses to give you a masterplan until it fully understands your idea. It interrogates founders Socratically, scores the idea across 5 dimensions, then unlocks a multi-agent council analysis and a synthesized Chairman's Masterplan.
+<img src="frontend/public/favicon.svg" width="72" alt="" />
 
----
+# Socra
 
-## What It Does
+**We kill bad ideas before they kill you.**
 
-Most AI tools tell you what you want to hear. Socra doesn't.
+An AI startup evaluator that refuses to hand you a plan until it understands your idea. It interrogates you Socratically, puts the idea in front of a council of five AI advisors, and only then writes the masterplan, presented as a retro creature-collector game.
 
-It runs founders through a structured Socratic interrogation — asking targeted questions, challenging vague answers, and scoring their idea across 5 dimensions in real time. Only when the idea is fully understood does it unlock a specialist council of 5 AI advisors, each analyzing a different aspect of the business, followed by a synthesized masterplan from "The Chairman."
+[**Try it live**](https://socra-frontend-efmq.onrender.com) · [How it works](#how-it-works) · [Run it locally](#run-it-locally)
 
-**Flow:** Socratic Q&A → Eval scoring → Council of 5 agents → Chairman's Masterplan  
+[![CI](https://github.com/CaringNihilistic/PROJECT-_Socra/actions/workflows/ci.yml/badge.svg)](https://github.com/CaringNihilistic/PROJECT-_Socra/actions/workflows/ci.yml)
 
----
+<img src="docs/screenshots/landing.png" alt="Socra's title screen: NAME YOUR IDEA, PRESS START" width="820" />
 
-## Core Features
+</div>
 
-### Socratic Interrogation
-- Maximum 2 targeted questions per turn — no rambling
-- Challenges vague answers ("reduce costs" → "by how much exactly?")
-- Scores progress across 5 dimensions in real time
-- Phases: `intake` → `debate` → `stress_test` → `masterplan`
+> The live demo runs on free tiers: after 15 idle minutes the first request takes about a minute to wake the server.
 
-### The Eval Bar (5 Dimensions)
-| Dimension | Weight |
+## Why
+
+ChatGPT tells you how to build it. Socra tells you if you should. Most AI tools are built to agree with you; Socra is built to find the assumption that kills your idea in year one, with named competitors, real prices and actual regulations, before you quit your job for it.
+
+## How it works
+
+| 1. Interrogation | 2. The council | 3. The masterplan |
+|---|---|---|
+| Prof. Socra asks one or two sharp questions per turn and challenges vague answers. Every answer scores your idea on five weighted stats, and it **evolves** from Idea Egg to Final Form as the score climbs. | At 80% the council convenes: five advisors research the market live on the web, each hunting a different reason the idea fails: the money, the market, rivals, the build, the risk. | The Chairman synthesizes a crisp plan (verdict, tech stack, three phases, risk register, first three files). Then Team Glitch ambushes it with five reasons it fails. |
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/chat.png" alt="The interrogation: the idea creature with XP and five stats, field notes, and Prof. Socra's question" /></td>
+<td width="50%"><img src="docs/screenshots/evolution.png" alt="The evolution scene: Your idea evolved into HATCHLING" /><br/><br/><img src="docs/screenshots/council.png" alt="The council episode: five creatures report as the trainers present the plan" /></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/masterplan.png" alt="Results: the trainer-presented masterplan with the verdict in bold" /></td>
+<td width="50%" align="center"><img src="docs/screenshots/card.png" alt="The shareable trading card: HP 87, GREENLIT" /></td>
+</tr>
+</table>
+
+Every result is shareable: a read-only plan page where visitors can replay the council episode, a trading card that downloads as a PNG, and a VS screen that compares two ideas stat by stat.
+
+### The five stats
+
+| Stat | Weight | | Stage | Unlocks at |
+|---|---|---|---|---|
+| Clarity (the problem) | 25% | | Idea Egg | 0% |
+| Scale & constraints | 20% | | Hatchling | 40% |
+| Tech context | 20% | | Evolved | 70% |
+| Success definition (goal) | 20% | | Final Form: the council runs | 80% |
+| Risk awareness | 15% | | | |
+
+### The cast
+
+All original characters, drawn in code as 32×32 pixel sprites.
+
+- **Prof. Socra**, the interrogator.
+- **The council**: Coinbit (Steel, finance), Augurin (Psychic, market), Rivalix (Fighting, competition), Beavolt (Electric, tech), Omenyx (Ghost, risk).
+- **The trainers** who present the plan: Kai, Dex and Marin.
+- **Team Glitch**, the devil's advocates: Hex, Rook and Gremlix.
+
+## Engineering highlights
+
+- **Streaming multi-agent pipeline.** One Server-Sent Events stream carries the chat reply, then, if the turn crosses 80%, web research, five parallel agent reports, the token-by-token masterplan and the critique. The council can also run as a **LangGraph** `StateGraph` (parallel fan-out, `operator.add` reducer, Postgres checkpoints on a fresh thread per run).
+- **Provider fall-through.** Every LLM call goes Anthropic Claude Haiku 4.5 → Google Gemini → Groq and falls through on any failure, including a dead or out-of-credit key. With only a Groq key the app runs entirely free.
+- **Crisp by contract.** Prompts fix the output shape: replies under 60 words, reports of exactly four bullets that each lead with a bold verdict, and a masterplan filled into a 7-heading template, prefilled on Anthropic. Tests pin the headings the frontend splits the plan on. A full session costs about **$0.05**.
+- **One episode engine for live, replay and demo.** A pure reducer plus a pacer turns the SSE events into the council "episode". The live run, the saved-session replay and the landing page's demo (a real recorded run) all go through it, and a replayed episode matches the live one.
+- **Pixel art without image files.** Sprites are 16-row half-grids, mirrored, upscaled with Scale2x/EPX and rim-shaded, then rendered as crisp SVG paths at whole-pixel sizes only. The share card exports to PNG in the browser with the pixel fonts inlined.
+- **Accessible by default.** WCAG AA colour pairs, keyboard-only play (menus, dialogs with focus traps, Esc to skip), `prefers-reduced-motion` support, and no horizontal scroll at 375px.
+
+## Tech stack
+
+| | |
 |---|---|
-| Problem Clarity | 25% |
-| Scale & Constraints | 20% |
-| Tech Context | 20% |
-| Success Definition | 20% |
-| Risk Awareness | 15% |
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Zustand, react-markdown, html-to-image; Press Start 2P + VT323 |
+| **Backend** | Python 3.11, FastAPI, SQLAlchemy (asyncio) + asyncpg, PostgreSQL |
+| **AI** | Anthropic Claude Haiku 4.5, Google Gemini, Groq; LangGraph; Tavily web search; Langfuse tracing |
+| **Services** | Clerk (optional auth), Razorpay (optional donations), Resend (follow-up email) |
+| **Hosting** | Render (Docker backend + static frontend, [render.yaml](render.yaml)) and Neon Postgres, all on free tiers |
+| **Quality** | 170 Vitest tests and a pytest suite, run with the production build on every push (GitHub Actions) |
 
-### Council of 5 Specialist Agents
-Runs in parallel once the eval threshold is reached:
-- 💼 **The Banker** — unit economics, CAC/LTV, burn rate, funding gap
-- 🔮 **The Oracle** — market sizing, GTM, timing risk
-- ⚔️ **The Challenger** — named competitors, moat analysis, copy risk
-- 🔧 **The Builder** — tech stack, build vs buy, what breaks at 10x
-- 🎯 **The Skeptic** — regulation, platform dependencies, killer assumptions
-- 💀 **Devil's Advocate** — 5 specific critiques of the masterplan itself
+## Run it locally
 
-### Chairman's Masterplan
-Synthesizes all 5 council reports into a definitive plan: tech stack table, 3 implementation phases, risk register with specific mitigations, first 3 files to write.
-
-### Shareable Links
-- `/card/:id` — public score card (dimensions + phase)
-- `/share/:id` — read-only masterplan view
-- `/compare/:id1/:id2` — side-by-side session comparison
-
-### Live Market Research
-Tavily web search runs before council analysis to ground agent reports in current market data.
-
----
-
-## Tech Stack
-
-### Backend
-| Component | Choice |
-|---|---|
-| Framework | FastAPI + Uvicorn |
-| Language | Python 3.11 |
-| Database | PostgreSQL (SQLAlchemy asyncio + asyncpg) |
-| Agent orchestration | LangGraph (StateGraph, parallel fan-out, Postgres checkpointing) |
-| Cache | Redis |
-| Auth | Clerk (JWT verification via python-jose) |
-| Payments | Razorpay |
-| Observability | Langfuse v4 |
-| Web search | Tavily |
-| HTTP client | httpx |
-
-### LLM Routing
-All calls route through `backend/llm_client.py` with automatic fallback:
-1. **Anthropic Haiku 4.5** (`claude-haiku-4-5-20251001`) — primary
-2. **Google Gemini 2.0 Flash** (`gemini-2.0-flash`) — fallback
-3. **Groq** (`llama-3.1-8b-instant`) — final fallback
-
-The council of 5 agents can also run through a **LangGraph pipeline** — user-selectable before unlocking. Benchmarked 16% faster (52s vs 62s) at identical cost.
-
-### Frontend
-| Component | Choice |
-|---|---|
-| Framework | React 18 + TypeScript |
-| Build | Vite |
-| Styling | Tailwind CSS |
-| Fonts | Bricolage Grotesque + Onest + DM Mono |
-| State | Zustand |
-| Auth | @clerk/clerk-react |
-
-### Infrastructure
-- **Hosting:** Render free tier ([render.yaml](render.yaml)) + Neon free Postgres
-- **Local dev:** Docker Compose
-
----
-
-## Project Structure
-
-```
-socra/
-├── backend/
-│   ├── main.py                  # FastAPI app, CORS, rate limiting, /health
-│   ├── llm_client.py            # LLM routing, council agents, masterplan
-│   ├── observability.py         # Langfuse v4 tracing (optional)
-│   ├── eval_bar.py              # 5-dimension scoring + phase thresholds
-│   ├── web_search.py            # Tavily live market research
-│   ├── llm_graph/
-│   │   ├── council_graph.py     # LangGraph StateGraph — parallel 5-agent council
-│   │   └── checkpointer.py      # AsyncPostgresSaver (resilience — resumes on failure)
-│   ├── core/
-│   │   ├── config.py            # Settings via pydantic-settings
-│   │   └── auth.py              # Clerk JWT verification + admin role
-│   ├── db/
-│   │   ├── database.py          # Async engine + session
-│   │   └── models.py            # Session + WaitlistEntry tables
-│   └── api/routes/
-│       ├── sessions.py          # Session CRUD + admin endpoints
-│       ├── architect.py         # Streaming chat, unlock, masterplan
-│       ├── billing.py           # Razorpay checkout / webhook / verify
-│       ├── waitlist.py          # Email waitlist
-│       ├── followup.py          # Follow-up email capture
-│       └── me.py                # GET /me — identity + is_admin
-├── frontend/
-│   └── src/
-│       ├── App.tsx              # Path-based routing, Clerk provider
-│       ├── store/sessionStore.ts # Zustand store — all state + SSE streaming
-│       └── components/
-│           ├── LandingPage.tsx  # Entry — idea input, examples, mode selection
-│           ├── SessionPage.tsx  # Standard mode: Chat → Council → Masterplan
-│           ├── CardPage.tsx     # Public score card (/card/:id)
-│           ├── SharePage.tsx    # Public masterplan view (/share/:id)
-│           └── ComparePage.tsx  # Side-by-side comparison (/compare/:id1/:id2)
-├── docker-compose.yml
-└── .env.example
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-- Docker + Docker Compose (recommended)
-- Anthropic API key (or Google/Groq as fallback)
-
-### Local Development
+You need Docker, and at least one LLM key (a free [Groq](https://console.groq.com) key works).
 
 ```bash
 git clone https://github.com/CaringNihilistic/PROJECT-_Socra.git
 cd PROJECT-_Socra
-
-cp .env.example .env
-# Add your ANTHROPIC_API_KEY and set STUB_MODE=false
-
-docker compose up
+cp .env.example .env        # add ANTHROPIC_API_KEY or GROQ_API_KEY
+docker compose up           # Postgres, backend on :8000, frontend on :3000
 ```
 
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8000
-- API docs: http://localhost:8000/docs
+Open http://localhost:3000. The API docs are at http://localhost:8000/docs.
 
-`STUB_MODE=true` (default) runs offline with canned responses for the 3 landing page example ideas — no API key needed to try it.
+**No key?** Set `STUB_MODE=true` for canned answers to the three example ideas on the landing page.
 
-### Backend Only
+Every setting is documented in [.env.example](.env.example); only an LLM key is required. Without Clerk the app runs signed-out.
+
+<details>
+<summary>Without Docker</summary>
 
 ```bash
+# backend (needs a Postgres; set DATABASE_URL in backend/.env)
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
-```
 
-### Frontend Only
-
-```bash
+# frontend, in a second terminal
 cd frontend
 npm install
-npm run dev
+npm run dev                 # http://localhost:3000
 ```
 
-### Key Environment Variables
+</details>
 
-```env
-# LLM (at least one required for real responses)
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=            # Gemini fallback
-GROQ_API_KEY=              # Groq fallback
+### Tests
 
-STUB_MODE=false            # true = offline demo (landing page examples only)
-
-# Database
-DATABASE_URL=postgresql://socra:socra_dev@postgres:5432/socra_db
-REDIS_URL=redis://redis:6379
-
-# Auth (Clerk) — optional for local dev
-CLERK_SECRET_KEY=
-CLERK_FRONTEND_API_URL=
-
-# Payments (Razorpay) — leave unset to show [DEV] bypass buttons
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
-RAZORPAY_WEBHOOK_SECRET=
-
-# Live market research
-TAVILY_API_KEY=
-
-# Observability (optional)
-LANGFUSE_PUBLIC_KEY=
-LANGFUSE_SECRET_KEY=
-
-# Admin access (comma-separated Clerk emails)
-ADMIN_EMAILS=you@example.com
+```bash
+cd frontend && npm test && npm run build     # Vitest, then the typecheck + production build
+cd backend && pytest                          # pytest
 ```
 
----
+The dev server also has three pages for working on the UI without a backend: `/__pixel` (the sprite kit), `/__episode` (the council episode on a recorded run) and `/__chat` (the interrogation screen and every evolution).
 
-## How It Works
+## Deploy
+
+[render.yaml](render.yaml) is a Render Blueprint for both services: a Docker web service for the backend and a static site for the frontend, with an SPA rewrite so `/share`, `/card` and `/compare` links resolve. Create a free [Neon](https://neon.tech) Postgres and use its direct connection string as `DATABASE_URL`. Pushes to `main` redeploy automatically. `VITE_*` variables are baked in at build time, so changing them needs a rebuild.
+
+## Project structure
 
 ```
-Founder submits idea
-        ↓
-Socratic interrogation (2-3 questions/turn, max ~8 turns)
-Eval bar scores 5 dimensions in real time
-        ↓
-Score > 80%?
-   No → Keep questioning
-   Yes → Payment gate
-        ↓
-[Payment or admin bypass]
-        ↓
-Parallel council: 5 agents run simultaneously
-Live web research enriches each report
-        ↓
-Chairman synthesizes → Masterplan
-Devil's Advocate critiques it
+backend/
+  main.py               FastAPI app, CORS, rate limiting, /health
+  llm_client.py         provider routing, prompts, council agents, masterplan synthesis
+  llm_graph/            LangGraph council pipeline + Postgres checkpointer
+  eval_bar.py           the five weighted stats and phase thresholds
+  api/routes/           sessions, streaming chat + council, billing, follow-ups
+frontend/src/
+  pixel/                sprites, cast, pixel UI kit
+  episode/              the council episode engine (reducer, pacer, replay)
+  chat/ landing/ share/ pure helpers behind each screen
+  components/           the screens: landing, chat, council, results, card, share, compare
+  store/sessionStore.ts all state, API calls and SSE streaming
+docs/superpowers/specs/ design specs for the pixel redesign
 ```
 
----
-
-## API Endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| POST | `/sessions/` | Create session |
-| GET | `/sessions/{id}` | Get session (public by UUID) |
-| POST | `/sessions/{id}/message/stream` | SSE Socratic chat |
-| POST | `/sessions/{id}/unlock` | Run council + masterplan (SSE); `?use_langgraph=true` for LangGraph pipeline |
-| POST | `/billing/checkout` | Razorpay checkout |
-| POST | `/billing/verify` | Verify payment |
-| GET | `/me` | Current identity + is_admin |
-| GET | `/health` | DB + Langfuse + checkpointer status |
-
----
-
-## Deployment
-
-Runs on free tiers: **Render** for the app and **Neon** for Postgres. [render.yaml](render.yaml) is a Render Blueprint that defines both services:
-
-- `socra-backend` — Docker web service (free plan; sleeps after 15 min idle, ~1 min cold start)
-- `socra-frontend` — static site with an SPA rewrite so `/share`, `/card` and `/compare` links resolve
-
-Push to `main` → Render auto-deploys. Secrets are prompted for when the Blueprint is first created.
-
-Frontend `VITE_*` vars are baked in at build time — changing them requires a rebuild.
-
----
+Architecture notes for contributors are in [CLAUDE.md](CLAUDE.md).
 
 ## License
 
-MIT
+[MIT](LICENSE)

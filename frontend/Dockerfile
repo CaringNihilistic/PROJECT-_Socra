@@ -4,7 +4,6 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 ARG VITE_API_URL
-ARG VITE_WS_URL
 ARG VITE_CLERK_PUBLISHABLE_KEY
 RUN npm run build
 

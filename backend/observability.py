@@ -40,7 +40,7 @@ def _client():
                     public_key=settings.langfuse_public_key,
                     secret_key=settings.langfuse_secret_key,
                     base_url=settings.langfuse_host or "https://cloud.langfuse.com",
-                    # Enable debug via env var: LANGFUSE_DEBUG=true in Railway
+                    # Enable debug via env var: LANGFUSE_DEBUG=true in the host env
                     debug=os.getenv("LANGFUSE_DEBUG", "").lower() in ("true", "1"),
                 )
                 if _lf_client.auth_check():

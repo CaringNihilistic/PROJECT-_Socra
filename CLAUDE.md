@@ -15,7 +15,6 @@
 | ORM | SQLAlchemy (asyncio) | 2.0.35 |
 | DB driver | asyncpg | 0.29.0 |
 | Database | PostgreSQL | 15 |
-| Cache/queue | Redis (asyncio) | 5.1.0 (in requirements + local compose only; no code uses it, not provisioned in prod) |
 | Config | pydantic-settings | 2.5.0 |
 | LLM SDKs | anthropic 0.40.0, openai 1.50.0 (also Google Gemini + Groq via HTTP) |
 | Observability | langfuse ≥3.0.0 (optional — traces LLM calls) | — |
@@ -41,7 +40,7 @@
 
 ### Infra
 - **Hosting:** Render free tier via [render.yaml](render.yaml) — backend = Docker web service, frontend = static site. Database = Neon free Postgres (Render's free Postgres is deleted after 30 days).
-- **Local dev:** Docker Compose (postgres + redis + backend + frontend)
+- **Local dev:** Docker Compose (postgres + backend + frontend)
 
 ---
 
@@ -193,11 +192,9 @@ Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) �
 | `ANTHROPIC_API_KEY` | Primary LLM | "" |
 | `GOOGLE_API_KEY` | Gemini fallback | "" |
 | `GROQ_API_KEY` | Groq fallback | "" |
-| `OPENAI_API_KEY` | (optional) | "" |
 | `TAVILY_API_KEY` | Live market research | "" |
 | `STUB_MODE` | Offline demo (true = no real LLM) | "true" |
 | `DATABASE_URL` | Postgres connection. Neon/Render-style URLs work as-is: `sslmode`/`channel_binding` are translated for asyncpg in `db/database.py`. Use Neon's **direct** (non-pooled) string. | local docker |
-| `REDIS_URL` | Redis connection (unused by code) | local docker |
 | `SECRET_KEY` | App secret | dev placeholder |
 | `CLERK_SECRET_KEY` | Clerk JWT verification | "" |
 | `CLERK_FRONTEND_API_URL` | Clerk issuer (e.g. `https://xxx.clerk.accounts.dev`) | "" |
@@ -216,7 +213,6 @@ Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) �
 | Var | Purpose |
 |---|---|
 | `VITE_API_URL` | Backend base URL |
-| `VITE_WS_URL` | WebSocket URL |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Clerk public key (auth disabled if unset) |
 | `VITE_RAZORPAY_KEY_ID` | Controls `BILLING_ENABLED` — when **unset**, `[DEV]` skip-payment buttons appear |
 | `VITE_ADMIN_SECRET` | Legacy — no longer used (admin is identity-based via Clerk now) |
@@ -228,7 +224,7 @@ Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) �
 ### Local development (Docker Compose — recommended)
 ```bash
 cp .env.example .env        # add ANTHROPIC_API_KEY, set STUB_MODE=false for real responses
-docker compose up           # starts postgres, redis, backend (:8000), frontend (:3000)
+docker compose up           # starts postgres, backend (:8000), frontend (:3000)
 ```
 - Frontend: http://localhost:3000 · Backend: http://localhost:8000 · Docs: http://localhost:8000/docs
 - HMR on Windows requires Vite polling (`usePolling`). After changing dependencies, rebuild with `docker compose up --build` (not just restart).

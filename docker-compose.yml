@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -17,25 +15,13 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://socra:socra_dev@postgres:5432/socra_db
-      - REDIS_URL=redis://redis:6379
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - STUB_MODE=${STUB_MODE:-true}
       - SECRET_KEY=${SECRET_KEY:-dev_secret_key_change_in_prod}
       - CLERK_SECRET_KEY=${CLERK_SECRET_KEY:-}
@@ -44,23 +30,30 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
       - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:3000}
+      - LANGGRAPH_ENABLED=${LANGGRAPH_ENABLED:-false}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     volumes:
       - ./backend:/app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      # The Dockerfile's final stage only serves the production build (no node_modules);
+      # dev needs the builder stage, which has the dependencies for `npm run dev`
+      target: builder
     ports:
       - "3000:3000"
     environment:
       - VITE_API_URL=http://localhost:8000
-      - VITE_WS_URL=ws://localhost:8000
       - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-}
+      - VITE_RAZORPAY_KEY_ID=${VITE_RAZORPAY_KEY_ID:-}
     depends_on:
       - backend
     volumes:

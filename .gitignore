@@ -51,3 +51,6 @@ JOURNEY*.md
 SCALABILITY.md
 SECURITY.md
 Compound V.md
+
+# Local AI-assistant tooling (commands, skills, permission lists)
+.claude/

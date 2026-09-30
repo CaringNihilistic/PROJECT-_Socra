@@ -19,7 +19,7 @@ function SessionAuthButton() {
   const { isSignedIn, isLoaded } = useAuth()
   // @ts-ignore
   const { openSignIn } = useClerk()
-  if (!CLERK_ENABLED || !isLoaded) return null
+  if (!isLoaded) return null
   if (isSignedIn) return (
     <div className="flex-shrink-0">
       <UserButton afterSignOutUrl="/" />
@@ -37,7 +37,7 @@ function SaveNudge() {
   const { isSignedIn, isLoaded } = useAuth()
   // @ts-ignore
   const { openSignIn } = useClerk()
-  if (!CLERK_ENABLED || !isLoaded || isSignedIn) return null
+  if (!isLoaded || isSignedIn) return null
   return (
     <button
       type="button"
@@ -137,7 +137,8 @@ export function SessionPage() {
           <PixelButton variant="secondary" size="sm" className="shrink-0" onClick={clearSession}>
             ← NEW
           </PixelButton>
-          <SessionAuthButton />
+          {/* Clerk hooks throw outside ClerkProvider: render only when Clerk is configured */}
+          {CLERK_ENABLED && <SessionAuthButton />}
         </div>
         {hasResults && (
           <nav aria-label="Session views" className="mx-auto flex max-w-5xl gap-2 px-4 sm:px-6">
@@ -199,7 +200,7 @@ export function SessionPage() {
             onCycleAssumption={updateAssumptionStatus}
             extras={
               <>
-                <SaveNudge />
+                {CLERK_ENABLED && <SaveNudge />}
                 {/* Dev/admin shortcuts: skip straight to the masterplan, or auto-play a full conversation */}
                 {showDev && !session.masterplan && !episodeLive && !isSending && (
                   <div className="flex flex-wrap items-center gap-2">

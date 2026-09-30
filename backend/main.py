@@ -87,7 +87,7 @@ app = FastAPI(
 # Rate limiting must come before CORS so blocked requests don't waste CORS processing
 app.add_middleware(RateLimitMiddleware)
 
-# CORS — locked to specific frontend origin, not a wildcard Railway regex
+# CORS — locked to the specific frontend origin (FRONTEND_ORIGIN), not a wildcard
 _allowed_origins = [
     settings.frontend_origin,
     "http://localhost:3000",
