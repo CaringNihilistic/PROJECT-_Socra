@@ -1,0 +1,75 @@
+{
+  "source": "Recorded against production on 2026-09-30 (session fe47c477-1b27-40e4-bf0a-dd259ef95729), trimmed for the landing demo.",
+  "idea": "A mobile app that lets freelance designers send invoices that auto-chase late payments with escalating polite reminders",
+  "question": "**Who is your user?** Solo designers working solo, or are we talking design studios with 5-50 people? This changes everything about payment velocity and negotiation power.",
+  "choices": [
+    "Solo designers, we just forget to follow up ourselves",
+    "We have teams; chasing invoices wastes billable design time",
+    "Clients delay payments; we need data on what reminder works"
+  ],
+  "before": {
+    "total_score": 0.10750000000000001,
+    "scores": {
+      "problem_clarity": 0.2,
+      "scale_constraints": 0.15,
+      "tech_context": 0.0,
+      "success_definition": 0.1,
+      "risk_awareness": 0.05
+    }
+  },
+  "after": {
+    "total_score": 0.42,
+    "scores": {
+      "problem_clarity": 0.65,
+      "scale_constraints": 0.55,
+      "tech_context": 0.15,
+      "success_definition": 0.4,
+      "risk_awareness": 0.25
+    },
+    "turn": 2
+  },
+  "reports": [
+    {
+      "key": "competition",
+      "title": "The Challenger",
+      "icon": "⚔️",
+      "content": "# The Challenger's Reality Check\n\n- **Three direct competitors already own this:** FreshBooks (1.3M users, $12–$55/mo, built-in escalating reminders + late fees), Stripe Invoicing (free tier + native payment links to 40M users), and Wave (free invoicing with auto-reminders). All three ship what you're building as a checkbox feature. You're not competing on reminders—you're competing on *tone tuning*, which is a behavior dataset 14 freelancers won't prove beats their defaults."
+    },
+    {
+      "key": "tech",
+      "title": "The Builder",
+      "icon": "🔧",
+      "content": "# The Builder's Diagnosis\n\n- **The hardest problem you're underestimating: Stripe webhook reliability won't save you.** You're re-checking invoice status on every send, which is correct, but you haven't modeled the latency. Stripe Invoicing API has ~2-5 second response times under load. At 2,000 users × 15 invoices/month = 30k invoices, your nightly payment-behavior scorer becomes a bottleneck. One Stripe API outage during your scoring window and your entire next day's reminder queue misses the payment window. You need Stripe's webhook event stream *and* polling with exponential backoff—but you've budgeted this as a single nightly job. That fails at 200 users."
+    },
+    {
+      "key": "market",
+      "title": "The Oracle",
+      "icon": "🔮",
+      "content": "# The Oracle's Verdict\n\n- **TAM delusion vs. reality:** The invoicing software market is ~$8B globally, but your SAM is ruthless: solo designers (under $100k revenue/year) number ~2M in the US alone. Realistic? 50k–100k will ever adopt at $12/mo because most use free invoicing or accept late payments as friction cost. You're chasing a market that doesn't self-identify as \"payment-chasing\" yet—they identify as \"designers.\" Your 2k-user target assumes conversion you haven't proven."
+    },
+    {
+      "key": "finance",
+      "title": "The Banker",
+      "icon": "💼",
+      "content": "# The Banker's Verdict: PASS\n\n**Unit Economics Are Underwater**\n\n- CAC: $30/user (your estimate). LTV at $12/month with 50% churn by month 12? $72 maximum. You're paying 42% of lifetime value to acquire one user. That's a funeral economics problem, not a growth problem.\n- Payback period: 6 months minimum. At $12/month gross, you need the user to survive churn long enough to recoup $30. Your \"under 4% churn\" is fiction—payment reminder apps historically churn 8-12%/month because they solve a one-time problem, not a repeated pain."
+    },
+    {
+      "key": "risk",
+      "title": "The Skeptic",
+      "icon": "🎯",
+      "content": "# The Skeptic's Verdict\n\n**The regulation that kills you: CAN-SPAM § 7, not as written but as enforced.**\n\nYou're betting your unit economics on sending 15 invoices × 2,000 users = 30,000 baseline emails/month, plus reminders. CAN-SPAM requires a physical address on *every* reminder email. You plan to use Postmark + fixed templates. What you're missing: Gmail and Outlook now flag bulk senders without Authentication-Results headers *even with DKIM*. ISPs will throttle you at scale without warm-up, and one complaint-to-filter ratio spike kills Postmark's reputation, which then kills *all* your users' deliverability. You have no fallback sender."
+    }
+  ],
+  "plan": "# CHAIRMAN'S VERDICT\n\n**The council agrees on one thing: this market is real, but the execution is built on two falsifiable claims that will collapse the business if they fail.** The Challenger and Oracle agree that Stripe, FreshBooks, and Wave already bundle reminders natively, making your differentiation (\"tuned per client\") the entire moat—but The Builder and Banker both flag that you can't prove this works at scale (50 users' data is noise), and The Skeptic points out that your go-to-market assumes designers will opt into \"automated escalation\" when they actually hate being nagged by *anyone*, including themselves. ",
+  "final": {
+    "total_score": 0.8675000000000002,
+    "scores": {
+      "problem_clarity": 1.0,
+      "scale_constraints": 1.0,
+      "tech_context": 0.75,
+      "success_definition": 0.8500000000000001,
+      "risk_awareness": 0.65
+    },
+    "turn": 9
+  }
+}

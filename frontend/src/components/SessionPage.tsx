@@ -25,7 +25,7 @@ function SessionAuthButton() {
     </div>
   )
   return (
-    <PixelButton variant="secondary" className="shrink-0 !px-3 !py-1 text-[20px]" onClick={() => openSignIn()}>
+    <PixelButton variant="secondary" size="sm" className="shrink-0" onClick={() => openSignIn()}>
       SIGN IN
     </PixelButton>
   )
@@ -162,7 +162,7 @@ export function SessionPage() {
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 pb-2 pt-3 sm:gap-4 sm:px-6">
           <span className="shrink-0 font-pixel text-[11px] text-px-xp">SOCRA</span>
           <p className="min-w-0 flex-1 truncate text-[20px] text-px-muted">{session.initial_idea}</p>
-          <PixelButton variant="secondary" className="shrink-0 !px-3 !py-1 text-[20px]" onClick={clearSession}>
+          <PixelButton variant="secondary" size="sm" className="shrink-0" onClick={clearSession}>
             ← NEW
           </PixelButton>
           <SessionAuthButton />
@@ -233,7 +233,7 @@ export function SessionPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <PixelButton
                       variant="secondary"
-                      className="!px-3 !py-1 text-[20px]"
+                      size="sm"
                       aria-pressed={pipelinePreference === 'langgraph'}
                       onClick={() => setPipelinePreference(pipelinePreference === 'langgraph' ? 'legacy' : 'langgraph')}
                     >
@@ -241,7 +241,7 @@ export function SessionPage() {
                     </PixelButton>
                     <PixelButton
                       variant="secondary"
-                      className="!px-3 !py-1 text-[20px]"
+                      size="sm"
                       disabled={isUnlocking}
                       onClick={() => devUnlock(pipelinePreference === 'langgraph')}
                     >
@@ -249,7 +249,7 @@ export function SessionPage() {
                     </PixelButton>
                     <PixelButton
                       variant="secondary"
-                      className="!px-3 !py-1 text-[20px]"
+                      size="sm"
                       disabled={isUnlocking}
                       title="Auto-play a realistic founder conversation, then generate the masterplan (for testing quality)"
                       onClick={() => devSeedConversation()}

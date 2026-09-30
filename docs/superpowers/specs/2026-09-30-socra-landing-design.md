@@ -35,7 +35,7 @@ Everything is `px-night` with the pixel kit; VT323 for text, Press Start 2P for 
 6. **EVERY AI TOOL SAYS YES. SOCRA SAYS NO.**: today's two lists, as a `glitch`-accent panel ("EVERY OTHER TOOL") and a `plan`-accent panel ("SOCRA").
 7. **FREE TO PLAY** (`id="free"`): one panel. Everything is free, with no account needed to start. The full analysis runs when your score is ready. An optional ₹499 donation (via Razorpay: UPI, cards, net banking) covers LLM costs. `PRESS START ▶` returns to the idea box.
 8. **GET UPDATES** (`id="updates"`): "Get an email when new features land." Email input and `NOTIFY ME ▶` post to `/waitlist` as today. Success: "You’re on the list. We’ll email you when something new lands." Errors as today. "No spam. Unsubscribe any time."
-9. **Footer**: "© 2026 Socra · Built in India 🇮🇳". Today's `#` placeholder links (Twitter, LinkedIn, GitHub, Privacy) go nowhere and are removed.
+9. **Footer**: "© 2026 Socra · Built in India 🇮🇳". Today’s `#` placeholder links (Twitter, LinkedIn, Privacy) go nowhere and are removed; GitHub links to the public repo.
 
 ## 3. Journey demo
 
@@ -45,14 +45,14 @@ A pure timeline plus a player.
 
 | Time (s) | Scene | Frame |
 |---|---|---|
-| 0–3.5 | `ask` | Egg at 25% XP; Socra's question; 3 choices; the ▶ cursor sits on choice 0, then moves to 1 at 1.4s and to 2 at 2.4s (shown by highlighting that option). |
+| 0–3.5 | `ask` | Egg at its recorded 11% XP; Socra's question; 3 choices; the ▶ cursor sits on choice 0, moves to 1 at 1.4s, back to 0 at 2.4s, and choice 0 is picked (flashes) at 3s. |
 | 3.5–5 | `answer` | The picked choice as a `YOU` panel; Socra "…" (waiting). |
 | 5–8.5 | `evolve` | XP at 42%; the embedded evolution (§3.1): evolving until 7.4s, then evolved. |
 | 8.5–15 | `council` | `CouncilArena` with seats from the episode reducer; reports land at 9.3, 10.3, 11.3, 12.3 and 13.3s. |
 | 15–20 | `plan` | `PlanRelay`, streaming the Verdict section of the fixture plan at a steady rate. |
 | 20–23 | `end` | "Your turn." with `PRESS START ▶`. |
 
-The content is **excerpts of real recordings**. The question is point 2 of the recorded first question ("**Who is your user?** Solo designers working solo, or are we talking design studios with 5-50 people?"). The choices are the first three recorded `choices` for that question, and the pick is choice 0, "Solo designers, we just forget to follow up ourselves". The demo idea shown is the recorded idea. The council reports and plan come from `episode/__fixtures__/sampleSession.json`. Excerpts keep each scene short so the panel doesn't jump in height. `journeyFrame` is pure: episode states come from `episodeReducer` over the events due by `t`.
+The content is **excerpts of one real recorded run** (`src/landing/__fixtures__/journey.json`: the invoice-chaser idea, interrogated to 87% against production, whose council and masterplan then ran). The question is point 2 of Socra's first question ("**Who is your user?** Solo designers working solo, or are we talking design studios with 5-50 people? …"). The choices are the first three recorded choices, and the pick is choice 0. The stats are the recorded 11% snapshot, then the recorded 42% one. The five council reports are trimmed to ~700 characters; the trim is checked to keep each signature line identical. The plan is the verdict's first paragraph. `journeyFrame` is pure: episode states come from `episodeReducer` over the events due by `t`.
 
 **`components/landing/JourneyDemo.tsx`**:
 - A `PixelPanel` with a scene strip `1 ASK · 2 EVOLVE · 3 COUNCIL · 4 PLAN` (buttons that jump to each scene's start).
@@ -76,7 +76,7 @@ The content is **excerpts of real recordings**. The question is point 2 of the r
 | `src/components/landing/TitleScreen.tsx` | Title, Socra, NAME YOUR IDEA, examples. |
 | `src/components/landing/ContinueMenu.tsx` | Recent sessions + compare. |
 | `src/components/landing/JourneyDemo.tsx` | The demo player. |
-| `src/components/landing/HowItPlays.tsx`, `CastRoster.tsx`, `SaysNo.tsx`, `FreeToPlay.tsx`, `GetUpdates.tsx` | The sections. |
+| `src/components/landing/HowItPlays.tsx`, `CastRoster.tsx`, `ManualSections.tsx` (SaysNo, FreeToPlay, GetUpdates) | The sections. |
 | `src/components/landing/__tests__/landing.test.tsx` | Render tests. |
 | `src/components/LandingPage.tsx` | Nav + composition; state and store calls stay here. |
 | `src/components/chat/EvolutionStage.tsx` | §3.1. |
