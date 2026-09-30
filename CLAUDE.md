@@ -55,7 +55,7 @@ All LLM calls flow through `backend/llm_client.py`, which routes by priority wit
 
 Fallback model IDs live in constants at the top of the LLM helpers section of `llm_client.py`. Providers retire them with little notice: in Sep 2026 `gemini-2.0-flash`, `llama-3.1-8b-instant` and `llama-3.3-70b-versatile` all 404'd at once and every call failed with a 503. Both Groq models are reasoning models, so keep their `max_tokens` generous: hidden thinking shares the budget, and a tight cap returns empty content.
 
-**Production runs Anthropic with Groq fallback** (no `GOOGLE_API_KEY` on Render). Every Anthropic path falls through to Groq when the key is dead or unfunded, and logs why (`Anthropic … failed, falling back:`). Without an Anthropic key the app runs fully free on Groq. A Google key on the free tier makes turns take minutes, because the OpenAI SDK retries Gemini's 429/503 responses with backoff before falling through. Anthropic `claude-haiku-4-5-20251001` retires no sooner than 2026-10-15. Output is kept **crisp by the prompts, not just the caps**: Socra's replies ≤ 60 words, each council report exactly 4 bullets (bold verdict + one ≤ 20-word sentence, `AGENT_FORMAT`), the masterplan ≤ 450 words under fixed `##` headings, 5 one-line Team Glitch critiques; key words are bolded throughout. Caps: `SYNTHESIS_MAX_TOKENS` 3000 for Anthropic/Google (a safety net: at 2000 a live plan overshot and lost its last section; the prompt ends with a FINAL CHECK of the hard limits), `GROQ_SYNTHESIS_MAX_TOKENS` 8000 for Groq (reasoning models spend hidden thinking from the same budget). A cap alone truncates mid-plan: at 3000, before the prompts were tightened, every plan was cut off mid-Phase 1/2. `backend/tests/test_prompts.py` pins the `##` headings the frontend splits the plan on.
+**Production runs Anthropic with Groq fallback** (no `GOOGLE_API_KEY` on Render). Every Anthropic path falls through to Groq when the key is dead or unfunded, and logs why (`Anthropic … failed, falling back:`). Without an Anthropic key the app runs fully free on Groq. A Google key on the free tier makes turns take minutes, because the OpenAI SDK retries Gemini's 429/503 responses with backoff before falling through. Anthropic `claude-haiku-4-5-20251001` retires no sooner than 2026-10-15. Output is kept **crisp by the prompts, not just the caps**: Socra's replies ≤ 60 words, each council report exactly 4 bullets (bold verdict + one ≤ 20-word sentence, `AGENT_FORMAT`), the masterplan ≤ 450 words under fixed `##` headings, 5 one-line Team Glitch critiques; key words are bolded throughout. Caps: `SYNTHESIS_MAX_TOKENS` 3000 for Anthropic/Google (a safety net: at 2000 a live plan overshot and lost its last section; the prompt ends with a FINAL CHECK of the hard limits), `GROQ_SYNTHESIS_MAX_TOKENS` 8000 for Groq (reasoning models spend hidden thinking from the same budget). A cap alone truncates mid-plan: at 3000, before the prompts were tightened, every plan was cut off mid-Phase 1/2. `backend/tests/test_prompts.py` pins the `##` headings the frontend splits the plan on. The masterplan prompt is a **fill-in template**, and on Anthropic the answer is **prefilled** with `SYNTHESIS_PREFILL` (`## Chairman's Verdict`, yielded as the plan's first token): instructions alone let a live run invent its own sections and drop Tech Stack and the Phases. `tests/test_synthesis_stream.py` covers the prefill and that an Anthropic failure before any text still falls through to Groq.
 
 `STUB_MODE=true` (or no LLM key set) activates canned demo responses that only work for the **3 example ideas on the landing page**.
 
@@ -66,7 +66,7 @@ Key conventions in the LLM layer:
 
 ## LangGraph Pipeline (Admin + User Selectable)
 
-The council of 5 agents can run through either the **legacy asyncio pipeline** or a **LangGraph StateGraph** pipeline. Users select their preferred engine in the PaywallModal before unlocking; the choice persists in localStorage.
+The council of 5 agents can run through either the **legacy asyncio pipeline** or a **LangGraph StateGraph** pipeline. Dev/admin users pick the engine with the `◎ LEGACY` / `⬡ LANGGRAPH` toggle in the chat screen's shortcuts; the choice persists in localStorage (`socra_pipeline`). Everyone else runs the legacy pipeline.
 
 **Graph topology** (`backend/llm_graph/council_graph.py`):
 ```
@@ -181,7 +181,7 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 | success_definition | 20% |
 | risk_awareness | 15% |
 
-Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) → `masterplan` (0.80). The masterplan is gated behind both reaching the score AND payment.
+Phase thresholds: `intake` (0.0) → `debate` (0.40) → `stress_test` (0.70) → `masterplan` (0.80). Crossing 0.80 starts the council and masterplan automatically inside that chat turn's stream (turn 9 forces it). It is **free**: there is no paywall, only an optional ₹499 donation after the results (Razorpay).
 
 ---
 
@@ -288,7 +288,7 @@ npm run preview      # preview the production build
 - **Admin actions require `ADMIN_EMAILS`** — when Clerk auth isn't configured (pure local dev), every request is treated as admin (open dev mode).
 - **STUB_MODE only works for the 3 landing-page example ideas** — any other idea returns a "set your API key" prompt.
 - **Anonymous → authenticated session migration** not implemented — sessions started signed-out aren't claimed on sign-in.
-- **LangGraph MemorySaver fallback** — when `LANGGRAPH_ENABLED=false`, the graph uses `MemorySaver` (in-memory, lost on restart). `render.yaml` sets `LANGGRAPH_ENABLED=true` to activate Postgres checkpointing.
+- **LangGraph MemorySaver fallback** — when `LANGGRAPH_ENABLED=false`, or when Postgres setup fails, the graph uses `MemorySaver` (in-memory, lost on restart); `/health` reports `langgraph_checkpointer: memory`. `render.yaml` sets `LANGGRAPH_ENABLED=true`. The psycopg pool must use `autocommit=True` + `row_factory=dict_row`: without them `setup()` failed ("CREATE INDEX CONCURRENTLY cannot run inside a transaction block") and production silently ran on memory until Oct 2026.
 - **LangGraph Phase 1 only covers the council** — Socratic chat still uses the legacy asyncio pipeline.
 
 ---

@@ -349,6 +349,9 @@ GROQ_LARGE_MODEL = "openai/gpt-oss-120b"     # synthesis, devil's advocate
 # lost its last section, and before the prompt was tightened every plan died mid-Phase 1/2 at 3,000.
 # Groq's reasoning models spend hidden thinking from the same budget, so they keep 8,000.
 SYNTHESIS_MAX_TOKENS = 3000
+# Anthropic starts the masterplan from this (assistant prefill), locking in the template's first
+# heading. No trailing whitespace: Anthropic rejects a prefill that ends in it.
+SYNTHESIS_PREFILL = "## Chairman's Verdict"
 GROQ_SYNTHESIS_MAX_TOKENS = 8000
 
 
@@ -572,7 +575,8 @@ RULES for your output:
 - choices: 3–4 things the USER would TYPE as their answer. Not questions. Not tasks. User answers.
   BAD choices: "What is CAC?", "Identify verticals", "Research market size"
   GOOD choices: "CAC ~$500 via LinkedIn outbound", "Targeting NYC marketing agencies first", "No funding yet, bootstrapped"
-- HARD LIMIT: Part 1 is under 60 words, every turn, however late in the conversation. Proposals and counter-arguments included."""
+- HARD LIMIT: Part 1 is under 60 words, every turn, however late in the conversation. Proposals and counter-arguments included.
+- HARD RULE: every question in Part 1 bolds its key term with **double asterisks** (bold, not *italics*)."""
 
 
 async def _stream_google_tokens(system: str, messages: list[dict], max_tokens: int = 2500):
@@ -1020,31 +1024,6 @@ async def generate_founder_answer(idea: str, conversation_history: list[dict]) -
         return "We've validated this with ~15 customer interviews and 3 paid pilots so far."
 
 
-async def generate_masterplan(conversation_history: list[dict]) -> str:
-    if settings.is_stub:
-        await asyncio.sleep(random.uniform(1.5, 2.5))
-        scenario_key = _detect_scenario(conversation_history)
-        if scenario_key:
-            return _DEMO_SCENARIOS[scenario_key]["masterplan"]
-        return "# Masterplan\n\nSet `ANTHROPIC_API_KEY` in `.env` for a real, idea-specific masterplan."
-
-    system = """You are a staff-level software architect. Based on the full conversation, generate a comprehensive project masterplan in Markdown.
-
-Include:
-1. Project summary (2-3 sentences)
-2. Recommended architecture with justification
-3. Tech stack table with reasoning
-4. Implementation phases (3 phases, 4 weeks each)
-5. Risk register (top 5 risks, likelihood, impact, mitigation)
-6. Monthly cost estimate (at 100 active users)
-7. First 3 files to write
-
-Be specific, opinionated, and actionable. No generic advice."""
-
-    msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
-    return await _call_real_llm(system, msgs, max_tokens=3000)
-
-
 # ---------------------------------------------------------------------------
 # Multi-agent masterplan pipeline
 # ---------------------------------------------------------------------------
@@ -1473,26 +1452,43 @@ BREVITY — the whole masterplan is AT MOST 450 WORDS. Crisp beats complete:
 - No paragraph longer than 2 sentences. No filler ("It is important to", "In conclusion", "Overall").
 - Bold the tool names, numbers and deadlines that matter.
 
-STRUCTURE — use exactly these ## headings, in this order:
+TEMPLATE — your whole answer is this template filled in. Replace every <…>; keep every heading, table header and bullet shape; add NOTHING before, between or after (no title line, no extra sections):
+
 ## Chairman's Verdict
-2 sentences. First: the call in bold (**Build it**, **Pivot to …**, or **Don't build this**). Second: where the council agreed vs. disagreed.
+**<The call in one bold sentence: Build it / Pivot to … / Don't build this, and the condition>** <One sentence: where the council agreed vs. disagreed, naming members.>
+
 ## Tech Stack
-Table: Layer | Tool | Why (6 words max). At most 6 rows.
+| Layer | Tool | Why |
+|---|---|---|
+| <layer> | **<specific tool>** | <6 words max> |
+<4-6 rows>
+
 ## Phase 1: MVP (Weeks 1-8)
-4 bullets: what to build, what to buy off-shelf, and one **Don't build yet**.
+- **<decision>** <12 words max>
+<4 bullets: what to build, what to buy off-shelf, and one **Don't build yet**>
+
 ## Phase 2: Growth (Months 3-9)
-3 bullets: first 10 customers, GTM motion, first key hire.
+- **<decision>** <12 words max>
+<3 bullets: first 10 customers, GTM motion, first key hire>
+
 ## Phase 3: Scale/Moat (Months 9-18)
-3 bullets: what makes this hard to copy.
+- **<decision>** <12 words max>
+<3 bullets: what makes this hard to copy>
+
 ## Risk Register
-Table: Risk | Mitigation (a specific tool or process). Exactly 5 rows, 12 words max per cell.
+| Risk | Mitigation |
+|---|---|
+| **<risk>** | <specific tool or process, 12 words max> |
+<exactly 5 rows>
+
 ## First 3 Files
-3 bullets: `path/to/file.ext`, then what it contains in one line.
+- `<path/to/file.ext>` — <what it contains, one line>
+<3 bullets>
 
 Format as clean Markdown. Be opinionated: if there is a clearly better choice, say so and name the alternative that loses.
 
 FINAL CHECK — hard limits, re-read before writing:
-- Exactly the 7 ## headings above, in that order. NO other headings or sections: no "Extended" verdict, no decision tree, no week-by-week breakdown, no sub-headings.
+- Exactly the 7 ## headings of the template, in that order. NO other headings or sections: no title line, no "Extended" verdict, no "Where the council agreed" section, no alternatives or decision tree, no week-by-week breakdown, no sub-headings.
 - AT MOST 450 WORDS in total. If you are running long, cut Phase bullets — never drop the Risk Register or First 3 Files."""
 
 
@@ -1505,6 +1501,10 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
     if settings.anthropic_api_key:
         import anthropic
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        # Prefill the answer with the template's first heading: instructions alone let a live run
+        # invent its own sections (a title line, "Where Council Aligned", no Tech Stack or Phases).
+        # The prefill is part of the plan, so it is yielded with the first token (full_text stays
+        # empty until then: it tells the except below whether the client already has text).
         full_text = ""
         try:
             with trace_generation("anthropic/synthesis", "claude-haiku-4-5-20251001", input_data) as gen:
@@ -1512,9 +1512,14 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
                     model="claude-haiku-4-5-20251001",
                     max_tokens=SYNTHESIS_MAX_TOKENS,
                     system=system,
-                    messages=safe_msgs,
+                    messages=[*safe_msgs, {"role": "assistant", "content": SYNTHESIS_PREFILL}],
                 ) as stream:
+                    yielded_prefill = False
                     async for text in stream.text_stream:
+                        if not yielded_prefill:
+                            full_text = SYNTHESIS_PREFILL
+                            yield SYNTHESIS_PREFILL
+                            yielded_prefill = True
                         full_text += text
                         yield text
                 if gen:

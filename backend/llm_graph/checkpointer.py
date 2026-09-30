@@ -32,6 +32,7 @@ async def setup_checkpointer() -> None:
         return
 
     try:
+        from psycopg.rows import dict_row
         from psycopg_pool import AsyncConnectionPool
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
@@ -45,8 +46,12 @@ async def setup_checkpointer() -> None:
         _pool = AsyncConnectionPool(
             connstr,
             min_size=1,
-            max_size=5,  # modest pool — keeps Railway Postgres connection count low
+            max_size=5,  # modest pool — keeps the Neon connection count low
             open=False,
+            # AsyncPostgresSaver needs autocommit connections that return dict rows. Without
+            # autocommit, setup() fails ("CREATE INDEX CONCURRENTLY cannot run inside a
+            # transaction block") and production silently ran on MemorySaver.
+            kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
         )
         await _pool.open()
 
@@ -54,7 +59,7 @@ async def setup_checkpointer() -> None:
         # Creates checkpoints / checkpoint_writes / checkpoint_blobs tables if absent
         await _checkpointer.setup()
 
-        log.info("LangGraph Postgres checkpointer ready (thread_id = session_id)")
+        log.info("LangGraph Postgres checkpointer ready (one thread per run: session_id:uuid)")
     except Exception as exc:
         log.warning("LangGraph checkpointer setup failed — falling back to MemorySaver: %s", exc)
         _checkpointer = None
