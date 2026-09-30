@@ -77,6 +77,12 @@ describe('Results', () => {
     expect(html).toContain('PHASE 2: GROWTH')
   })
 
+  it('wraps plan tables so they scroll inside their box on phones', () => {
+    const html = renderResults()
+    expect(session.masterplan).toContain('|') // the fixture's Tech Stack is a table
+    expect(html).toContain('<div class="overflow-x-auto"><table>')
+  })
+
   it('explains a legacy session saved without council reports', () => {
     const html = renderResults(resultsFromSession({ masterplan: session.masterplan, agent_reports: [] }))
     expect(html).toContain('weren’t saved')

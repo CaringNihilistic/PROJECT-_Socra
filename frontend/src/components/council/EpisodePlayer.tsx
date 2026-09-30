@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { PROFESSOR, TEAM_GLITCH } from '../../pixel/cast'
 import { Sprite } from '../../pixel/Sprite'
 import { DialogBox } from '../../pixel/ui/DialogBox'
@@ -30,17 +30,40 @@ export function EpisodePlayer({ episode, onSkip, onClose, onRetry }: EpisodePlay
   const showPlan = beat === 'plan' || beat === 'ambush' || (finished && plan.status !== 'waiting')
   const showGlitch = glitch.status === 'done' || glitch.status === 'fainted'
 
-  // Esc skips while playing and closes once finished
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Esc skips while playing and closes once finished; Tab stays inside the dialog
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') (finished ? onClose : onSkip)()
+      if (e.key !== 'Tab' || !dialogRef.current) return
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]')
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const inside = dialogRef.current.contains(document.activeElement)
+      if (e.shiftKey && (document.activeElement === first || !inside)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [finished, onClose, onSkip])
 
+  // Hand focus back to whatever opened the episode (e.g. "Watch episode") when it closes
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    return () => {
+      if (opener?.isConnected) opener.focus()
+    }
+  }, [])
+
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="episode-title" className="fixed inset-0 z-50 overflow-y-auto bg-px-night font-term text-[22px] text-px-screen">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="episode-title" className="fixed inset-0 z-50 overflow-y-auto bg-px-night font-term text-[22px] text-px-screen">
       {beat === 'ambush' && <div className="pixel-flash pointer-events-none fixed inset-0" aria-hidden="true" />}
       <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-8 px-6 py-8">
         <header className="flex flex-wrap items-center justify-between gap-4">

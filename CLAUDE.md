@@ -32,7 +32,7 @@
 | Framework | React | 18.3.1 |
 | Build tool | Vite | 5.3.4 |
 | Styling | Tailwind CSS | 3.4.7 |
-| Fonts | Bricolage Grotesque (display) + Onest (body) + DM Mono (mono) | Google Fonts |
+| Fonts | Legacy screens: Bricolage Grotesque + Onest + DM Mono. Pixel redesign: Press Start 2P (titles) + VT323 (all text) | Google Fonts |
 | State | Zustand | 5.0.0 |
 | Auth | @clerk/clerk-react | 5.0.0 |
 | HTTP | axios | 1.7.0 |
@@ -54,7 +54,7 @@ All LLM calls flow through `backend/llm_client.py`, which routes by priority wit
 
 Fallback model IDs live in constants at the top of the LLM helpers section of `llm_client.py`. Providers retire them with little notice: in Sep 2026 `gemini-2.0-flash`, `llama-3.1-8b-instant` and `llama-3.3-70b-versatile` all 404'd at once and every call failed with a 503. Both Groq models are reasoning models, so keep their `max_tokens` generous: hidden thinking shares the budget, and a tight cap returns empty content.
 
-**Production runs Groq-only** (no `ANTHROPIC_API_KEY` or `GOOGLE_API_KEY` on Render), which is the tested free path. A Google key on the free tier currently makes turns take minutes, because the OpenAI SDK retries Gemini's 429/503 responses with backoff before falling through to Groq. Anthropic `claude-haiku-4-5-20251001` retires no sooner than 2026-10-15, so check the models page before adding a key.
+**Production runs Anthropic with Groq fallback** (no `GOOGLE_API_KEY` on Render). Every Anthropic path falls through to Groq when the key is dead or unfunded, and logs why (`Anthropic … failed, falling back:`). Without an Anthropic key the app runs fully free on Groq. A Google key on the free tier makes turns take minutes, because the OpenAI SDK retries Gemini's 429/503 responses with backoff before falling through. Anthropic `claude-haiku-4-5-20251001` retires no sooner than 2026-10-15. Masterplan synthesis is capped by `SYNTHESIS_MAX_TOKENS` (8000); at 3000 every plan was cut off mid-Phase 1/2.
 
 `STUB_MODE=true` (or no LLM key set) activates canned demo responses that only work for the **3 example ideas on the landing page**.
 
@@ -79,7 +79,7 @@ START → web_research → agent_finance ─┐
 - All 5 agents run in the same LangGraph superstep (true parallel)
 - `operator.add` reducer on `agent_reports` merges 5 concurrent outputs
 - `get_stream_writer()` bridges token streaming — existing `_stream_synthesis_tokens()` runs unchanged inside nodes
-- **Phase 2:** `AsyncPostgresSaver` with a separate psycopg v3 pool persists state after each node. If synthesis fails post-agents, `/unlock` resumes at synthesis rather than re-running all 5 agents
+- **Phase 2:** `AsyncPostgresSaver` with a separate psycopg v3 pool persists state after each node, on a **fresh thread per run** (`{session_id}:{uuid}`). Re-using `thread_id=session_id` made the `operator.add` reducer double `agent_reports` on every re-run (proven: 5 → 10). A failed run is **not** resumed: passing input restarts from START
 - Falls back to legacy pipeline for stub mode and Groq-only path
 - Enabled via `LANGGRAPH_ENABLED=true` + `?use_langgraph=true` query param on `/unlock`
 - Benchmark: LangGraph 52s vs Legacy 62s at identical cost ($0.022)
@@ -116,7 +116,9 @@ PROJECT _STARTUP/
 ├── frontend/
 │   └── src/
 │       ├── App.tsx              # Routing (path-based), Clerk provider, payment-return handling
-│       ├── store/sessionStore.ts # Zustand store — all state + API calls + SSE streaming + pipelinePreference
+│       ├── store/sessionStore.ts # Zustand store — all state + API calls + SSE streaming + pipelinePreference + episode
+│       ├── pixel/               # Pixel redesign kit: sprites (32×32, code-drawn), cast, UI components
+│       ├── episode/             # Council episode engine: SSE reader, reducer, pacer, replay (pure, tested)
 │       ├── lib/auth.tsx         # Clerk helpers
 │       └── components/          # Pages + views (see below)
 ├── docker-compose.yml
@@ -133,7 +135,7 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 | Component | Purpose |
 |---|---|
 | `LandingPage.tsx` | Entry point — asymmetric split hero, idea input, 3 examples, recent sessions + compare picker |
-| `SessionPage.tsx` | **Standard mode.** 3-tab flow via `view` state: **Chat** (Socratic Q&A) → **Council** (5 agent cards 2-col grid + Devil's Advocate) → **Masterplan** (synthesis + export). Pipeline selector + `[DEV]` shortcuts. |
+| `SessionPage.tsx` | Tabs **Chat** (Socratic Q&A, legacy styling until redesign step 3) · **Results**. While the council runs, the pixel **Council episode** overlay plays (`council/EpisodePlayer`); Results (`council/Results`) shows creature cards, Team Glitch and the trainer-presented plan, with **Watch episode** replay. Pipeline selector + `[DEV]` shortcuts. Dev-only pages: `/__pixel`, `/__episode` |
 | `PitchDeckView.tsx` | Renders generated pitch deck slides + Devil's Advocate slide |
 | `VerdictCard.tsx` | Score card rendered on the public `/card/:id` page |
 | `CardPage.tsx` | **Public** shareable score card (`/card/:id`) |
@@ -279,7 +281,7 @@ npm run preview      # preview the production build
 ## Current Known Issues / Tech Debt
 
 - **Session ownership checks are partial** — `GET /sessions/{id}` now returns the redacted `_serialize_public()` view (no `conversation_history`) to non-owners of authenticated sessions via `_is_owner_or_admin()` (Phase 10). Anonymous sessions (`user_id=None`) remain a public "unguessable UUID" capability by design. Mutation endpoints already used `_check_session_access`. A full endpoint-by-endpoint audit is still outstanding.
-- **No automated tests or CI** anywhere in the repo (no `test_*.py`, `*.test.ts`, or `.github/workflows`) — flagged as the single highest-leverage gap, especially given live Razorpay webhooks.
+- **Test coverage is partial** — pytest covers `eval_bar.py` and webhook HMAC; vitest covers the pixel kit and episode engine; CI runs both plus the frontend build. Ownership checks, the store and the backend streams are untested.
 - **`backend/llm_client.py` is ~1,550 lines (god-file)** — holds provider clients, streaming, prompt builders, council agents, and synthesis. Should be split into an `llm/` package.
 - **Rate limiting is in-memory & per-process** (`RateLimitMiddleware`) — does not work correctly across multiple instances.
 - **Admin actions require `ADMIN_EMAILS`** — when Clerk auth isn't configured (pure local dev), every request is treated as admin (open dev mode).
@@ -293,7 +295,7 @@ npm run preview      # preview the production build
 ## Roadmap
 
 ### High priority
-- **Automated test suite + CI** — pytest for `eval_bar.py`, webhook signature verification, ownership checks; GitHub Actions running `pytest` + `npm run build`. Flagged as the single highest-leverage change in the Phase 10 portfolio review.
+- **Broaden tests** — ownership checks, the store's stream handling, backend SSE routes (CI already runs pytest + vitest + `npm run build`).
 - **Session ownership checks** — full endpoint-by-endpoint audit; `GET /sessions/{id}` is scoped (Phase 10) but other endpoints still need review
 - **Hybrid routing** — Sonnet 4.6 for synthesis + verdicts, Haiku 4.5 for chat + agents
 - **Analytics** — PostHog or Plausible for conversion funnel visibility

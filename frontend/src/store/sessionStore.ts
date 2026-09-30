@@ -186,6 +186,9 @@ export const useSessionStore = create<SessionStore>((set, get) => {
     saveToLocalStorage(summaryOf(updated))
   }
 
+  /** A stream still finishing after the user left (← new, or another session) must not bring it back. */
+  const stillViewing = (sessionId: string) => get().session?.id === sessionId
+
   /** Stream POST /unlock into a live episode; resolves when the stream ends. */
   const streamUnlock = async (sessionId: string, token: string | null, opts: { langgraph: boolean; force?: boolean }) => {
     const params = new URLSearchParams()
@@ -212,7 +215,7 @@ export const useSessionStore = create<SessionStore>((set, get) => {
         const p = payload as Record<string, any>
         if (p?.type === 'done') {
           sawDone = true
-          applySession(p.session, p.pipeline ?? 'legacy')
+          if (stillViewing(sessionId)) applySession(p.session, p.pipeline ?? 'legacy')
         }
         toEpisodeEvents(payload).forEach((e) => episode.push(e))
       })
@@ -369,9 +372,11 @@ export const useSessionStore = create<SessionStore>((set, get) => {
               set({ currentChoices: p.choices })
             } else if (p?.type === 'done') {
               sawDone = true
-              applySession(p.session)
-              set({ streamingMessage: '', savedFlash: true })
-              setTimeout(() => set({ savedFlash: false }), 2000)
+              if (stillViewing(session.id)) {
+                applySession(p.session)
+                set({ streamingMessage: '', savedFlash: true })
+                setTimeout(() => set({ savedFlash: false }), 2000)
+              }
             }
 
             // The turn crossed into the masterplan: the council runs inside this stream.
@@ -494,7 +499,8 @@ export const useSessionStore = create<SessionStore>((set, get) => {
         const { data } = await axios.post(
           `${API_URL}/sessions/${session.id}/admin-seed-conversation`,
           {},
-          { headers: authHeaders(token), timeout: 180000 },
+          // Up to 5 chat turns + 5 agents + an 8k-token synthesis + devil's advocate
+          { headers: authHeaders(token), timeout: 300000 },
         )
         set({ session: data, paymentRequired: false })
       } catch (err) {
@@ -521,8 +527,8 @@ export const useSessionStore = create<SessionStore>((set, get) => {
 
     /** Re-run /unlock after a failed episode. Returns the saved plan if it finished meanwhile. */
     retryEpisode: async () => {
-      const { session } = get()
-      if (!session) return
+      const { session, isUnlocking } = get()
+      if (!session || isUnlocking) return // a double click must not start two paid runs
       set({ isUnlocking: true })
       try {
         const token = await get().getFreshToken()

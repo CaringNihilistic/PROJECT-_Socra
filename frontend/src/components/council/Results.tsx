@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ComponentPropsWithoutRef, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { COUNCIL, TEAM_GLITCH } from '../../pixel/cast'
@@ -10,10 +10,19 @@ import { parseSections } from '../../episode/sections'
 import type { ResultsData } from '../../episode/results'
 import type { Seat } from '../../episode/reducer'
 
+// The Tech Stack section is always a table: let it scroll inside its box on phones
+const MARKDOWN_COMPONENTS = {
+  table: ({ node: _node, ...props }: ComponentPropsWithoutRef<'table'> & { node?: unknown }) => (
+    <div className="overflow-x-auto">
+      <table {...props} />
+    </div>
+  ),
+}
+
 function Markdown({ children }: { children: string }) {
   return (
     <div className="prose prose-pixel max-w-none">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{children}</ReactMarkdown>
     </div>
   )
 }

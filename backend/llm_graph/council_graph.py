@@ -11,10 +11,9 @@ Architecture:
 All 5 agent nodes run in parallel (same LangGraph superstep).
 Synthesis waits for all 5 via static edges — LangGraph barrier semantics.
 
-Checkpointing (Phase 2): AsyncPostgresSaver persists state after each node.
-If synthesis fails after agents complete, the next /unlock call resumes at
-synthesis rather than re-running all 5 agents. Falls back to MemorySaver
-when the Postgres checkpointer is not yet available.
+Checkpointing (Phase 2): AsyncPostgresSaver persists state after each node, one
+thread per run. (It does not resume a failed run: passing input restarts from START.)
+Falls back to MemorySaver when the Postgres checkpointer is not yet available.
 
 Token streaming: get_stream_writer() surfaces tokens from existing provider
 functions unchanged — LangGraph orchestrates, your code streams.
@@ -24,6 +23,7 @@ Fallback: stub mode and Groq-only paths delegate to the legacy pipeline.
 import asyncio
 import operator
 import logging
+import uuid
 from typing import TypedDict, Annotated, Optional
 
 from langgraph.graph import StateGraph, START, END
@@ -210,7 +210,11 @@ async def stream_council_graph(
         "agent_reports": [],
         "masterplan": "",
     }
-    config = {"configurable": {"thread_id": session_id}}
+    # A fresh thread per run. Re-using thread_id=session_id made LangGraph merge the new
+    # input into the saved state, so the operator.add reducer doubled agent_reports on every
+    # re-run (5 -> 10 reports reaching synthesis). It never resumed mid-graph either:
+    # passing input always restarts from START.
+    config = {"configurable": {"thread_id": f"{session_id}:{uuid.uuid4().hex}"}}
 
     try:
         async for chunk in app.astream(initial_state, config, stream_mode="custom"):

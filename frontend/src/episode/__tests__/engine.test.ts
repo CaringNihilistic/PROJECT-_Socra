@@ -63,6 +63,12 @@ describe('toEpisodeEvent', () => {
     expect(toEpisodeEvent({ type: 'synthesis_token', delta: 'x' })).toEqual({ type: 'synthesis_token', delta: 'x' })
     expect(toEpisodeEvent({ type: 'done', session: {} })).toEqual({ type: 'done' })
     expect(toEpisodeEvent({ type: 'token', delta: 'x' })).toBeNull()
+    // a malformed report is normalised instead of crashing the reader downstream
+    expect(toEpisodeEvent({ type: 'agent_report', report: { key: 'tech' } })).toEqual({
+      type: 'agent_report',
+      report: { key: 'tech', title: '', icon: '', color: '', content: '' },
+    })
+    expect(toEpisodeEvent({ type: 'agent_report' })).toBeNull()
     expect(toEpisodeEvent({ type: 'choices', choices: [] })).toBeNull()
     expect(toEpisodeEvent(null)).toBeNull()
   })
@@ -95,9 +101,16 @@ describe('signatureLine', () => {
 
   it('detects fainted agents', () => {
     expect(isFainted('_Analysis unavailable — RateLimitError_')).toBe(true)
+    expect(isFainted('_Analysis unavailable._')).toBe(true)
     expect(isFainted('_Critical review could not be generated. Try again._')).toBe(true)
+    expect(isFainted('_Critical review unavailable — rate limit or API error._')).toBe(true)
     expect(isFainted('   ')).toBe(true)
     expect(isFainted('- Real analysis')).toBe(false)
+  })
+
+  it('does not faint a real report that merely uses the phrase', () => {
+    expect(isFainted('- Competitor pricing: public analysis unavailable, so assume $20/seat.')).toBe(false)
+    expect(isFainted('# Oracle\n- Data could not be generated from public sources; estimate instead.')).toBe(false)
   })
 })
 

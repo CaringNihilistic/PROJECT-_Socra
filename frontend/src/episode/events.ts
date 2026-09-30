@@ -22,6 +22,11 @@ export type EpisodeEvent =
 
 export const DEVILS_ADVOCATE = 'devils_advocate'
 
+function normaliseReport(r: Record<string, unknown>): AgentReport {
+  const text = (v: unknown) => (typeof v === 'string' ? v : '')
+  return { key: text(r.key), title: text(r.title), icon: text(r.icon), color: text(r.color), content: text(r.content) }
+}
+
 /** Narrow a parsed SSE payload to an episode event; null for chat-only events (token, choices…). */
 export function toEpisodeEvent(payload: unknown): EpisodeEvent | null {
   if (!payload || typeof payload !== 'object') return null
@@ -30,7 +35,8 @@ export function toEpisodeEvent(payload: unknown): EpisodeEvent | null {
     case 'web_research':
       return { type: 'web_research', queries: Array.isArray(p.queries) ? p.queries.map(String) : [] }
     case 'agent_report':
-      return p.report && typeof p.report === 'object' ? { type: 'agent_report', report: p.report as AgentReport } : null
+      if (!p.report || typeof p.report !== 'object') return null
+      return { type: 'agent_report', report: normaliseReport(p.report as Record<string, unknown>) }
     case 'synthesis_token':
       return { type: 'synthesis_token', delta: String(p.delta ?? '') }
     case 'synthesis_done':

@@ -3,7 +3,9 @@
 const BULLET = /^\s*(?:[-*•]|\d+[.)])\s+/
 const HEADING = /^\s*#{1,6}\s/
 const BOLD_LABEL = /^\s*\*\*[^*]+\*\*:?\s*$/
-const FAINTED = /analysis unavailable|could not be generated|critical review unavailable/i
+// The backend's failure placeholders always start the report (e.g. "_Analysis unavailable — …_");
+// matching mid-text would faint a real report that merely uses the phrase.
+const FAINTED = /^\s*_?\s*(?:analysis unavailable|critical review (?:could not be generated|unavailable))/i
 
 export const SIGNATURE_MAX = 120
 

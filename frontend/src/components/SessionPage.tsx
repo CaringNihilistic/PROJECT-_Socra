@@ -267,8 +267,8 @@ export function SessionPage() {
         <EpisodePlayer episode={episode} onSkip={skipEpisode} onClose={closeEpisode} onRetry={retryEpisode} />
       )}
 
-      {/* Unlock in-progress overlay (until the episode starts) */}
-      {isUnlocking && !episodeOpen && (
+      {/* Unlock in-progress overlay: only until the episode starts (not after Skip) */}
+      {isUnlocking && !episodeOpen && !episodeLive && (
         <div className="fixed inset-0 z-40 flex items-center justify-center"
           style={{ background: 'rgba(8,8,9,0.7)', backdropFilter: 'blur(8px)' }}>
           <div className="flex flex-col items-center gap-4">
@@ -367,7 +367,7 @@ export function SessionPage() {
               sessionId={session.id}
               idea={session.initial_idea}
               data={resultsData}
-              canReplay={canReplay(session)}
+              canReplay={canReplay(session) && !episodeLive}
               onReplay={replayEpisode}
               rerun={showDev ? {
                 onClick: () => devRerunMasterplan(pipelinePreference === 'langgraph'),
