@@ -53,3 +53,20 @@ def test_chat_prompt_caps_length_and_bolds_key_terms():
 def test_groq_keeps_a_larger_synthesis_budget_than_anthropic():
     # Groq's reasoning models spend hidden thinking from max_tokens
     assert L.GROQ_SYNTHESIS_MAX_TOKENS > L.SYNTHESIS_MAX_TOKENS >= 1500
+
+
+def test_opening_question_prompt_is_crisp_too():
+    # Session creation asks the first question through call_architect_llm, a separate prompt
+    import inspect
+    src = inspect.getsource(L.call_architect_llm)
+    assert "At most 60 words" in src
+    assert "**double asterisks**" in src
+
+
+def test_groq_fallback_chat_prompt_is_crisp_too():
+    # Used for every chat turn once the Anthropic key is dead or out of credit
+    prompt = L._build_groq_conversation_prompt({k: 0.3 for k in [
+        "problem_clarity", "scale_constraints", "tech_context", "success_definition", "risk_awareness",
+    ]}, 2)
+    assert "At most 60 words" in prompt
+    assert "**double asterisks**" in prompt

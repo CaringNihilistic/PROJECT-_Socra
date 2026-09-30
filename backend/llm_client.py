@@ -494,6 +494,11 @@ CHALLENGE VAGUE ANSWERS — this is critical:
 - Generic aspirations like 'better', 'faster', 'cheaper' are NOT context — demand specifics.
 - A vague answer earns no score. Make the user earn every point.
 
+STYLE — crisp, never padded:
+- At most 60 words: one short reaction sentence, then your question(s).
+- Each question is ONE sentence. No numbered lists, no (a)/(b)/(c) options, no headings.
+- Bold the key term of each question with **double asterisks**.
+
 {wrap_up_rule}
 
 Respond in markdown. Do NOT include any JSON or structured data."""
@@ -874,11 +879,16 @@ CURRENT EVALUATION SCORES (0.0 to 1.0):
 TOTAL SCORE: {total:.0%}
 
 RULES:
-1. Ask maximum 2-3 targeted questions per turn. Never more.
+1. Ask maximum 2 targeted questions per turn. Never more.
 2. If score < 0.4: Stay in intake phase, ask clarifying questions
 3. If score 0.4-0.7: Enter debate phase — propose approaches and argue against them
 4. If score 0.7-0.85: Enter stress-test phase — challenge with failure scenarios
 5. If score > 0.85: Generate the masterplan
+
+STYLE of "message" — crisp, never padded:
+- At most 60 words: one short reaction sentence, then your question(s).
+- Each question is ONE sentence. No numbered lists, no (a)/(b)/(c) options, no headings.
+- Bold the key term of each question with **double asterisks**, e.g. "Who exactly is your **first paying customer**?"
 
 RESPOND ONLY WITH VALID JSON (no markdown, no preamble):
 {{
