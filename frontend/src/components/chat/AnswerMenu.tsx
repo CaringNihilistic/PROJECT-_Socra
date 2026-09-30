@@ -26,8 +26,9 @@ export function AnswerMenu({ choices, onPick, onWriteOwn }: AnswerMenuProps) {
     <nav aria-label="Suggested answers" className="flex flex-col gap-2">
       <p className="text-[20px] text-px-muted">Pick an answer to edit it before sending.</p>
       <ul onKeyDown={onKeyDown} className="flex flex-col gap-2">
-        {choices.map((choice) => (
-          <li key={choice}>
+        {/* Index keys: the LLM can repeat a choice */}
+        {choices.map((choice, i) => (
+          <li key={i}>
             <MenuChoice className="w-full" onClick={() => onPick(choice)}>{choice}</MenuChoice>
           </li>
         ))}

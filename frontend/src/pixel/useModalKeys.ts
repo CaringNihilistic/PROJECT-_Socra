@@ -10,14 +10,20 @@ const stack: object[] = []
  */
 export function useModalKeys(ref: RefObject<HTMLElement>, onEscape: () => void) {
   const id = useRef({})
+  // Captured on the first render, before autoFocus moves focus into the dialog
+  const openerRef = useRef(typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null))
 
   useEffect(() => {
     const me = id.current
+    const opener = openerRef.current
     stack.push(me)
-    const opener = document.activeElement as HTMLElement | null
     return () => {
       stack.splice(stack.indexOf(me), 1)
-      if (opener?.isConnected) opener.focus()
+      // Deferred: StrictMode's dev-only unmount/remount re-registers synchronously, and
+      // restoring focus then would pull it off the dialog's autofocused button
+      queueMicrotask(() => {
+        if (!stack.includes(me) && opener?.isConnected) opener.focus()
+      })
     }
   }, [])
 

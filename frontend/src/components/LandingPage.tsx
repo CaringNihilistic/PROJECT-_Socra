@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 // @ts-ignore
 import { useAuth, useClerk, UserButton } from '@clerk/clerk-react'
 import { useSessionStore } from '../store/sessionStore'
@@ -67,10 +67,10 @@ export function LandingPage() {
   }
 
   /** Back to the idea box from anywhere on the page. */
-  const focusStart = () => {
+  const focusStart = useCallback(() => {
     document.getElementById('start')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     box.current?.focus({ preventScroll: true })
-  }
+  }, [])
 
   const compare = (id: string) => {
     if (compareId === id) setCompareId(null)

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { PROFESSOR } from '../../pixel/cast'
 import { Sprite } from '../../pixel/Sprite'
 import { PixelButton } from '../../pixel/ui/PixelButton'
@@ -81,15 +81,29 @@ export function JourneyStage({ frame, onStart }: { frame: JourneyFrame; onStart:
   )
 }
 
+// The fullest moment of each scene: rendered invisibly underneath so the demo keeps the
+// height of its tallest scene (a phone's council is ~1300px, its evolve ~500px) and the
+// page below doesn't jump as it loops
+const SIZER_TIMES = [SCENE_START.ask, SCENE_START.answer, SCENE_START.council - 1, SCENE_START.plan - 1, JOURNEY_MS - 1]
+
+/** Re-render in 100ms steps: every animation frame would re-parse Socra's markdown ~60 times a second. */
+const STEP_MS = 100
+
 /** "Watch a run": the whole journey, auto-playing on a loop while it is on screen. */
 export function JourneyDemo({ onStart }: { onStart: () => void }) {
   const reduced = prefersReducedMotion()
   // Dev only: ?journey=<ms> opens the demo paused at that moment, for reviewing one scene
-  const pinned = import.meta.env.DEV && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('journey') : null
-  const [t, setT] = useState(pinned ? Number(pinned) % JOURNEY_MS : 0)
-  const [playing, setPlaying] = useState(!reduced && !pinned)
+  const pinnedParam = import.meta.env.DEV && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('journey') : null
+  const pinned = pinnedParam !== null && Number.isFinite(Number(pinnedParam)) ? Number(pinnedParam) : null
+  const [t, setT] = useState(pinned !== null ? journeyFrame(pinned).t : 0)
+  const [playing, setPlaying] = useState(!reduced && pinned === null)
   const [visible, setVisible] = useState(false)
   const box = useRef<HTMLElement>(null)
+  const elapsed = useRef(t)
+  const jump = (ms: number) => {
+    elapsed.current = ms
+    setT(ms)
+  }
 
   // Only run while on screen: nobody watches it scrolled away, and it costs a frame loop
   useEffect(() => {
@@ -106,16 +120,18 @@ export function JourneyDemo({ onStart }: { onStart: () => void }) {
     let last = performance.now()
     const tick = (now: number) => {
       // A hidden tab pauses rAF; clamp so returning to it doesn't jump scenes
-      const step = Math.min(now - last, 100)
+      elapsed.current = (elapsed.current + Math.min(now - last, 100)) % JOURNEY_MS
       last = now
-      setT((v) => (v + step) % JOURNEY_MS)
+      const stepped = elapsed.current - (elapsed.current % STEP_MS)
+      setT((v) => (v === stepped ? v : stepped))
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [playing, visible])
 
-  const frame = journeyFrame(t)
+  const frame = useMemo(() => journeyFrame(t), [t])
+  const sizers = useMemo(() => SIZER_TIMES.map(journeyFrame), [])
   const current = [...CHAPTERS].reverse().find((c) => t >= SCENE_START[c.scene])!.scene
 
   return (
@@ -126,7 +142,7 @@ export function JourneyDemo({ onStart }: { onStart: () => void }) {
           <PixelButton variant="secondary" size="sm" onClick={() => setPlaying(!playing)}>
             {playing ? '❚❚ PAUSE' : '▶ PLAY'}
           </PixelButton>
-          <PixelButton variant="secondary" size="sm" onClick={() => { setT(0); setPlaying(true) }}>
+          <PixelButton variant="secondary" size="sm" onClick={() => { jump(0); setPlaying(true) }}>
             ↺ REPLAY
           </PixelButton>
         </div>
@@ -139,7 +155,7 @@ export function JourneyDemo({ onStart }: { onStart: () => void }) {
               <button
                 type="button"
                 aria-current={current === c.scene ? 'step' : undefined}
-                onClick={() => setT(SCENE_START[c.scene])}
+                onClick={() => jump(SCENE_START[c.scene])}
                 className={`border-2 px-2 py-0.5 text-[20px] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-px-plan ${
                   current === c.scene ? 'border-px-xp text-px-xp' : 'border-px-edge text-px-muted hover:text-px-screen'
                 }`}
@@ -151,13 +167,25 @@ export function JourneyDemo({ onStart }: { onStart: () => void }) {
         </ol>
       </nav>
 
-      <p className="text-[20px] text-px-muted">
-        <span aria-live="polite">{CAPTION[frame.scene]}</span> <span className="text-px-edge">·</span> A real recorded run: “{JOURNEY.idea}”
-      </p>
+      <div className="flex flex-col gap-1 text-[20px]">
+        {/* Two lines reserved: the captions wrap differently on phones */}
+        <p aria-live="polite" className="min-h-[48px] leading-6 text-px-screen">{CAPTION[frame.scene]}</p>
+        <p className="text-px-muted">A real recorded run: “{JOURNEY.idea}”</p>
+      </div>
 
-      <div className="min-h-[640px]">
-        <JourneyStage frame={frame} onStart={onStart} />
+      {/* Paused means paused: freeze the CSS animations (bob, blink, the evolution flicker) too */}
+      <div className={`grid ${playing ? '' : '[&_*]:![animation-play-state:paused]'}`}>
+        {sizers.map((f) => (
+          <div key={f.t} aria-hidden="true" className="invisible [grid-area:1/1]">
+            <MemoStage frame={f} onStart={onStart} />
+          </div>
+        ))}
+        <div className="[grid-area:1/1]">
+          <MemoStage frame={frame} onStart={onStart} />
+        </div>
       </div>
     </section>
   )
 }
+
+const MemoStage = memo(JourneyStage)
