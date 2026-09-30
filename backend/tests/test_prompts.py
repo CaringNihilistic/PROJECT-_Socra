@@ -32,6 +32,8 @@ def test_synthesis_prompt_is_crisp_and_bold():
     prompt = L._build_synthesis_prompt([])
     assert "AT MOST 450 WORDS" in prompt
     assert "in bold" in prompt
+    # the hard limits come last, where the model weighs them most
+    assert prompt.rstrip().endswith("never drop the Risk Register or First 3 Files.")
 
 
 def test_every_council_seat_uses_the_shared_crisp_format():

@@ -343,11 +343,11 @@ GOOGLE_MODEL = "gemini-flash-latest"        # Google's alias for its current Fla
 GROQ_FAST_MODEL = "qwen/qwen3.8-27b"         # chat, eval JSON, combined agents
 GROQ_LARGE_MODEL = "openai/gpt-oss-120b"     # synthesis, devil's advocate
 
-# The masterplan is ~7 sections. At 3000 tokens every plan was cut off mid-Phase 1/2, so
-# the Risk Register and "First 3 files" never arrived. A complete plan runs ~2.7-5k tokens.
-# The masterplan prompt asks for <= 450 words (~1,000 tokens with tables); 2,000 leaves room
-# to finish. Groq's reasoning models spend hidden thinking from the same budget, so they keep 8,000.
-SYNTHESIS_MAX_TOKENS = 2000
+# Length comes from the prompt (<= 450 words under 7 fixed headings, ~1,000 tokens with tables);
+# the cap is a safety net. A cap alone truncates: at 2,000 a live plan overshot to 1,040 words and
+# lost its last section, and before the prompt was tightened every plan died mid-Phase 1/2 at 3,000.
+# Groq's reasoning models spend hidden thinking from the same budget, so they keep 8,000.
+SYNTHESIS_MAX_TOKENS = 3000
 GROQ_SYNTHESIS_MAX_TOKENS = 8000
 
 
@@ -568,7 +568,8 @@ RULES for your output:
 - choices: 3–4 things the USER would TYPE as their answer. Not questions. Not tasks. User answers.
   BAD choices: "What is CAC?", "Identify verticals", "Research market size"
   GOOD choices: "CAC ~$500 via LinkedIn outbound", "Targeting NYC marketing agencies first", "No funding yet, bootstrapped"
-- If phase is "masterplan": Part 1 = one sentence only."""
+- If phase is "masterplan": Part 1 = one sentence only.
+- HARD LIMIT: Part 1 is under 60 words, every turn, however late in the conversation. Proposals and counter-arguments included."""
 
 
 async def _stream_google_tokens(system: str, messages: list[dict], max_tokens: int = 2500):
@@ -1485,7 +1486,11 @@ Table: Risk | Mitigation (a specific tool or process). Exactly 5 rows, 12 words 
 ## First 3 Files
 3 bullets: `path/to/file.ext`, then what it contains in one line.
 
-Format as clean Markdown. Be opinionated: if there is a clearly better choice, say so and name the alternative that loses."""
+Format as clean Markdown. Be opinionated: if there is a clearly better choice, say so and name the alternative that loses.
+
+FINAL CHECK — hard limits, re-read before writing:
+- Exactly the 7 ## headings above, in that order. NO other headings or sections: no "Extended" verdict, no decision tree, no week-by-week breakdown, no sub-headings.
+- AT MOST 450 WORDS in total. If you are running long, cut Phase bullets — never drop the Risk Register or First 3 Files."""
 
 
 async def _stream_synthesis_tokens(system: str, messages: list[dict]):
