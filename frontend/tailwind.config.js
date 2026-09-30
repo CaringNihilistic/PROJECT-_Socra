@@ -83,6 +83,32 @@ export default {
             },
           },
         },
+        // `prose prose-dialog`: markdown inside the cream dialog box, all ink (the only AA-safe text colour on cream)
+        dialog: {
+          css: {
+            '--tw-prose-body': theme('colors.px.ink'),
+            '--tw-prose-headings': theme('colors.px.ink'),
+            '--tw-prose-links': theme('colors.px.ink'),
+            '--tw-prose-bold': theme('colors.px.ink'),
+            '--tw-prose-bullets': theme('colors.px.ink'),
+            '--tw-prose-counters': theme('colors.px.ink'),
+            '--tw-prose-hr': theme('colors.px.ink'),
+            '--tw-prose-quotes': theme('colors.px.ink'),
+            '--tw-prose-quote-borders': theme('colors.px.edge'),
+            '--tw-prose-code': theme('colors.px.ink'),
+            // Size and leading come from utilities on the element (text-[22px] leading-snug):
+            // the base `prose` rule would win over them here
+            fontFamily: theme('fontFamily.term').join(', '),
+            p: { marginTop: '0.4em', marginBottom: '0.4em' },
+            li: { marginTop: '0.15em', marginBottom: '0.15em' },
+            'h1, h2, h3': {
+              fontFamily: theme('fontFamily.pixel').join(', '),
+              fontSize: '12px',
+              fontWeight: '400',
+              lineHeight: '1.7',
+            },
+          },
+        },
       }),
     },
   },

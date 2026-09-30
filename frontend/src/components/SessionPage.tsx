@@ -1,15 +1,14 @@
-import { useState, useEffect, useRef, Fragment } from 'react'
-import ReactMarkdown from 'react-markdown'
+import { useState, useEffect } from 'react'
 // @ts-ignore
 import { useAuth, useClerk, UserButton } from '@clerk/clerk-react'
 import { useSessionStore } from '../store/sessionStore'
-import type { Assumption } from '../store/sessionStore'
-import { EvalBar } from './EvalBar/EvalBar'
 import { EpisodePlayer } from './council/EpisodePlayer'
 import { Results } from './council/Results'
+import { BattleScreen } from './chat/BattleScreen'
+import { EvolutionScene } from './chat/EvolutionScene'
 import { resultsFromEpisode, resultsFromSession } from '../episode/results'
 import { canReplay } from '../episode/replay'
-
+import { PixelButton } from '../pixel/ui/PixelButton'
 
 import { FollowUpEmailCapture } from './FollowUpEmailCapture'
 import { CLERK_ENABLED } from '../lib/auth'
@@ -26,12 +25,9 @@ function SessionAuthButton() {
     </div>
   )
   return (
-    <button
-      onClick={() => openSignIn()}
-      className="flex-shrink-0 text-[11px] font-mono text-amber-400/50 hover:text-amber-400 border border-amber-500/15 hover:border-amber-500/40 px-2.5 py-1 rounded-lg transition-all"
-    >
-      Sign in
-    </button>
+    <PixelButton variant="secondary" className="shrink-0 !px-3 !py-1 text-[20px]" onClick={() => openSignIn()}>
+      SIGN IN
+    </PixelButton>
   )
 }
 
@@ -43,98 +39,12 @@ function SaveNudge() {
   if (!CLERK_ENABLED || !isLoaded || isSignedIn) return null
   return (
     <button
+      type="button"
       onClick={() => openSignIn()}
-      className="w-full text-center text-[11px] font-mono text-amber-400/50 hover:text-amber-400 border border-amber-500/10 hover:border-amber-500/25 bg-amber-500/[0.03] px-4 py-2 rounded-xl transition-all"
+      className="w-full border-[3px] border-dashed border-px-xp-dark px-4 py-2 text-center font-term text-[20px] text-px-xp hover:border-px-xp focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-px-plan"
     >
-      ⚠ This session isn't saved. Sign in to keep your work across devices →
+      ⚠ This session isn’t saved. Sign in to keep your progress ▶
     </button>
-  )
-}
-
-const PHASE_STEPS = [
-  { key: 'intake',      label: 'Intake',      color: '#8a8578' },
-  { key: 'debate',      label: 'Debate',      color: '#f59e0b' },
-  { key: 'stress_test', label: 'Stress Test', color: '#e85d26' },
-  { key: 'masterplan',  label: 'Masterplan',  color: '#34d399' },
-]
-
-const PHASE_COLOR: Record<string, string> = {
-  intake: '#8a8578', debate: '#f59e0b', stress_test: '#e85d26', masterplan: '#34d399',
-}
-
-const STATUS_CYCLE: Record<Assumption['status'], Assumption['status']> = {
-  unknown: 'validated',
-  validated: 'disproved',
-  disproved: 'unknown',
-}
-const STATUS_STYLE: Record<Assumption['status'], { chip: string; dot: string; label: string }> = {
-  unknown:   { chip: 'text-ink-500 bg-ink-900/60 border-ink-800/50 hover:border-ink-700/70',      dot: 'bg-amber-400/40',   label: '' },
-  validated: { chip: 'text-emerald-400/80 bg-emerald-500/8 border-emerald-500/25 hover:border-emerald-500/50', dot: 'bg-emerald-400/80', label: '✓' },
-  disproved: { chip: 'text-red-400/70 bg-red-500/8 border-red-500/20 hover:border-red-500/40',    dot: 'bg-red-400/70',     label: '✗' },
-}
-
-function AssumptionsList({ assumptions }: { assumptions: Assumption[] }) {
-  const updateAssumptionStatus = useSessionStore((s) => s.updateAssumptionStatus)
-  const [expanded, setExpanded] = useState(true)
-  const prevCount = useRef(assumptions.length)
-
-  useEffect(() => {
-    if (assumptions.length > prevCount.current) setExpanded(true)
-    prevCount.current = assumptions.length
-  }, [assumptions.length])
-
-  const validated = assumptions.filter(a => a.status === 'validated').length
-  const disproved = assumptions.filter(a => a.status === 'disproved').length
-
-  return (
-    <div className="rounded-xl border border-ink-800/60 overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-ink-900/40 transition-colors"
-      >
-        <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-600">Assumptions</span>
-        <span className="text-[10px] font-mono text-ink-700 bg-ink-800/80 px-1.5 py-0.5 rounded-full tabular-nums">
-          {assumptions.length}
-        </span>
-        {validated > 0 && (
-          <span className="text-[10px] font-mono text-emerald-400/70 bg-emerald-500/8 border border-emerald-500/20 px-1.5 py-0.5 rounded-full tabular-nums">
-            ✓ {validated}
-          </span>
-        )}
-        {disproved > 0 && (
-          <span className="text-[10px] font-mono text-red-400/60 bg-red-500/8 border border-red-500/15 px-1.5 py-0.5 rounded-full tabular-nums">
-            ✗ {disproved}
-          </span>
-        )}
-        <svg className={`w-3 h-3 text-ink-700 ml-auto transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {expanded && (
-        <div className="px-4 pb-3 pt-1.5 flex flex-wrap gap-1.5 border-t border-ink-800/50">
-          {assumptions.map((assumption, i) => {
-            const s = STATUS_STYLE[assumption.status]
-            return (
-              <button
-                key={i}
-                title="Click to mark validated / disproved"
-                onClick={() => updateAssumptionStatus(i, STATUS_CYCLE[assumption.status])}
-                className={`inline-flex items-center gap-1.5 text-[11px] border rounded-full px-3 py-1 leading-none transition-all duration-200 cursor-pointer ${s.chip}`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 text-[9px] flex items-center justify-center ${!s.label ? s.dot : ''}`}
-                  style={s.label ? {} : undefined}>
-                  {s.label && <span className={`text-[10px] leading-none ${assumption.status === 'validated' ? 'text-emerald-400' : 'text-red-400'}`}>{s.label}</span>}
-                  {!s.label && <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />}
-                </span>
-                {assumption.text}
-              </button>
-            )
-          })}
-          <p className="w-full text-[10px] font-mono text-ink-800 mt-1">Click any assumption to mark it validated ✓ or disproved ✗</p>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -203,25 +113,18 @@ function DonationCard({ onDismiss }: { onDismiss: () => void }) {
 }
 
 export function SessionPage() {
-  const [input, setInput] = useState('')
   const [view, setView] = useState<'chat' | 'results'>('chat')
   const {
     session, isSending, streamingMessage, currentChoices, isUnlocking,
     streamError, savedFlash, lastSentMessage, isAdmin, lastPipeline,
     pipelinePreference, setPipelinePreference,
     episode, episodeOpen, skipEpisode, closeEpisode, replayEpisode, retryEpisode,
-    sendMessage, clearSession, devUnlock, devRerunMasterplan, devSeedConversation,
+    evolution, dismissEvolution,
+    sendMessage, updateAssumptionStatus, clearSession, devUnlock, devRerunMasterplan, devSeedConversation,
   } = useSessionStore()
   const showDev = isAdmin || !BILLING_ENABLED
   const [showDonation, setShowDonation] = useState(true)
   const episodeLive = !!episode && episode.beat !== 'done' && episode.beat !== 'failed'
-
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [session?.conversation_history.length, isSending])
 
   // Land on results when the masterplan arrives, or when a running episode is skipped
   useEffect(() => {
@@ -233,433 +136,133 @@ export function SessionPage() {
 
   if (!session) return null
 
-  const { scores, total_score, phase, explanations, conversation_history, masterplan, refusal, assumptions } = session
-
-  const phaseColor = PHASE_COLOR[phase] || '#8a8578'
-  const phaseIdx = PHASE_STEPS.findIndex(p => p.key === phase)
-
   // A skipped live episode shows its partial results until the saved session arrives
-  const hasResults = !!masterplan || (episodeLive && !!episode?.skipped)
+  const hasResults = !!session.masterplan || (episodeLive && !!episode?.skipped)
   const resultsData = episodeLive && episode ? resultsFromEpisode(episode) : resultsFromSession(session)
-
-  const handleSend = async () => {
-    const trimmed = input.trim()
-    if (!trimmed || isSending) return
-    setInput('')
-    await sendMessage(trimmed)
-    textareaRef.current?.focus()
-  }
-
-  const ideaSlug = session.initial_idea.length > 52
-    ? session.initial_idea.slice(0, 52) + '…'
-    : session.initial_idea
+  const devLabel = (text: string) => `${isAdmin ? '[ADMIN]' : '[DEV]'} ${text}`
 
   return (
-    <div className="min-h-screen flex flex-col transition-colors duration-1000"
-      style={{
-        background: '#080809',
-        backgroundImage: `radial-gradient(ellipse at 50% 0%, ${phaseColor}08 0%, transparent 55%)`,
-      }}>
-
-      {/* Removed paywall — analysis is free, donation is optional */}
-
+    <div className="flex min-h-screen flex-col bg-px-night font-term text-px-screen">
       {episodeOpen && episode && (
         <EpisodePlayer episode={episode} onSkip={skipEpisode} onClose={closeEpisode} onRetry={retryEpisode} />
       )}
+      {evolution && <EvolutionScene evolution={evolution} onClose={dismissEvolution} />}
 
-      {/* Unlock in-progress overlay: only until the episode starts (not after Skip) */}
+      {/* Unlock in progress: only until the episode starts (not after Skip) */}
       {isUnlocking && !episodeOpen && !episodeLive && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center"
-          style={{ background: 'rgba(8,8,9,0.7)', backdropFilter: 'blur(8px)' }}>
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald-400/60 border-t-emerald-400 animate-spin" />
-            <span className="text-[13px] font-mono text-emerald-400/80">The Council is deliberating…</span>
-          </div>
+        <div role="status" className="fixed inset-0 z-40 flex items-center justify-center bg-px-night/90">
+          <p className="pixel-dialog px-6 py-4 text-[26px] text-px-ink">
+            The council is gathering<span aria-hidden="true" className="pixel-blink">…</span>
+          </p>
         </div>
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-20 border-b border-ink-800/50 px-6 relative overflow-hidden"
-        style={{ background: 'rgba(8,8,9,0.92)', backdropFilter: 'blur(16px)' }}>
-
-        <div className="absolute top-0 left-0 right-0 h-[2px] transition-all duration-1000"
-          style={{ background: `linear-gradient(90deg, transparent 0%, ${phaseColor}80 30%, ${phaseColor}80 70%, transparent 100%)` }} />
-
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-4 pt-3 pb-2.5">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400" style={{ boxShadow: '0 0 6px #f59e0b' }} />
-              <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-ink-600">Socra</span>
-            </div>
-            <div className="w-px h-3.5 bg-ink-800 flex-shrink-0" />
-            <p className="text-[12px] text-ink-600 truncate flex-1 leading-none">{ideaSlug}</p>
-            <button
-              onClick={clearSession}
-              className="flex-shrink-0 text-[11px] font-mono text-ink-700 hover:text-ink-400 border border-ink-800/60 hover:border-ink-700 px-2.5 py-1 rounded-lg transition-all"
-            >
-              ← new
-            </button>
-            <SessionAuthButton />
-          </div>
-
-          {/* Phase stepper */}
-          <div className="flex items-center pb-3">
-            {PHASE_STEPS.map((p, i) => {
-              const isActive = i === phaseIdx
-              const isDone = i < phaseIdx
-              return (
-                <Fragment key={p.key}>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-all duration-700"
-                      style={{
-                        background: isActive ? p.color : isDone ? `${p.color}50` : 'rgba(255,255,255,0.08)',
-                        boxShadow: isActive ? `0 0 8px ${p.color}` : 'none',
-                      }} />
-                    <span className="text-[10px] font-mono tracking-wider transition-colors duration-500"
-                      style={{
-                        color: isActive ? p.color : isDone ? `${p.color}55` : 'rgba(255,255,255,0.15)',
-                      }}>
-                      {p.label}
-                    </span>
-                  </div>
-                  {i < PHASE_STEPS.length - 1 && (
-                    <div className="h-px flex-shrink-0 w-8 mx-2.5 transition-all duration-700"
-                      style={{ background: isDone ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)' }} />
-                  )}
-                </Fragment>
-              )
-            })}
-          </div>
-
-          {/* View tabs — visible once there are results */}
-          {hasResults && (
-            <div className="flex items-center gap-0 border-t border-ink-800/40 fade-up">
-              {(['chat', 'results'] as const).map((v) => {
-                const labels = { chat: 'Chat', results: 'Results' }
-                const icons = { chat: '◎', results: '▤' }
-                const isActive = view === v
-                return (
-                  <button
-                    key={v}
-                    onClick={() => setView(v)}
-                    className="relative px-4 py-2 text-[11px] font-mono tracking-[0.12em] uppercase transition-all duration-200 flex items-center gap-1.5"
-                    style={{ color: isActive ? '#34d399' : 'rgba(255,255,255,0.22)' }}
-                  >
-                    <span style={{ opacity: isActive ? 0.7 : 0.3, fontSize: '9px' }}>{icons[v]}</span>
-                    {labels[v]}
-                    {isActive && (
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px]"
-                        style={{ background: 'linear-gradient(90deg, transparent, #34d399, transparent)' }} />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          )}
+      <header className="sticky top-0 z-20 border-b-4 border-px-edge bg-px-night">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 pb-2 pt-3 sm:gap-4 sm:px-6">
+          <span className="shrink-0 font-pixel text-[11px] text-px-xp">SOCRA</span>
+          <p className="min-w-0 flex-1 truncate text-[20px] text-px-muted">{session.initial_idea}</p>
+          <PixelButton variant="secondary" className="shrink-0 !px-3 !py-1 text-[20px]" onClick={clearSession}>
+            ← NEW
+          </PixelButton>
+          <SessionAuthButton />
         </div>
-      </div>
+        {hasResults && (
+          <nav aria-label="Session views" className="mx-auto flex max-w-5xl gap-2 px-4 sm:px-6">
+            {(['chat', 'results'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-current={view === v ? 'page' : undefined}
+                onClick={() => setView(v)}
+                className={`border-b-4 px-3 py-1 font-pixel text-[10px] leading-relaxed focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-px-plan ${
+                  view === v ? 'border-px-xp text-px-xp' : 'border-transparent text-px-muted hover:text-px-screen'
+                }`}
+              >
+                {v === 'chat' ? 'CHAT' : 'RESULTS'}
+              </button>
+            ))}
+          </nav>
+        )}
+      </header>
 
       {/* ── VIEW: RESULTS ─────────────────────────────────────── */}
       {view === 'results' && hasResults && (
-        <div className="flex-1 w-full bg-px-night">
-          <div className="max-w-5xl mx-auto px-6 py-10">
-            <Results
-              sessionId={session.id}
-              idea={session.initial_idea}
-              data={resultsData}
-              canReplay={canReplay(session) && !episodeLive}
-              onReplay={replayEpisode}
-              rerun={showDev ? {
-                onClick: () => devRerunMasterplan(pipelinePreference === 'langgraph'),
-                busy: isUnlocking || episodeLive,
-                label: isAdmin ? '[ADMIN] RE-RUN' : '[DEV] RE-RUN',
-              } : undefined}
-              pipeline={lastPipeline}
-              footer={
-                <>
-                  <FollowUpEmailCapture sessionId={session.id} />
-                  {showDonation && <DonationCard onDismiss={() => setShowDonation(false)} />}
-                </>
-              }
-            />
-          </div>
-        </div>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6">
+          <Results
+            sessionId={session.id}
+            idea={session.initial_idea}
+            data={resultsData}
+            canReplay={canReplay(session) && !episodeLive}
+            onReplay={replayEpisode}
+            rerun={showDev ? {
+              onClick: () => devRerunMasterplan(pipelinePreference === 'langgraph'),
+              busy: isUnlocking || episodeLive,
+              label: devLabel('RE-RUN'),
+            } : undefined}
+            pipeline={lastPipeline}
+            footer={
+              <>
+                <FollowUpEmailCapture sessionId={session.id} />
+                {showDonation && <DonationCard onDismiss={() => setShowDonation(false)} />}
+              </>
+            }
+          />
+        </main>
       )}
 
       {/* ── VIEW: CHAT (default) ───────────────────────────────── */}
-      {view === 'chat' && <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
-
-        {/* Eval bar */}
-        <EvalBar scores={scores} totalScore={total_score} phase={phase} explanations={explanations} />
-
-        {/* Save nudge for anonymous users */}
-        <SaveNudge />
-
-        {/* Assumptions */}
-        {assumptions.length > 0 && <AssumptionsList assumptions={assumptions} />}
-
-        {/* Dev/admin shortcuts: skip straight to masterplan, or auto-play a full conversation */}
-        {showDev && !masterplan && !episodeLive && !isSending && (
-          <div className="flex items-center gap-2 self-start flex-wrap">
-            {/* Pipeline toggle — visible to all dev/admin users */}
-            <button
-              onClick={() => setPipelinePreference(pipelinePreference === 'langgraph' ? 'legacy' : 'langgraph')}
-              className="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all"
-              style={{
-                background: pipelinePreference === 'langgraph' ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${pipelinePreference === 'langgraph' ? 'rgba(52,211,153,0.35)' : 'rgba(255,255,255,0.1)'}`,
-                color: pipelinePreference === 'langgraph' ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.3)',
-              }}
-            >
-              {pipelinePreference === 'langgraph' ? '⬡ LangGraph' : '◎ Legacy'}
-            </button>
-            <button
-              onClick={() => devUnlock(pipelinePreference === 'langgraph')}
-              disabled={isUnlocking}
-              className="px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
-              style={{ background: 'rgba(255,200,0,0.05)', border: '1px solid rgba(255,200,0,0.15)', color: 'rgba(255,200,0,0.5)' }}
-            >
-              {isUnlocking ? '…' : (isAdmin ? '[ADMIN] Skip to masterplan' : '[DEV] Skip to masterplan')}
-            </button>
-            <button
-              onClick={() => devSeedConversation()}
-              disabled={isUnlocking}
-              title="Auto-play a realistic founder conversation, then generate the masterplan (for testing quality)"
-              className="px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-widest transition-all disabled:opacity-40"
-              style={{ background: 'rgba(120,200,255,0.05)', border: '1px solid rgba(120,200,255,0.18)', color: 'rgba(120,200,255,0.6)' }}
-            >
-              {isUnlocking ? '…' : (isAdmin ? '[ADMIN] Quick-fill conversation' : '[DEV] Quick-fill conversation')}
-            </button>
-          </div>
-        )}
-
-        {/* Conversation */}
-        <div className="flex flex-col gap-6">
-          {conversation_history.filter(msg => (msg.content?.replace(/[*#\-_>\s]/g, '') ?? '').length > 5).map((msg, i) => (
-            <div key={i} className={`flex gap-4 fade-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              {msg.role === 'assistant' && (
-                <div className="flex-shrink-0 mt-1">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-bold"
-                    style={{
-                      background: 'linear-gradient(135deg, #f59e0b, #e85d26)',
-                      color: '#08070a',
-                      boxShadow: '0 2px 10px rgba(245,158,11,0.22)',
-                    }}>
-                    S
+      {view === 'chat' && (
+        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
+          <BattleScreen
+            session={session}
+            isSending={isSending}
+            streaming={streamingMessage}
+            choices={currentChoices}
+            pendingAnswer={lastSentMessage}
+            streamError={streamError}
+            savedFlash={savedFlash}
+            onSend={(text) => sendMessage(text)}
+            onRetry={lastSentMessage ? () => sendMessage(lastSentMessage) : undefined}
+            onCycleAssumption={updateAssumptionStatus}
+            extras={
+              <>
+                <SaveNudge />
+                {/* Dev/admin shortcuts: skip straight to the masterplan, or auto-play a full conversation */}
+                {showDev && !session.masterplan && !episodeLive && !isSending && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <PixelButton
+                      variant="secondary"
+                      className="!px-3 !py-1 text-[20px]"
+                      aria-pressed={pipelinePreference === 'langgraph'}
+                      onClick={() => setPipelinePreference(pipelinePreference === 'langgraph' ? 'legacy' : 'langgraph')}
+                    >
+                      {pipelinePreference === 'langgraph' ? '⬡ LANGGRAPH' : '◎ LEGACY'}
+                    </PixelButton>
+                    <PixelButton
+                      variant="secondary"
+                      className="!px-3 !py-1 text-[20px]"
+                      disabled={isUnlocking}
+                      onClick={() => devUnlock(pipelinePreference === 'langgraph')}
+                    >
+                      {isUnlocking ? '…' : devLabel('SKIP TO MASTERPLAN')}
+                    </PixelButton>
+                    <PixelButton
+                      variant="secondary"
+                      className="!px-3 !py-1 text-[20px]"
+                      disabled={isUnlocking}
+                      title="Auto-play a realistic founder conversation, then generate the masterplan (for testing quality)"
+                      onClick={() => devSeedConversation()}
+                    >
+                      {isUnlocking ? '…' : devLabel('QUICK-FILL')}
+                    </PixelButton>
                   </div>
-                </div>
-              )}
-              <div className={msg.role === 'user'
-                ? 'max-w-[75%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed text-ink-200'
-                : 'flex-1 min-w-0 text-[14px] leading-relaxed rounded-xl px-4 py-3'
-              }
-                style={msg.role === 'user' ? {
-                  background: 'rgba(255,255,255,0.055)',
-                  border: '1px solid rgba(255,255,255,0.09)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                } : {
-                  background: 'rgba(245,158,11,0.028)',
-                }}>
-                {msg.role === 'assistant' ? (
-                  <div className="prose prose-invert max-w-none text-ink-300
-                    prose-headings:text-ink-100 prose-headings:font-display prose-headings:tracking-tight prose-headings:mt-5 prose-headings:mb-2
-                    prose-strong:text-ink-100 prose-strong:font-semibold
-                    prose-p:text-ink-300 prose-p:leading-relaxed prose-p:my-2
-                    prose-li:text-ink-300 prose-li:my-0.5
-                    prose-code:text-amber-300 prose-code:text-[13px] prose-code:bg-ink-900/60 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
-                    prose-blockquote:border-amber-500/30 prose-blockquote:text-ink-500"
-                    style={{ fontSize: '14px' }}>
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                ) : msg.content}
-              </div>
-              {msg.role === 'user' && (
-                <div className="flex-shrink-0 mt-1">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-semibold text-ink-400"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    U
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* Streaming — conversation or synthesis */}
-          {isSending && (
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 mt-1">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-bold"
-                  style={{
-                    background: 'linear-gradient(135deg, #f59e0b, #e85d26)',
-                    color: '#08070a',
-                    boxShadow: streamingMessage ? '0 2px 10px rgba(245,158,11,0.22)' : '0 2px 16px rgba(245,158,11,0.4)',
-                  }}>
-                  S
-                </div>
-              </div>
-              {streamingMessage ? (
-                <div className="flex-1 min-w-0">
-                  <div className="prose prose-invert max-w-none text-ink-300
-                    prose-strong:text-ink-100 prose-p:text-ink-300 prose-p:leading-relaxed prose-p:my-2
-                    prose-li:text-ink-300 prose-headings:text-ink-100"
-                    style={{ fontSize: '14px' }}>
-                    <ReactMarkdown>{streamingMessage}</ReactMarkdown>
-                  </div>
-                  <span className="inline-block w-[3px] h-4 bg-amber-400/60 animate-pulse rounded-sm ml-0.5 align-middle" />
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 pt-2">
-                  {[0, 120, 240].map((delay) => (
-                    <div key={delay} className="w-1.5 h-1.5 rounded-full bg-ink-700 animate-bounce"
-                      style={{ animationDelay: `${delay}ms` }} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Fallback: show Socra avatar + prompt when LLM returned empty Part 1 but generated choices */}
-          {!isSending && currentChoices.length > 0 && !masterplan &&
-            conversation_history.length > 0 &&
-            conversation_history.filter(m => (m.content?.replace(/[*#\-_>\s]/g, '') ?? '').length > 5).slice(-1)[0]?.role === 'user' && (
-            <div className="flex gap-4 fade-up justify-start">
-              <div className="flex-shrink-0 mt-1">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-mono font-bold"
-                  style={{ background: 'linear-gradient(135deg, #f59e0b, #e85d26)', color: '#08070a', boxShadow: '0 2px 10px rgba(245,158,11,0.22)' }}>
-                  S
-                </div>
-              </div>
-              <div className="rounded-2xl px-4 py-3 max-w-[82%] text-[14px] text-ink-400 italic">
-                Pick one of the suggested answers below, or type your own response.
-              </div>
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Suggested answer chips — stay visible while user types, clear only on send */}
-        {currentChoices.length > 0 && !isSending && !masterplan && (
-          <div className="flex flex-col gap-2.5">
-            <span className="text-[10px] font-mono text-ink-700">Suggested answers. Click to pre-fill, then edit &amp; send.</span>
-            <div className="flex flex-wrap gap-2">
-              {currentChoices.map((choice, i) => (
-                <button
-                  key={i}
-                  onClick={() => { setInput(choice); setTimeout(() => document.querySelector('textarea')?.focus(), 50) }}
-                  className="text-[13px] text-ink-400 border border-ink-800/70 hover:border-amber-500/40 hover:text-ink-100 hover:bg-amber-500/5 px-4 py-2 rounded-full transition-all duration-200 text-left"
-                >
-                  {choice}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Saved flash */}
-        {savedFlash && (
-          <div className="flex items-center gap-2 text-[11px] font-mono text-emerald-500/60 fade-up">
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-            Saved
-          </div>
-        )}
-
-        {/* Stream error + retry */}
-        {streamError && !isSending && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] font-mono"
-            style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)' }}>
-            <span className="text-red-400/80">
-              {streamError === 'timeout' ? 'Response timed out. The server took too long.' : 'Connection dropped.'}
-            </span>
-            {lastSentMessage && (
-              <button
-                onClick={() => { useSessionStore.getState().sendMessage(lastSentMessage) }}
-                className="ml-auto px-3 py-1 rounded-lg text-[11px] font-mono text-red-300/80 hover:text-red-200 transition-colors"
-                style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.2)' }}>
-                Retry →
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Progress hint toward masterplan */}
-        {!masterplan && total_score > 0 && total_score < 0.85 && !isSending && (
-          <div className="text-[10px] font-mono text-ink-700 text-center">
-            {total_score < 0.4
-              ? `${Math.round((0.4 - total_score) / 0.05)} more specific answers needed to unlock analysis`
-              : total_score < 0.7
-              ? 'Good progress. Keep adding detail to each dimension.'
-              : 'Almost there. One or two more strong answers.'}
-          </div>
-        )}
-
-        {/* Refusal notice */}
-        {refusal && (
-          <div className="px-4 py-3 rounded-xl text-[12px] text-ink-600 font-mono leading-relaxed"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            {refusal}
-          </div>
-        )}
-
-        {/* Input — always visible; switches to follow-up mode after masterplan */}
-        <div className="sticky bottom-6">
-          <div className="relative group">
-            <div className="absolute -inset-px rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none"
-              style={{
-                background: masterplan
-                  ? 'linear-gradient(135deg, rgba(52,211,153,0.15), rgba(52,211,153,0.05))'
-                  : 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(232,93,38,0.1))',
-                filter: 'blur(1px)',
-              }} />
-            <div className="relative rounded-2xl overflow-hidden border transition-colors duration-300"
-              style={{
-                background: 'rgba(13,12,11,0.97)',
-                backdropFilter: 'blur(12px)',
-                borderColor: masterplan ? 'rgba(52,211,153,0.12)' : 'rgba(255,255,255,0.1)',
-              }}>
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={masterplan ? 'Ask a follow-up question…' : 'Reply to Socra…'}
-                rows={3}
-                disabled={isSending}
-                className="w-full bg-transparent px-5 pt-4 pb-3 text-[14px] text-ink-100 placeholder-ink-700 resize-none focus:outline-none leading-relaxed disabled:opacity-40"
-                onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) handleSend() }}
-              />
-              <div className="flex items-center justify-between px-5 py-3 border-t border-ink-800/50">
-                {masterplan ? (
-                  <span className="text-[11px] font-mono" style={{ color: 'rgba(52,211,153,0.35)' }}>
-                    Follow-up mode
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-ink-800 font-mono">⌘↵ to send</span>
                 )}
-                <button
-                  onClick={handleSend}
-                  disabled={!input.trim() || isSending}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-25"
-                  style={{
-                    background: input.trim() && !isSending
-                      ? masterplan
-                        ? 'linear-gradient(135deg, #34d399, #10b981)'
-                        : 'linear-gradient(135deg, #f59e0b, #e85d26)'
-                      : 'rgba(40,38,34,0.8)',
-                    boxShadow: input.trim() && !isSending
-                      ? masterplan ? '0 0 16px rgba(52,211,153,0.2)' : '0 0 16px rgba(245,158,11,0.2)'
-                      : 'none',
-                  }}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"
-                    stroke={input.trim() && !isSending ? '#08070a' : '#4a4840'} strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>}
+              </>
+            }
+          />
+        </main>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { PROFESSOR, TEAM_GLITCH } from '../../pixel/cast'
 import { Sprite } from '../../pixel/Sprite'
+import { useModalKeys } from '../../pixel/useModalKeys'
 import { DialogBox } from '../../pixel/ui/DialogBox'
 import { PixelButton } from '../../pixel/ui/PixelButton'
 import { PixelPanel } from '../../pixel/ui/PixelPanel'
@@ -31,36 +32,8 @@ export function EpisodePlayer({ episode, onSkip, onClose, onRetry }: EpisodePlay
   const showGlitch = glitch.status === 'done' || glitch.status === 'fainted'
 
   const dialogRef = useRef<HTMLDivElement>(null)
-
-  // Esc skips while playing and closes once finished; Tab stays inside the dialog
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') (finished ? onClose : onSkip)()
-      if (e.key !== 'Tab' || !dialogRef.current) return
-      const focusable = dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]')
-      if (!focusable.length) return
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      const inside = dialogRef.current.contains(document.activeElement)
-      if (e.shiftKey && (document.activeElement === first || !inside)) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
-        e.preventDefault()
-        first.focus()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [finished, onClose, onSkip])
-
-  // Hand focus back to whatever opened the episode (e.g. "Watch episode") when it closes
-  useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null
-    return () => {
-      if (opener?.isConnected) opener.focus()
-    }
-  }, [])
+  // Esc skips while playing and closes once finished; focus returns to the opener (e.g. "Watch episode")
+  useModalKeys(dialogRef, finished ? onClose : onSkip)
 
   return (
     <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="episode-title" className="fixed inset-0 z-50 overflow-y-auto bg-px-night font-term text-[22px] text-px-screen">

@@ -1,0 +1,227 @@
+{
+  "intake": {
+    "id": "fe47c477-1b27-40e4-bf0a-dd259ef95729",
+    "initial_idea": "A mobile app that lets freelance designers send invoices that auto-chase late payments with escalating polite reminders",
+    "scores": {
+      "problem_clarity": 0.2,
+      "scale_constraints": 0.15,
+      "tech_context": 0.0,
+      "success_definition": 0.1,
+      "risk_awareness": 0.05
+    },
+    "total_score": 0.10750000000000001,
+    "phase": "intake",
+    "turn_number": 1,
+    "conversation_history": [
+      {
+        "role": "user",
+        "content": "A mobile app that lets freelance designers send invoices that auto-chase late payments with escalating polite reminders"
+      },
+      {
+        "role": "assistant",
+        "content": "Interesting idea—automated payment chasing for freelancers. Before we architect this, I need to understand the core problem and your constraints.\n\n**First, let me probe the actual pain:**\n\n1. **When you say \"auto-chase late payments\"—are you solving for:** (a) designers who forget to follow up manually, (b) designers who follow up but lack data on what works, or (c) something else entirely? What's the real bottleneck?\n\n2. **Who is your user?** Solo designers working solo, or are we talking design studios with 5-50 people? This changes everything about payment velocity and negotiation power.\n\nI'm asking because \"polite escalating reminders\" can mean wildly different things in different freelance markets—and some payment delays are behavioral (client forgot) vs. financial (client can't pay yet)."
+      }
+    ],
+    "assumptions": [
+      {
+        "text": "User is a solo-to-small freelance designer, not an agency",
+        "status": "unknown"
+      },
+      {
+        "text": "Primary pain is manual follow-up overhead, not client disputes",
+        "status": "unknown"
+      },
+      {
+        "text": "\"Polite\" implies maintaining client relationships (not aggressive debt collection)",
+        "status": "unknown"
+      },
+      {
+        "text": "Invoices already exist somewhere (tools like Wave, FreshBooks, or manual)",
+        "status": "unknown"
+      }
+    ],
+    "masterplan": null,
+    "agent_reports": [],
+    "explanations": [
+      {
+        "dimension": "problem_clarity",
+        "label": "Problem Clarity",
+        "weight": "25%",
+        "score": 0.2,
+        "status_text": "What problem are you actually solving? Not the feature — the underlying pain."
+      },
+      {
+        "dimension": "scale_constraints",
+        "label": "Scale & Constraints",
+        "weight": "20%",
+        "score": 0.15,
+        "status_text": "How many users? What's your budget? What's your team size and timeline?"
+      },
+      {
+        "dimension": "tech_context",
+        "label": "Tech Context",
+        "weight": "20%",
+        "score": 0.0,
+        "status_text": "What's your existing stack? What are your non-negotiables vs flexibility zones?"
+      },
+      {
+        "dimension": "success_definition",
+        "label": "Success Definition",
+        "weight": "20%",
+        "score": 0.1,
+        "status_text": "What does 'done and working' look like? Give me a measurable outcome, not 'users love it'."
+      },
+      {
+        "dimension": "risk_awareness",
+        "label": "Risk Awareness",
+        "weight": "15%",
+        "score": 0.05,
+        "status_text": "What's been tried before? What could kill this project in month 3?"
+      }
+    ],
+    "choices": [
+      "Solo designers, we just forget to follow up ourselves",
+      "We have teams; chasing invoices wastes billable design time",
+      "Clients delay payments; we need data on what reminder works",
+      "We struggle with scope creep before invoicing even happens"
+    ]
+  },
+  "debate": {
+    "id": "fe47c477-1b27-40e4-bf0a-dd259ef95729",
+    "initial_idea": "A mobile app that lets freelance designers send invoices that auto-chase late payments with escalating polite reminders",
+    "scores": {
+      "problem_clarity": 0.65,
+      "scale_constraints": 0.55,
+      "tech_context": 0.15,
+      "success_definition": 0.4,
+      "risk_awareness": 0.25
+    },
+    "total_score": 0.42,
+    "phase": "debate",
+    "turn_number": 3,
+    "conversation_history": [
+      {
+        "role": "user",
+        "content": "A mobile app that lets freelance designers send invoices that auto-chase late payments with escalating polite reminders"
+      },
+      {
+        "role": "assistant",
+        "content": "Interesting idea—automated payment chasing for freelancers. Before we architect this, I need to understand the core problem and your constraints.\n\n**First, let me probe the actual pain:**\n\n1. **When you say \"auto-chase late payments\"—are you solving for:** (a) designers who forget to follow up manually, (b) designers who follow up but lack data on what works, or (c) something else entirely? What's the real bottleneck?\n\n2. **Who is your user?** Solo designers working solo, or are we talking design studios with 5-50 people? This changes everything about payment velocity and negotiation power.\n\nI'm asking because \"polite escalating reminders\" can mean wildly different things in different freelance markets—and some payment delays are behavioral (client forgot) vs. financial (client can't pay yet)."
+      },
+      {
+        "role": "user",
+        "content": "Solo designers, 1-3 people. We forget to follow up because it feels awkward, and 30% of our invoices go 30+ days late. I interviewed 14 freelancers: 11 said chasing payment is the part of the job they hate most. Success is cutting average days-to-paid from 41 to under 20."
+      },
+      {
+        "role": "assistant",
+        "content": "**Now we're talking specifics.** 41 → 20 days is a real metric. 30% late rate is quantified. And \"awkward\" is the real emotional blocker, not just friction.\n\nBut before I validate this is solvable, I need to separate signal from noise:\n\n**Question 1:** Of those 14 designers you interviewed—did any of them actually *try* existing tools? (Stripe Invoicing, Wave, FreshBooks, even Gmail reminders?) What specifically did they hate about those, or did they just never use them?\n\n**Question 2:** When you cut payment chase time in half (41→20 days), who benefits more—the designer's cash flow, or the *client's* ability to delay intentionally? In other words: if a client is genuinely cash-constrained, will your \"polite escalation\" actually move the needle, or does it just create more touchpoints they ignore?\n\nThe reason I ask: if designers are getting stiffed because clients are broke or gaming them, no UX improvement fixes that. You'd need payment terms enforcement (late fees, payment plans, etc.)—which is a different product entirely.\n\n"
+      },
+      {
+        "role": "user",
+        "content": "Pricing is $12/month per designer. Target 2,000 paying users in 18 months, so about $290k ARR. It's me (full-stack) plus a part-time designer. Stack: React Native, Supabase, Stripe invoicing API for payments, Postmark for email. Budget is $40k of savings."
+      },
+      {
+        "role": "assistant",
+        "content": "Good. You've got unit economics and a tech stack. But I need to cut through two soft spots before we move forward:\n\n**On your $40k budget:** That covers ~5 months of you at subsistence salary + cloud + marketing spend. At what point do you need to hit paying customers to survive, and how many paying users does that require? ($12/mo × X users = your monthly burn). Be specific on the number.\n\n**On the \"polite escalation\" product itself:** You haven't answered whether existing tools actually fail here. Let me be blunt: FreshBooks, Wave, and Stripe already send automated reminders. Your differentiator *cannot* be \"reminders but nicer.\" \n\nSo: **What specifically will your escalation sequence do that a $15/mo tool doesn't?** Is it:\n- Tone/psychology (templates that actually work for designers)?\n- Integration with payment enforcement (late fees, payment plans)?\n- Something about the *timing* or *data* these reminders use?\n- Direct client outreach on your behalf?\n\nName one specific thing a designer would see in your app that they wouldn't in Stripe's native invoice tool.\n\n"
+      }
+    ],
+    "assumptions": [
+      {
+        "text": "User is a solo-to-small freelance designer, not an agency",
+        "status": "unknown"
+      },
+      {
+        "text": "Primary pain is manual follow-up overhead, not client disputes",
+        "status": "unknown"
+      },
+      {
+        "text": "\"Polite\" implies maintaining client relationships (not aggressive debt collection)",
+        "status": "unknown"
+      },
+      {
+        "text": "Invoices already exist somewhere (tools like Wave, FreshBooks, or manual)",
+        "status": "unknown"
+      },
+      {
+        "text": "User: solo/2-3 person design shops",
+        "status": "unknown"
+      },
+      {
+        "text": "Pain: emotional avoidance + cash flow delay",
+        "status": "unknown"
+      },
+      {
+        "text": "Target metric: 41 → <20 days avg",
+        "status": "unknown"
+      },
+      {
+        "text": "Sample size: 14 interviews, 11 pain-validated",
+        "status": "unknown"
+      },
+      {
+        "text": "Solo designers, 1-3 person teams",
+        "status": "unknown"
+      },
+      {
+        "text": "41→20 day target is real",
+        "status": "unknown"
+      },
+      {
+        "text": "React Native + Supabase MVP stack",
+        "status": "unknown"
+      },
+      {
+        "text": "$40k bootstrap budget",
+        "status": "unknown"
+      },
+      {
+        "text": "2k users / $290k ARR target in 18mo",
+        "status": "unknown"
+      },
+      {
+        "text": "Pricing: $12/mo per designer",
+        "status": "unknown"
+      }
+    ],
+    "masterplan": null,
+    "agent_reports": [],
+    "explanations": [
+      {
+        "dimension": "problem_clarity",
+        "label": "Problem Clarity",
+        "weight": "25%",
+        "score": 0.65,
+        "status_text": "Problem understood. Now articulate it as a user would, not as a developer."
+      },
+      {
+        "dimension": "scale_constraints",
+        "label": "Scale & Constraints",
+        "weight": "20%",
+        "score": 0.55,
+        "status_text": "Basic constraints captured. Need more detail on infrastructure budget and data volume."
+      },
+      {
+        "dimension": "tech_context",
+        "label": "Tech Context",
+        "weight": "20%",
+        "score": 0.15,
+        "status_text": "What's your existing stack? What are your non-negotiables vs flexibility zones?"
+      },
+      {
+        "dimension": "success_definition",
+        "label": "Success Definition",
+        "weight": "20%",
+        "score": 0.4,
+        "status_text": "Rough success criteria exist. Make them time-bound and quantified."
+      },
+      {
+        "dimension": "risk_awareness",
+        "label": "Risk Awareness",
+        "weight": "15%",
+        "score": 0.25,
+        "status_text": "What's been tried before? What could kill this project in month 3?"
+      }
+    ],
+    "choices": []
+  }
+}

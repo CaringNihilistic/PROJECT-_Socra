@@ -5,6 +5,7 @@ import { readSse } from '../episode/sse'
 import { createEpisodeController, type EpisodeController, type EpisodeMode } from '../episode/controller'
 import { canReplay, replayEvents } from '../episode/replay'
 import type { EpisodeState } from '../episode/reducer'
+import { evolutionFor, evolutionToFinal, stageForSession, type Evolution } from '../chat/turns'
 
 export type { AgentReport } from '../episode/events'
 
@@ -126,6 +127,9 @@ interface SessionStore {
   episode: EpisodeState | null
   /** Whether the full-screen episode overlay is showing. */
   episodeOpen: boolean
+  /** A chat turn moved the idea to a later stage: the evolution scene is showing. */
+  evolution: Evolution | null
+  dismissEvolution: () => void
   setAuthToken: (token: string | null) => void
   setTokenGetter: (fn: (() => Promise<string | null>) | null) => void
   getFreshToken: () => Promise<string | null>
@@ -167,7 +171,7 @@ export const useSessionStore = create<SessionStore>((set, get) => {
   const resetEpisode = () => {
     controller?.dispose()
     controller = null
-    return { episode: null, episodeOpen: false }
+    return { episode: null, episodeOpen: false, evolution: null }
   }
 
   /** Start a fresh episode. Live episodes skip straight to results under reduced motion. */
@@ -242,6 +246,7 @@ export const useSessionStore = create<SessionStore>((set, get) => {
     lastSentMessage: '',
     episode: null,
     episodeOpen: false,
+    evolution: null,
     lastPipeline: 'legacy' as const,
     pipelinePreference: (typeof localStorage !== 'undefined'
       ? (localStorage.getItem('socra_pipeline') as 'legacy' | 'langgraph') || 'legacy'
@@ -350,6 +355,9 @@ export const useSessionStore = create<SessionStore>((set, get) => {
 
       let episode: EpisodeController | null = null
       let sawDone = false
+      // The stage before this turn: crossing a threshold plays the evolution scene
+      const before = stageForSession(session)
+      let evolved = false
       try {
         arm(FIRST_BYTE_MS)
         const response = await fetch(`${API_URL}/sessions/${session.id}/message/stream`, {
@@ -374,6 +382,8 @@ export const useSessionStore = create<SessionStore>((set, get) => {
               sawDone = true
               if (stillViewing(session.id)) {
                 applySession(p.session)
+                const evolution = evolved ? null : evolutionFor(before, stageForSession(p.session))
+                if (evolution) set({ evolution })
                 set({ streamingMessage: '', savedFlash: true })
                 setTimeout(() => set({ savedFlash: false }), 2000)
               }
@@ -386,7 +396,10 @@ export const useSessionStore = create<SessionStore>((set, get) => {
             if (events.length) {
               if (!episode) {
                 episode = startEpisode('live')
-                set({ streamingMessage: '' })
+                // The council only runs once the idea reaches Final Form: evolve first,
+                // over the episode, which keeps pacing underneath
+                evolved = true
+                set({ streamingMessage: '', evolution: evolutionToFinal(before) })
               }
               events.forEach((e) => (episode as EpisodeController).push(e))
             }
@@ -517,6 +530,8 @@ export const useSessionStore = create<SessionStore>((set, get) => {
     },
 
     closeEpisode: () => set({ episodeOpen: false }),
+
+    dismissEvolution: () => set({ evolution: null }),
 
     replayEpisode: () => {
       const { session } = get()

@@ -8,6 +8,7 @@ import { ComparePage } from './components/ComparePage'
 import { CardPage } from './components/CardPage'
 import { PixelPreview } from './pixel/PixelPreview'
 import { EpisodeDemo } from './components/council/EpisodeDemo'
+import { ChatDemo } from './components/chat/ChatDemo'
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 
@@ -37,6 +38,7 @@ const PAYMENT_RETURN = getPaymentReturn()
 // Dev-only pixel kit preview (import.meta.env.DEV is false in production builds)
 const PIXEL_PREVIEW = import.meta.env.DEV && window.location.pathname === '/__pixel'
 const EPISODE_DEMO = import.meta.env.DEV && window.location.pathname === '/__episode'
+const CHAT_DEMO = import.meta.env.DEV && window.location.pathname === '/__chat'
 
 /** Syncs the Clerk JWT into the store. Refreshes every 45 min before expiry. */
 function ClerkSync() {
@@ -97,6 +99,7 @@ function AppShell() {
 export default function App() {
   if (PIXEL_PREVIEW) return <PixelPreview />
   if (EPISODE_DEMO) return <EpisodeDemo />
+  if (CHAT_DEMO) return <ChatDemo />
 
   // Share page is a public read-only view — no auth or store needed
   if (SHARE_SESSION_ID) {

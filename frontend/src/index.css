@@ -103,3 +103,26 @@
   .pixel-attack { animation: none; }
   .pixel-flash { display: none; }
 }
+
+/* Evolution scene: the old form (on an opaque backing) blinks over the new one, faster
+   and faster, as white silhouettes; then a white flash reveals the new form. */
+@keyframes pixel-evolve {
+  0% { opacity: 1; } 18% { opacity: 0; } 30% { opacity: 1; } 40% { opacity: 0; }
+  49% { opacity: 1; } 56% { opacity: 0; } 62% { opacity: 1; } 67% { opacity: 0; }
+  72% { opacity: 1; } 76% { opacity: 0; } 80% { opacity: 1; } 83% { opacity: 0; }
+  86% { opacity: 1; } 88.5% { opacity: 0; } 91% { opacity: 1; } 93% { opacity: 0; }
+  95% { opacity: 1; } 96.5% { opacity: 0; } 98% { opacity: 1; } 99%, 100% { opacity: 0; }
+}
+.pixel-evolve-old { animation: pixel-evolve 2.4s step-end 1 forwards; }
+.pixel-silhouette { filter: brightness(0) invert(1); }
+
+@keyframes pixel-flash-white {
+  0% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+.pixel-flash-white { background: theme('colors.px.screen'); opacity: 0; animation: pixel-flash-white 0.5s steps(3, end) 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-evolve-old { animation: none; opacity: 0; }
+  .pixel-flash-white { display: none; }
+}
