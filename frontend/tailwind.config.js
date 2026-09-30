@@ -41,7 +41,7 @@ export default {
             '--tw-prose-body': theme('colors.px.soft'),
             '--tw-prose-headings': theme('colors.px.screen'),
             '--tw-prose-links': theme('colors.px.plan'),
-            '--tw-prose-bold': theme('colors.px.screen'),
+            '--tw-prose-bold': theme('colors.px.xp'), // key words pop: prompts bold the verdict of every bullet
             '--tw-prose-bullets': theme('colors.px.xp'),
             '--tw-prose-counters': theme('colors.px.xp'),
             '--tw-prose-hr': theme('colors.px.edge'),

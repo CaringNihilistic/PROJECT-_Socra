@@ -345,7 +345,10 @@ GROQ_LARGE_MODEL = "openai/gpt-oss-120b"     # synthesis, devil's advocate
 
 # The masterplan is ~7 sections. At 3000 tokens every plan was cut off mid-Phase 1/2, so
 # the Risk Register and "First 3 files" never arrived. A complete plan runs ~2.7-5k tokens.
-SYNTHESIS_MAX_TOKENS = 8000
+# The masterplan prompt asks for <= 450 words (~1,000 tokens with tables); 2,000 leaves room
+# to finish. Groq's reasoning models spend hidden thinking from the same budget, so they keep 8,000.
+SYNTHESIS_MAX_TOKENS = 2000
+GROQ_SYNTHESIS_MAX_TOKENS = 8000
 
 
 async def _call_groq(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
@@ -429,7 +432,7 @@ async def _call_google(system: str, messages: list[dict], max_tokens: int, json_
         return result
 
 
-async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
+async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False, groq_max_tokens: int | None = None) -> str:
     """Route to Anthropic → Google → Groq. Falls back automatically on any provider error."""
     import logging as _log
     if settings.anthropic_api_key:
@@ -442,7 +445,8 @@ async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, jso
             return await _call_google(system, messages, max_tokens, json_mode=json_mode)
         except Exception:
             pass  # Google quota exhausted → fall through to Groq
-    return await _call_groq(system, messages, max_tokens, json_mode=json_mode)
+    # Groq's reasoning models spend hidden thinking from max_tokens: callers with tight caps pass a larger budget
+    return await _call_groq(system, messages, groq_max_tokens or max_tokens, json_mode=json_mode)
 
 
 # ---------------------------------------------------------------------------
@@ -533,6 +537,11 @@ RULES:
 4. If score 0.7-0.85: Challenge with a specific failure scenario using real numbers or real competitors.
 5. If score > 0.85: Write a single sentence confirming analysis is ready. Do NOT write the masterplan.
 
+STYLE — crisp, never padded:
+- Part 1 is at most 60 words: one short reaction sentence, then your question(s).
+- Each question is ONE sentence. No preamble, no numbered lists, no (a)/(b)/(c) options, no headings.
+- Bold the key term of each question with **double asterisks**, e.g. "What is your **CAC** for the first 10 customers?"
+
 CHALLENGE VAGUE ANSWERS — this is your most important job:
 - "Reduce costs" → "By how much exactly? What does one unit of the current solution cost vs yours?"
 - "Use AI / cloud / automation" → "That's not a differentiator. What specifically separates you from [name a real competitor]?"
@@ -541,9 +550,9 @@ CHALLENGE VAGUE ANSWERS — this is your most important job:
 
 OUTPUT FORMAT — write exactly two parts separated by {SEPARATOR}. Follow this example exactly:
 
-Good market definition. Now I need to understand your acquisition path.
+Good market definition. Now: your acquisition path.
 
-Who will you call on day 1 — a specific company, job title, and city? And what's your honest CAC estimate for this first customer?
+Who do you call on **day 1** (company, job title, city)? And what is your honest **CAC** for that first customer?
 {SEPARATOR}
 {{"eval_delta": {{"problem_clarity": 0.15, "scale_constraints": 0.10, "tech_context": 0.0, "success_definition": 0.0, "risk_awareness": 0.0}}, "new_assumptions": ["Target: 10-100 employee SMEs", "Focus: marketing agencies first"], "phase": "intake", "choices": ["First call: ops manager at NYC marketing agency", "CAC ~$2K via outbound LinkedIn", "Free trial, convert at $299/mo after 2 weeks", "Founder sells first 10 manually, no paid marketing"]}}
 
@@ -1026,6 +1035,15 @@ Be specific, opinionated, and actionable. No generic advice."""
 # Multi-agent masterplan pipeline
 # ---------------------------------------------------------------------------
 
+# Shared by all five advisors: crisp, scannable, key verdict in bold
+AGENT_FORMAT = """
+
+FORMAT (strict):
+- Exactly 4 bullets, nothing else: no heading, no intro, no closing line.
+- Each bullet: a **bold verdict of 2-5 words**, then ONE sentence of at most 20 words containing a real number or name.
+- Example: "- **Payback never arrives.** $30 CAC against $12/mo at 50% churn loses money on every user."
+- Under 110 words in total."""
+
 COUNCIL_SEATS = [
     {
         "key": "finance",
@@ -1034,14 +1052,15 @@ COUNCIL_SEATS = [
         "color": "#34d399",
         "prompt": """You are The Banker — a cold-blooded Series A investor who has passed on 300 deals. You care about one thing: does the math work? Technology does not impress you. Traction impresses you. Speak in first person and be blunt.
 
-Write 4-5 bullet points covering:
+Pick the 4 most damaging of these and write one bullet each:
 - Unit economics with actual estimates: what CAC is likely to be, what LTV is needed to be profitable, payback period in months
 - Revenue model risk: is pricing realistic vs what named competitors charge today (quote their actual prices)
 - Burn rate reality: what this actually costs to build and run at MVP scale (name real cost line items and amounts)
 - Funding gap: how much capital is needed before revenue, and whether that is raiseable with current traction signals
 - The one financial assumption that, if wrong, makes this entirely unviable — state it as a falsifiable claim
 
-Use real numbers. Do not give generic advice. Under 150 words.""",
+Use real numbers. Do not give generic advice."""
+        + AGENT_FORMAT,
     },
     {
         "key": "market",
@@ -1050,14 +1069,15 @@ Use real numbers. Do not give generic advice. Under 150 words.""",
         "color": "#5590e8",
         "prompt": """You are The Oracle — a market strategist who has sized 200 markets and seen "10x TAM" slides lie every time. You know exactly who buys things and why timing kills startups. Speak in first person with authority.
 
-Write 4-5 bullet points covering:
+Pick the 4 most damaging of these and write one bullet each:
 - TAM realism: name the actual market size from a credible source and why the realistic SAM is dramatically smaller
 - Who the first 10 paying customers actually are — name the specific company type, size, and the exact reason they cut a check
 - The single biggest GTM obstacle that has blocked similar companies from their first enterprise deal
 - Market timing risk: the external factor (regulation, infrastructure, buyer readiness) that could make this too early or too late
 - Distribution reality: how buyers are actually reached, and what customer acquisition truly costs in this category
 
-Be specific to this exact idea. Under 150 words.""",
+Be specific to this exact idea."""
+        + AGENT_FORMAT,
     },
     {
         "key": "competition",
@@ -1066,14 +1086,15 @@ Be specific to this exact idea. Under 150 words.""",
         "color": "#f59e0b",
         "prompt": """You are The Challenger — a competitive intelligence operative who knows every incumbent's playbook. You will find the player who already owns this market. You MUST name real companies — no generic descriptions. Speak in first person.
 
-Write 4-5 bullet points covering:
+Pick the 4 most damaging of these and write one bullet each:
 - The 3 most dangerous direct competitors by name (companies that exist today and solve this exact problem)
 - The biggest incumbent who could crush this with a single feature update — name them and explain their structural advantage
 - Why the differentiation claimed in the conversation is NOT a real moat — be specific and harsh
 - Which competitor already has the distribution, contracts, or partnerships that make displacement nearly impossible
 - The realistic scenario where a well-funded competitor copies this in 6 months — name who would do it and why they would win
 
-Only use real company names. Under 150 words.""",
+Only use real company names."""
+        + AGENT_FORMAT,
     },
     {
         "key": "tech",
@@ -1082,14 +1103,15 @@ Only use real company names. Under 150 words.""",
         "color": "#22d3ee",
         "prompt": """You are The Builder — a staff engineer who has shipped systems at scale and watched startups die at 100k users because they built the wrong thing. You name specific tools, not categories. Speak in first person with engineering precision.
 
-Write 4-5 bullet points covering:
+Pick the 4 most damaging of these and write one bullet each:
 - The hardest technical problem in this idea that is being underestimated — describe the specific failure mode
 - Build vs buy decisions with real product names: what to buy off the shelf (name the exact tools) vs what must be built custom
 - The specific infrastructure or API dependency that creates lock-in or fragility (name the vendor and the risk)
 - What breaks first at 10x scale — name the specific bottleneck (database, API rate limit, compute cost, latency)
 - The technical assumption in the conversation that is either wrong or dangerously underspecified
 
-Say "AWS Lambda" not "serverless". Say "Postgres" not "a database". Under 150 words.""",
+Say "AWS Lambda" not "serverless". Say "Postgres" not "a database"."""
+        + AGENT_FORMAT,
     },
     {
         "key": "risk",
@@ -1098,14 +1120,15 @@ Say "AWS Lambda" not "serverless". Say "Postgres" not "a database". Under 150 wo
         "color": "#e85d26",
         "prompt": """You are The Skeptic — a risk officer who reads regulatory filings for entertainment and has identified the core flaw in 50 startups before their Series A. You find the assumption that kills this in year 1. Speak in first person, direct and unflinching.
 
-Write 4-5 bullet points covering:
+Pick the 4 most damaging of these and write one bullet each:
 - The specific regulation that applies to this business by name (e.g. TCPA, GDPR, HIPAA, FINRA) and what compliance actually requires
 - The platform or API dependency that could kill this overnight if the vendor changes pricing or policy — name the vendor
 - The go-to-market risk that has killed the most similar startups — name what specifically happened to a real company
 - What breaks at 10x scale that is not a tech problem (operations, support, legal, trust) — be concrete
 - The single core assumption that, if wrong, collapses the entire business model — state it as a falsifiable claim
 
-Be domain-specific. Under 150 words.""",
+Be domain-specific."""
+        + AGENT_FORMAT,
     },
 ]
 
@@ -1129,7 +1152,7 @@ async def _call_fast_llm(system: str, messages: list[dict]) -> str:
             with trace_generation("anthropic/agent", "claude-haiku-4-5-20251001", input_data) as gen:
                 response = await client.messages.create(
                     model="claude-haiku-4-5-20251001",
-                    max_tokens=900,
+                    max_tokens=450,  # 4 bullets under 110 words
                     system=system,
                     messages=safe_msgs,
                 )
@@ -1311,10 +1334,10 @@ MASTERPLAN TO REVIEW:
 {excerpt}
 
 Write exactly 5 numbered critiques of this specific plan. Each critique must:
-- Reference a SPECIFIC claim, tool choice, timeline, or number from the masterplan above
-- Explain why that specific decision is risky or likely to fail — with a concrete real-world reason
-- Be under 60 words — direct and clear, no hedging
-- Start with the specific thing you are critiquing, then say why it is a problem
+- Start with the SPECIFIC claim, tool choice, timeline, or number from the masterplan, in **bold**
+- Then ONE sentence of at most 25 words: why it is risky or likely to fail, with a concrete real-world reason
+- Example: "1. **Postmark at 30,000 emails/month.** Cold domains hit spam folders within weeks; deliverability, not pricing, caps growth."
+- No intro line and no summary at the end
 
 Do NOT give generic startup advice. Critique the specific decisions in THIS plan.
 Format as a numbered list. Be direct and honest."""
@@ -1327,7 +1350,7 @@ Format as a numbered list. Be direct and honest."""
     try:
         if settings.anthropic_api_key:
             try:
-                content = await _call_anthropic(system, trigger_msg, max_tokens=800)
+                content = await _call_anthropic(system, trigger_msg, max_tokens=450)
             except Exception as e:
                 import logging as _log
                 _log.getLogger(__name__).warning("Anthropic devil's advocate failed, falling back: %s", e)
@@ -1371,7 +1394,7 @@ You are in advisory mode. Rules:
 - Answer directly and specifically. Reference the masterplan when relevant.
 - If the question is about a specific tool, API, or technical choice: give a clear recommendation with a reason. If you are not certain, say "I'd recommend researching X vs Y — I'm not certain which is better for your specific constraints."
 - Do NOT confidently state facts you are unsure of. It is better to say "I don't know the exact pricing for X" than to invent a number.
-- Keep answers under 250 words. Use markdown formatting.
+- Keep answers under 120 words. Lead with the answer in **bold**, then at most 4 short bullets. Bold key tools and numbers.
 - Do NOT ask Socratic questions — the interrogation phase is over. Just give direct, useful answers."""
 
 
@@ -1431,16 +1454,28 @@ FIRST 3 FILES RULE:
 - FORBIDDEN: README.md, business_plan.md, architecture.json, any .md planning file
 - REQUIRED format: `backend/[module]/[file].py` or `frontend/[path]/[file].tsx` — what it contains (2 sentences max)
 
-STRUCTURE:
-1. **Chairman's Verdict** — 2-3 sentences: exact problem, exact customer, exact mechanism. Note where the council agreed vs. disagreed.
-2. **Tech Stack** — table: Layer | Specific Tool | Why This One
-3. **Phase 1: MVP (Weeks 1-8)** — what to build, what to buy off-shelf, what NOT to build yet
-4. **Phase 2: Growth (Months 3-9)** — first 10 customers, GTM motion, key hires
-5. **Phase 3: Scale/Moat (Months 9-18)** — defensibility, what makes this hard to copy at scale
-6. **Risk Register** — top 5 risks from the council findings with specific tool/process mitigations
-7. **First 3 files to write** — source code files with paths and what they contain
+BREVITY — the whole masterplan is AT MOST 450 WORDS. Crisp beats complete:
+- Every bullet is one line of at most 15 words and starts with its **key decision in bold**.
+- No paragraph longer than 2 sentences. No filler ("It is important to", "In conclusion", "Overall").
+- Bold the tool names, numbers and deadlines that matter.
 
-Format as clean Markdown. Be opinionated. If there is a clearly better choice, say so and name the alternative that loses."""
+STRUCTURE — use exactly these ## headings, in this order:
+## Chairman's Verdict
+2 sentences. First: the call in bold (**Build it**, **Pivot to …**, or **Don't build this**). Second: where the council agreed vs. disagreed.
+## Tech Stack
+Table: Layer | Tool | Why (6 words max). At most 6 rows.
+## Phase 1: MVP (Weeks 1-8)
+4 bullets: what to build, what to buy off-shelf, and one **Don't build yet**.
+## Phase 2: Growth (Months 3-9)
+3 bullets: first 10 customers, GTM motion, first key hire.
+## Phase 3: Scale/Moat (Months 9-18)
+3 bullets: what makes this hard to copy.
+## Risk Register
+Table: Risk | Mitigation (a specific tool or process). Exactly 5 rows, 12 words max per cell.
+## First 3 Files
+3 bullets: `path/to/file.ext`, then what it contains in one line.
+
+Format as clean Markdown. Be opinionated: if there is a clearly better choice, say so and name the alternative that loses."""
 
 
 async def _stream_synthesis_tokens(system: str, messages: list[dict]):
@@ -1489,7 +1524,7 @@ async def _stream_synthesis_tokens(system: str, messages: list[dict]):
         _log.getLogger(__name__).warning("Google synthesis returned empty — falling back to Groq")
     full_text = ""
     with trace_generation("groq/synthesis", GROQ_LARGE_MODEL, input_data) as gen:
-        async for token in _stream_groq_tokens(system, safe_msgs, model=GROQ_LARGE_MODEL, max_tokens=SYNTHESIS_MAX_TOKENS):
+        async for token in _stream_groq_tokens(system, safe_msgs, model=GROQ_LARGE_MODEL, max_tokens=GROQ_SYNTHESIS_MAX_TOKENS):
             full_text += token
             yield token
         if gen:
