@@ -8,6 +8,7 @@ import json
 import random
 from typing import Optional
 from core.config import settings
+from eval_bar import compute_total_score
 from observability import trace_generation
 
 
@@ -457,7 +458,8 @@ SEPARATOR = "###JSON###"
 
 
 def _build_groq_conversation_prompt(current_scores: dict, turn_number: int = 0) -> str:
-    total = sum(current_scores.values()) / 5
+    # The weighted total the backend gates phases on, not a plain average
+    total = compute_total_score(current_scores)
     turns_used = turn_number
     must_wrap_up = turns_used >= 7
 
@@ -523,7 +525,9 @@ Output only valid JSON with these three keys. No extra text."""
 
 
 def _build_streaming_system_prompt(current_scores: dict) -> str:
-    total = sum(current_scores.values()) / 5
+    # The weighted total the backend gates phases on: a plain average read ~85% while the real
+    # total was under 80%, and Socra announced "Analysis is ready." with no council following
+    total = compute_total_score(current_scores)
     return f"""You are Socra — a brutally honest startup advisor who refuses to accept vague answers and demands specifics before generating solutions.
 
 CURRENT EVALUATION SCORES (0.0 to 1.0):
@@ -539,8 +543,8 @@ RULES:
 1. Ask maximum 2 targeted questions per turn. Never more.
 2. If score < 0.4: Clarify who specifically has this problem and what they do today.
 3. If score 0.4-0.7: Propose a concrete approach, then argue against it with a specific counter.
-4. If score 0.7-0.85: Challenge with a specific failure scenario using real numbers or real competitors.
-5. If score > 0.85: Write a single sentence confirming analysis is ready. Do NOT write the masterplan.
+4. If score is 0.7 or higher: Challenge with a specific failure scenario using real numbers or real competitors.
+5. Never announce that the analysis is ready, and never write the masterplan: the app starts the council by itself once the score reaches 80%. Until then, keep asking.
 
 STYLE — crisp, never padded:
 - Part 1 is at most 60 words: one short reaction sentence, then your question(s).
@@ -564,11 +568,10 @@ Who do you call on **day 1** (company, job title, city)? And what is your honest
 RULES for your output:
 - Part 1 (before {SEPARATOR}): your actual response and questions. MANDATORY. Never empty.
 - eval_delta: increments 0.05–0.25 per dimension the user's message addressed. Zero for unaddressed dims.
-- phase: "intake" always unless score > 0.85, then "masterplan"
+- phase: always "intake" (the app computes the real phase from the scores)
 - choices: 3–4 things the USER would TYPE as their answer. Not questions. Not tasks. User answers.
   BAD choices: "What is CAC?", "Identify verticals", "Research market size"
   GOOD choices: "CAC ~$500 via LinkedIn outbound", "Targeting NYC marketing agencies first", "No funding yet, bootstrapped"
-- If phase is "masterplan": Part 1 = one sentence only.
 - HARD LIMIT: Part 1 is under 60 words, every turn, however late in the conversation. Proposals and counter-arguments included."""
 
 
@@ -910,7 +913,7 @@ eval_delta values should be small positive increments (0.05-0.25) reflecting how
 If phase is "masterplan", the message should be the complete architectural masterplan in markdown and choices must be [].
 Always include 3-4 choices that represent the most archetypal user responses to the questions you just asked. Keep each choice under 12 words and make them meaningfully distinct from each other."""
 
-    formatted_system = system_prompt.format(**current_scores, total=sum(current_scores.values()) / 5)
+    formatted_system = system_prompt.format(**current_scores, total=compute_total_score(current_scores))
     msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
     raw = await _call_real_llm(formatted_system, msgs, max_tokens=2000, json_mode=True)
 

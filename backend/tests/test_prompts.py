@@ -72,3 +72,19 @@ def test_groq_fallback_chat_prompt_is_crisp_too():
     ]}, 2)
     assert "At most 60 words" in prompt
     assert "**double asterisks**" in prompt
+
+
+def test_chat_prompt_shows_the_weighted_total_and_never_declares_readiness():
+    # A plain average read ~85% while the weighted total (what gates the council) was under
+    # 80%: Socra said "Analysis is ready." and nothing followed.
+    from eval_bar import compute_total_score
+    scores = {"problem_clarity": 0.6, "scale_constraints": 0.95, "tech_context": 0.95,
+              "success_definition": 0.95, "risk_awareness": 0.95}
+    weighted = compute_total_score(scores)
+    plain = sum(scores.values()) / 5
+    assert f"{weighted:.0%}" != f"{plain:.0%}"
+    for prompt in (L._build_streaming_system_prompt(scores), L._build_groq_conversation_prompt(scores, 2)):
+        assert f"{weighted:.0%}" in prompt
+    streaming = L._build_streaming_system_prompt(scores)
+    assert "Never announce that the analysis is ready" in streaming
+    assert "confirming analysis is ready" not in streaming
