@@ -27,7 +27,8 @@ export function AnswerMenu({ choices, onPick, onWriteOwn }: AnswerMenuProps) {
       <p className="text-[20px] text-px-muted">Pick an answer to edit it before sending.</p>
       <ul onKeyDown={onKeyDown} className="flex flex-col gap-2">
         {/* Index keys: the LLM can repeat a choice */}
-        {choices.map((choice, i) => (
+        {/* At most 4: the model sometimes returns more than the 3-4 it is asked for */}
+        {choices.slice(0, 4).map((choice, i) => (
           <li key={i}>
             <MenuChoice className="w-full" onClick={() => onPick(choice)}>{choice}</MenuChoice>
           </li>

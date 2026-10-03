@@ -256,7 +256,8 @@ def _stream_turn(session_id: str, session: Session, db: AsyncSession, user_conte
                 await db.commit()
 
                 # Only show choices when not in masterplan phase (server-computed, not model-reported)
-                choices = llm_response.get("choices", []) if new_phase != "masterplan" else []
+                # The prompt asks for 3-4; a live run returned 6, which makes the answer menu a wall
+                choices = (llm_response.get("choices") or [])[:4] if new_phase != "masterplan" else []
                 refusal = get_refusal_message(total)
                 serialized = {
                     "id": session_id,

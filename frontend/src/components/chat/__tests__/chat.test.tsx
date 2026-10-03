@@ -60,6 +60,12 @@ describe('BattleScreen', () => {
     expect(html).toMatch(/<textarea[^>]*disabled/)
   })
 
+  it('shows at most 4 suggested answers plus Write my own', () => {
+    const html = render(intake, { choices: ['a1', 'a2', 'a3', 'a4', 'a5', 'a6'] })
+    expect(html).toContain('a4')
+    expect(html).not.toContain('a5')
+  })
+
   it('a dropped stream offers RETRY', () => {
     const html = render(debate, { streamError: 'network', onRetry: noop })
     expect(html).toContain('CONNECTION LOST')
