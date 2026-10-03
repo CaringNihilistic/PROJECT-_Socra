@@ -5,6 +5,7 @@ import { useSessionStore } from '../store/sessionStore'
 import { CLERK_ENABLED } from '../lib/auth'
 import { PixelButton } from '../pixel/ui/PixelButton'
 import { TitleScreen } from './landing/TitleScreen'
+import { TitleScene } from './landing/TitleScene'
 import { ContinueMenu } from './landing/ContinueMenu'
 import { JourneyDemo } from './landing/JourneyDemo'
 import { HowItPlays } from './landing/HowItPlays'
@@ -102,8 +103,8 @@ export function LandingPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-20 px-4 py-12 sm:px-6 sm:py-16">
-        {/* ── Title screen ─────────────────────────────────────────────────── */}
+      {/* ── Title screen: full width, so the scenery can fill the gutters ── */}
+      <TitleScene>
         <div id="start" className="mx-auto flex w-full max-w-3xl scroll-mt-24 flex-col gap-10">
           <TitleScreen
             ref={box}
@@ -126,7 +127,9 @@ export function LandingPage() {
             nudge={CLERK_ENABLED ? <SyncNudge /> : undefined}
           />
         </div>
+      </TitleScene>
 
+      <main className="mx-auto flex max-w-6xl flex-col gap-20 px-4 pb-12 pt-6 sm:px-6 sm:pb-16">
         <div id="demo" className="scroll-mt-24">
           <JourneyDemo onStart={focusStart} />
         </div>

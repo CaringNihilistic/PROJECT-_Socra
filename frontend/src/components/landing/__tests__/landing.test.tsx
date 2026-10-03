@@ -9,6 +9,7 @@ import { JourneyDemo, JourneyStage } from '../JourneyDemo'
 import { CastRoster } from '../CastRoster'
 import { FreeToPlay, GetUpdates, SaysNo } from '../ManualSections'
 import { HowItPlays } from '../HowItPlays'
+import { TitleScene } from '../TitleScene'
 
 const noop = () => {}
 const html = (node: JSX.Element) => renderToStaticMarkup(node)
@@ -91,6 +92,17 @@ describe('JourneyDemo', () => {
   it('renders its controls', () => {
     const out = html(<JourneyDemo onStart={noop} />)
     for (const label of ['WATCH A RUN', 'PAUSE', 'REPLAY', '1 ASK', '4 PLAN']) expect(out).toContain(label)
+  })
+})
+
+describe('TitleScene', () => {
+  it('frames the title screen with the council, all decorative', () => {
+    const out = html(<TitleScene><p>the idea box</p></TitleScene>)
+    expect(out).toContain('the idea box')
+    for (const c of Object.values(COUNCIL)) expect(out).toContain(c.name.toUpperCase())
+    // the scenery and the waiting council are hidden from screen readers; the content is not
+    expect(out).toMatch(/<div aria-hidden="true" class="hidden flex-col items-end/)
+    expect(out).not.toMatch(/aria-hidden="true"[^>]*><p>the idea box/)
   })
 })
 
