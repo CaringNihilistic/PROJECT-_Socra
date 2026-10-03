@@ -150,3 +150,5 @@ Architecture notes for contributors are in [CLAUDE.md](CLAUDE.md).
 ## License
 
 [MIT](LICENSE)
+
+<img src="docs/screenshots/ground.png" alt="The bottom of the landing page: pixel hills, grass, and the Idea Egg" width="100%" />

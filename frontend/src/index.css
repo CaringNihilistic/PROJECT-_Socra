@@ -121,3 +121,20 @@
 @media (prefers-reduced-motion: reduce) {
   .pixel-twinkle { animation: none; opacity: 0.7; }
 }
+
+/* Title sky: stars fade out toward the horizon, where the clouds take over */
+.pixel-fade-down {
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 82%);
+  mask-image: linear-gradient(to bottom, #000 45%, transparent 82%);
+}
+
+/* Clouds drift left by one tile per loop, one art pixel per step (3px near, 2px far), so they stay crisp.
+   The near band is faster than the far one (parallax). */
+@keyframes pixel-drift-near { to { background-position-x: -960px; } }
+@keyframes pixel-drift-far { to { background-position-x: -560px; } }
+.pixel-drift { animation: pixel-drift-near 160s steps(320, end) infinite; }
+.pixel-drift-slow { animation: pixel-drift-far 300s steps(280, end) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-drift, .pixel-drift-slow { animation: none; }
+}

@@ -1,42 +1,13 @@
 import type { ReactNode } from 'react'
 import { COUNCIL, type Creature } from '../../pixel/cast'
 import { Sprite } from '../../pixel/Sprite'
+import { BRIGHT_STARS, DIM_STARS, FAR_CLOUDS, FAR_HILLS, NEAR_CLOUDS, NEAR_HILLS, svg } from './scenery'
 
 /*
  * The title screen's scenery: a pixel night sky, a moon, rolling hills, and the council waiting
  * in the side gutters on wide screens. Purely decorative (aria-hidden); the stars and hills are
  * repeating SVG tiles so their pixels stay square at any width.
  */
-
-const svg = (w: number, h: number, body: string) =>
-  `url("data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' shape-rendering='crispEdges'>${body}</svg>`,
-  )}")`
-
-/** Deterministic star positions (a fixed-seed LCG), so the sky is the same on every load. */
-function starTile(seed: number, count: number, size: number, colours: string[]) {
-  let s = seed
-  const rand = () => ((s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296)
-  const T = 240
-  let body = ''
-  for (let i = 0; i < count; i++) {
-    const x = Math.floor(rand() * (T - size))
-    const y = Math.floor(rand() * (T - size))
-    const fill = colours[Math.floor(rand() * colours.length)]
-    body += `<rect x='${x}' y='${y}' width='${size}' height='${size}' fill='${fill}'/>`
-  }
-  return svg(T, T, body)
-}
-
-// Dim pinpricks, plus a few brighter stars on their own layer so only those twinkle
-const DIM_STARS = starTile(7, 18, 2, ['#8f88b8', '#5b5490', '#b9b3d6'])
-const BRIGHT_STARS = starTile(42, 5, 3, ['#f4ecd8', '#ffd23f'])
-
-// Stepped hill silhouettes, one 96px-wide tile each (drawn on a 4px grid, shown at 2x)
-const stepped = (fill: string, steps: number[]) =>
-  svg(96, 24, steps.map((top, i) => `<rect x='${i * 4}' y='${top}' width='4' height='${24 - top}' fill='${fill}'/>`).join(''))
-const FAR_HILLS = stepped('#221f3f', [14, 12, 10, 8, 8, 6, 6, 6, 8, 8, 10, 12, 12, 14, 14, 12, 10, 10, 8, 8, 10, 12, 14, 14])
-const NEAR_HILLS = stepped('#16142b', [18, 18, 16, 14, 14, 12, 12, 14, 16, 18, 18, 20, 20, 18, 16, 16, 14, 14, 16, 18, 20, 20, 20, 18])
 
 // A 16x16 pixel moon with two craters, shown at 4x
 const MOON = svg(
@@ -84,8 +55,10 @@ export function TitleScene({ children }: { children: ReactNode }) {
     <section className="relative isolate overflow-hidden">
       {/* Sky: a horizon glow, dim stars, then a twinkling layer of brighter ones */}
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-b from-px-night via-px-night to-[#2a2652]" />
-      <div aria-hidden="true" className="absolute inset-0 -z-10" style={{ backgroundImage: DIM_STARS }} />
-      <div aria-hidden="true" className="pixel-twinkle absolute inset-0 -z-10" style={{ backgroundImage: BRIGHT_STARS, backgroundPosition: '120px 60px' }} />
+      <div aria-hidden="true" className="pixel-fade-down absolute inset-0 -z-10" style={{ backgroundImage: DIM_STARS }} />
+      <div aria-hidden="true" className="pixel-fade-down absolute inset-0 -z-10">
+        <div className="pixel-twinkle absolute inset-0" style={{ backgroundImage: BRIGHT_STARS, backgroundPosition: '120px 60px' }} />
+      </div>
       <div aria-hidden="true" className="absolute right-[7%] top-10 -z-10 hidden h-16 w-16 md:block" style={{ backgroundImage: MOON, backgroundSize: '64px 64px' }} />
       {/* A calm, darker patch behind the title and idea box: stars stay in the margins, not between letters */}
       <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[56rem] bg-[radial-gradient(ellipse_44rem_30rem_at_50%_22rem,theme(colors.px.night)_35%,transparent_75%)]" />
@@ -104,6 +77,11 @@ export function TitleScene({ children }: { children: ReactNode }) {
           ))}
         </div>
       </div>
+
+      {/* Clouds drift in the low sky where the stars fade out: a dim far band and a nearer,
+          lighter one moving faster, for parallax */}
+      <div aria-hidden="true" className="pixel-drift-slow absolute inset-x-0 bottom-[9.5rem] -z-10 h-6" style={{ backgroundImage: FAR_CLOUDS, backgroundSize: '560px 24px' }} />
+      <div aria-hidden="true" className="pixel-drift absolute inset-x-0 bottom-[3.5rem] -z-10 h-12" style={{ backgroundImage: NEAR_CLOUDS, backgroundSize: '960px 48px' }} />
 
       {/* Hills: a far range on solid ground, then a near range in the page colour so the scene
           melts into the next section */}

@@ -6,6 +6,7 @@ import { CLERK_ENABLED } from '../lib/auth'
 import { PixelButton } from '../pixel/ui/PixelButton'
 import { TitleScreen } from './landing/TitleScreen'
 import { TitleScene } from './landing/TitleScene'
+import { GroundFooter } from './landing/GroundFooter'
 import { ContinueMenu } from './landing/ContinueMenu'
 import { JourneyDemo } from './landing/JourneyDemo'
 import { HowItPlays } from './landing/HowItPlays'
@@ -141,14 +142,14 @@ export function LandingPage() {
       </main>
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <footer className="border-t-4 border-px-edge">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-6 text-[20px] text-px-muted sm:px-6">
-          <span><span className="font-pixel text-[10px] text-px-xp">SOCRA</span> · © 2026 · Built in India 🇮🇳</span>
-          <a href={REPO_URL} className="text-px-soft hover:text-px-screen hover:underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-px-plan">
+      <GroundFooter>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 pb-8 pt-6 text-[20px] text-px-soft sm:px-6">
+          <span><span className="font-pixel text-[10px] text-px-xp">SOCRA</span> · © 2026 · Built in India</span>
+          <a href={REPO_URL} className="text-px-screen hover:underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-px-plan">
             GitHub ▶
           </a>
         </div>
-      </footer>
+      </GroundFooter>
     </div>
   )
 }
