@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, update
@@ -136,11 +136,32 @@ async def create_session(
     req: CreateSessionRequest,
     db: AsyncSession = Depends(get_db),
     authorization: Optional[str] = Header(None),
+    stream: bool = Query(False),
 ):
+    """Create a session. With ?stream=true it stores just the idea and returns at once; the client
+    then streams the opening question from POST /sessions/{id}/start/stream (first words in ~1.5s
+    instead of a blank ~5s wait for the whole question). Without it, the question is generated here."""
     user_id = await get_user_id(authorization)
 
     initial_history = [{"role": "user", "content": req.idea}]
     initial_scores = {k: 0.0 for k in ("problem_clarity", "scale_constraints", "tech_context", "success_definition", "risk_awareness")}
+
+    if stream:
+        session = Session(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            initial_idea=req.idea,
+            mode="standard",
+            conversation_history=initial_history,
+            assumptions=[],
+            **initial_scores,
+            phase="intake",
+            turn_number=0,
+        )
+        db.add(session)
+        await db.commit()
+        await db.refresh(session)
+        return {**_serialize(session), "choices": []}
 
     try:
         llm_response = await call_architect_llm(initial_history, initial_scores, 0)

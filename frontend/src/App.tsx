@@ -35,6 +35,10 @@ function getPaymentReturn() {
 }
 const PAYMENT_RETURN = getPaymentReturn()
 
+// Wake the backend as soon as any page loads: Render's free plan sleeps after 15 idle minutes
+// and takes ~1 min to boot, so start that while the visitor reads and types. /ping skips the DB.
+fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/ping`).catch(() => {})
+
 // Dev-only pixel kit preview (import.meta.env.DEV is false in production builds)
 const PIXEL_PREVIEW = import.meta.env.DEV && window.location.pathname === '/__pixel'
 const EPISODE_DEMO = import.meta.env.DEV && window.location.pathname === '/__episode'

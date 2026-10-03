@@ -121,6 +121,16 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # ---------------------------------------------------------------------------
+# Wake-up ping — no DB. The frontend calls it on page load so Render's free plan starts
+# booting (~1 min cold start) while the visitor reads; an external cron can call it to
+# keep the service awake. It must not touch the DB, or it would keep Neon's compute on too.
+# ---------------------------------------------------------------------------
+@app.get("/ping")
+async def ping():
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
 # Health check — tests the actual DB connection
 # ---------------------------------------------------------------------------
 @app.get("/health")

@@ -145,7 +145,7 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 | `FollowUpEmailCapture.tsx` | Email capture for follow-up nudges |
 
 ### Backend Routes
-- `POST /sessions/` — create session · `GET /sessions/` — list · `GET /sessions/{id}` — fetch (full payload incl. the conversation transcript for the owner/admin; a redacted public view, used by `/share`, `/card`, `/compare`, for everyone else)
+- `POST /sessions/` — create session. The frontend passes `?stream=true`: the idea is stored and returned at once, then `POST /sessions/{id}/start/stream` streams the opening question through the same path as every turn (first words in ~1.5 s instead of a blank ~5 s; 409 if the session already has its question). Without the flag the question is generated inline (old behaviour) · `GET /sessions/` — list · `GET /sessions/{id}` — fetch (full payload incl. the conversation transcript for the owner/admin; a redacted public view, used by `/share`, `/card`, `/compare`, for everyone else)
 - `GET /me` — returns `{user_id, email, is_admin}` for the current Clerk token (frontend uses it to show admin shortcuts)
 - `POST /sessions/{id}/admin-mark-paid` — **admin bypass** (sets paid; requires caller on `ADMIN_EMAILS` allowlist)
 - `POST /sessions/{id}/admin-seed-conversation` — **admin**: auto-plays a founder conversation, generates the masterplan, marks paid (quality testing)
@@ -154,7 +154,7 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 - `POST /sessions/{id}/pitch-deck` — generate pitch deck
 - `POST /billing/checkout` · `/billing/webhook` · `/billing/verify` — Razorpay
 - `POST /waitlist` · `POST /sessions/{id}/follow-up` · `POST /admin/send-follow-ups`
-- `GET /health` — checks real DB connection
+- `GET /health` — checks real DB connection · `GET /ping` — no DB; the frontend calls it on every page load so a sleeping Render instance starts booting while the visitor reads
 
 ---
 
@@ -250,7 +250,7 @@ npm run preview      # preview the production build
 - [render.yaml](render.yaml) is a Render Blueprint defining both services. Push to `main` → Render auto-deploys.
 - **Backend** (`socra-backend`): Docker web service built from `backend/Dockerfile` (python:3.11-slim, binds `${PORT}`). Free plan **sleeps after 15 min idle; the next request cold-starts in ~1 min**.
 - **Frontend** (`socra-frontend`): static site (`npm run build` → `frontend/dist`) with a `/* → /index.html` rewrite so `/share`, `/card`, `/compare` resolve. `frontend/Dockerfile` is only used by local compose. **`VITE_*` vars are baked in at build time** — changing them requires a rebuild.
-- **Database**: Neon free Postgres (0.5 GB, 100 CU-hours/month, scales to zero after 5 min). Don't add keep-warm pings to `/health` — it queries the DB, keeps Neon awake 24/7 and exhausts the free compute budget.
+- **Database**: Neon free Postgres (0.5 GB, 100 CU-hours/month, scales to zero after 5 min). Don't add keep-warm pings to `/health` — it queries the DB, keeps Neon awake 24/7 and exhausts the free compute budget. Keep-warm pings go to `/ping`, which never touches the DB (an external cron every 10 min keeps the free Render instance awake; one always-on service fits Render's 750 free hours/month).
 - Live URLs: backend `https://socra-backend-efmq.onrender.com`, frontend `https://socra-frontend-efmq.onrender.com` (Render suffixed the service names). Both are pinned in `render.yaml` as `FRONTEND_ORIGIN` / `VITE_API_URL`; `FRONTEND_ORIGIN` must exactly match the frontend URL (no trailing slash) since CORS and the Razorpay callback allowlist both derive from it.
 - Set `VITE_RAZORPAY_KEY_ID` in production — when unset, `BILLING_ENABLED` is false and every visitor sees the `[DEV]` shortcuts.
 

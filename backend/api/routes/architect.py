@@ -117,7 +117,30 @@ async def send_message_stream(
     if not session:
         raise HTTPException(404, "Session not found")
     await _check_session_access(session, authorization)
+    return _stream_turn(session_id, session, db, req.content)
 
+
+@router.post("/{session_id}/start/stream")
+async def start_session_stream(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
+    """Stream the opening question of a session created with POST /sessions/?stream=true."""
+    result = await db.execute(select(Session).where(Session.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    await _check_session_access(session, authorization)
+    # Only a fresh session gets an opening: a double click or a retry after success must not
+    # add a second first question
+    if session.masterplan or any(m.get("role") == "assistant" for m in (session.conversation_history or [])):
+        raise HTTPException(409, "Session already started")
+    return _stream_turn(session_id, session, db, None)
+
+
+def _stream_turn(session_id: str, session: Session, db: AsyncSession, user_content: Optional[str]) -> StreamingResponse:
+    """One streamed chat turn: Socra's reply to user_content, or (None) the opening question."""
     # Capture all session state before entering the async generator
     initial_idea = session.initial_idea
     turn_number = session.turn_number
@@ -129,7 +152,8 @@ async def send_message_stream(
     original_agent_reports = list(session.agent_reports or [])
 
     history = list(session.conversation_history or [])
-    history.append({"role": "user", "content": req.content})
+    if user_content is not None:
+        history.append({"role": "user", "content": user_content})
     current_scores = {
         "problem_clarity": session.problem_clarity,
         "scale_constraints": session.scale_constraints,

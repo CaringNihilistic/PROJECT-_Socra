@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 // @ts-ignore
 import { useAuth, useClerk, UserButton } from '@clerk/clerk-react'
-import { useSessionStore } from '../store/sessionStore'
+import { needsOpening, useSessionStore } from '../store/sessionStore'
 import { EpisodePlayer } from './council/EpisodePlayer'
 import { Results } from './council/Results'
 import { BattleScreen } from './chat/BattleScreen'
@@ -92,7 +92,7 @@ export function SessionPage() {
     pipelinePreference, setPipelinePreference,
     episode, episodeOpen, skipEpisode, closeEpisode, replayEpisode, retryEpisode,
     evolution, dismissEvolution,
-    sendMessage, updateAssumptionStatus, clearSession, devUnlock, devRerunMasterplan, devSeedConversation,
+    sendMessage, startOpening, updateAssumptionStatus, clearSession, devUnlock, devRerunMasterplan, devSeedConversation,
   } = useSessionStore()
   const showDev = isAdmin || !BILLING_ENABLED
   const [showDonation, setShowDonation] = useState(true)
@@ -196,7 +196,8 @@ export function SessionPage() {
             streamError={streamError}
             savedFlash={savedFlash}
             onSend={(text) => sendMessage(text)}
-            onRetry={lastSentMessage ? () => sendMessage(lastSentMessage) : undefined}
+            // Retry resends the last answer, or re-streams the opening question if that is what failed
+            onRetry={lastSentMessage ? () => sendMessage(lastSentMessage) : needsOpening(session) ? startOpening : undefined}
             onCycleAssumption={updateAssumptionStatus}
             extras={
               <>

@@ -104,6 +104,10 @@ function summaryOf(s: SessionData): SessionSummary {
   }
 }
 
+/** A fresh session: only the founder's idea, no question from Socra yet. */
+export const needsOpening = (s: SessionData) =>
+  !s.masterplan && s.conversation_history.length > 0 && !s.conversation_history.some((m) => m.role === 'assistant')
+
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
@@ -138,6 +142,8 @@ interface SessionStore {
   createSession: (idea: string) => Promise<void>
   resumeSession: (sessionId: string) => Promise<void>
   sendMessage: (content: string) => Promise<void>
+  /** Stream the opening question of a session that has none yet. */
+  startOpening: () => Promise<void>
   updateAssumptionStatus: (index: number, status: Assumption['status']) => Promise<void>
   generatePitchDeck: () => Promise<void>
   /** The Razorpay checkout URL, 'already_paid', or null when it couldn't be created. */
@@ -193,6 +199,96 @@ export const useSessionStore = create<SessionStore>((set, get) => {
 
   /** A stream still finishing after the user left (← new, or another session) must not bring it back. */
   const stillViewing = (sessionId: string) => get().session?.id === sessionId
+
+  /**
+   * Stream one chat turn: Socra's reply to `content`, or with `null` the opening question of a
+   * new session (streamed too, so the first words show in ~1.5s instead of a blank wait).
+   */
+  const streamTurn = async (content: string | null) => {
+    const { session } = get()
+    if (!session) return
+    const authToken = await get().getFreshToken()
+    set({ isSending: true, streamingMessage: '', currentChoices: [], streamError: null, lastSentMessage: content ?? '' })
+
+    // 20s to the first byte catches a stalled chat. Once bytes flow, allow 60s between
+    // chunks: when a turn crosses into the masterplan the server runs web research and
+    // all five agents before its next event, which can exceed 20s.
+    const FIRST_BYTE_MS = 20000
+    const BETWEEN_CHUNKS_MS = 60000
+    const abort = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let timedOut = false
+    const arm = (ms: number) => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timedOut = true
+        abort.abort()
+      }, ms)
+    }
+
+    let episode: EpisodeController | null = null
+    let sawDone = false
+    // The stage before this turn: crossing a threshold plays the evolution scene
+    const before = stageForSession(session)
+    let evolved = false
+    try {
+      arm(FIRST_BYTE_MS)
+      const response = await fetch(`${API_URL}/sessions/${session.id}/${content === null ? 'start' : 'message'}/stream`, {
+        method: 'POST',
+        headers: authHeaders(authToken),
+        body: JSON.stringify(content === null ? {} : { content }),
+        signal: abort.signal,
+      })
+      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
+
+      await readSse(
+        response.body,
+        (payload) => {
+          const p = payload as Record<string, any>
+          if (p?.type === 'token') {
+            set((s) => ({ streamingMessage: s.streamingMessage + p.delta }))
+          } else if (p?.type === 'payment_required') {
+            set({ paymentRequired: true })
+          } else if (p?.type === 'choices') {
+            set({ currentChoices: p.choices })
+          } else if (p?.type === 'done') {
+            sawDone = true
+            if (stillViewing(session.id)) {
+              applySession(p.session)
+              const evolution = evolved ? null : evolutionFor(before, stageForSession(p.session))
+              if (evolution) set({ evolution })
+              set({ streamingMessage: '', savedFlash: true })
+              setTimeout(() => set({ savedFlash: false }), 2000)
+            }
+          }
+
+          // The turn crossed into the masterplan: the council runs inside this stream.
+          // Only a council event starts the episode (every chat turn ends with `done`).
+          const first = toEpisodeEvent(payload)
+          const events = episode ? toEpisodeEvents(payload) : first && isCouncilEvent(first) ? [first] : []
+          if (events.length) {
+            if (!episode) {
+              episode = startEpisode('live')
+              // The council only runs once the idea reaches Final Form: evolve first,
+              // over the episode, which keeps pacing underneath
+              evolved = true
+              set({ streamingMessage: '', evolution: evolutionToFinal(before) })
+            }
+            events.forEach((e) => (episode as EpisodeController).push(e))
+          }
+        },
+        () => arm(BETWEEN_CHUNKS_MS),
+      )
+      if (timedOut) set({ streamError: 'timeout' })
+    } catch {
+      set({ streamError: timedOut ? 'timeout' : 'network' })
+    } finally {
+      if (timer) clearTimeout(timer)
+      if (episode && !sawDone) (episode as EpisodeController).push({ type: 'stream_error' })
+      set({ isSending: false, streamingMessage: '' })
+    }
+  }
+
 
   /** Stream POST /unlock into a live episode; resolves when the stream ends. */
   const streamUnlock = async (sessionId: string, token: string | null, opts: { langgraph: boolean; force?: boolean }) => {
@@ -302,8 +398,10 @@ export const useSessionStore = create<SessionStore>((set, get) => {
       set({ isLoading: true, sessionError: null, paymentRequired: false, streamingMessage: '', isUnlocking: false, ...resetEpisode() })
       const authToken = await get().getFreshToken()
       try {
+        // ?stream=true: the server stores the idea and returns at once; the opening question is
+        // streamed below, so the chat screen shows Socra thinking instead of a blank LOADING…
         const { data } = await axios.post<SessionData>(
-          `${API_URL}/sessions/`,
+          `${API_URL}/sessions/?stream=true`,
           { idea },
           { headers: authHeaders(authToken) },
         )
@@ -311,6 +409,8 @@ export const useSessionStore = create<SessionStore>((set, get) => {
         const summary = summaryOf(data)
         saveToLocalStorage(summary)
         set((s) => ({ sessionHistory: [summary, ...s.sessionHistory.filter((x) => x.id !== data.id)] }))
+        set({ isLoading: false })
+        if (needsOpening(data)) await streamTurn(null)
       } catch (err: any) {
         const detail = err?.response?.data?.detail
         set({ sessionError: detail || 'Failed to start session. Please try again.' })
@@ -327,95 +427,17 @@ export const useSessionStore = create<SessionStore>((set, get) => {
           headers: authHeaders(authToken),
         })
         set({ session: data })
+        set({ isLoading: false })
+        // e.g. the opening stream was cut off, or the tab closed before it finished
+        if (needsOpening(data)) await streamTurn(null)
       } finally {
         set({ isLoading: false })
       }
     },
 
-    sendMessage: async (content: string) => {
-      const { session } = get()
-      if (!session) return
-      const authToken = await get().getFreshToken()
-      set({ isSending: true, streamingMessage: '', currentChoices: [], streamError: null, lastSentMessage: content })
+    sendMessage: (content: string) => streamTurn(content),
 
-      // 20s to the first byte catches a stalled chat. Once bytes flow, allow 60s between
-      // chunks: when a turn crosses into the masterplan the server runs web research and
-      // all five agents before its next event, which can exceed 20s.
-      const FIRST_BYTE_MS = 20000
-      const BETWEEN_CHUNKS_MS = 60000
-      const abort = new AbortController()
-      let timer: ReturnType<typeof setTimeout> | null = null
-      let timedOut = false
-      const arm = (ms: number) => {
-        if (timer) clearTimeout(timer)
-        timer = setTimeout(() => {
-          timedOut = true
-          abort.abort()
-        }, ms)
-      }
-
-      let episode: EpisodeController | null = null
-      let sawDone = false
-      // The stage before this turn: crossing a threshold plays the evolution scene
-      const before = stageForSession(session)
-      let evolved = false
-      try {
-        arm(FIRST_BYTE_MS)
-        const response = await fetch(`${API_URL}/sessions/${session.id}/message/stream`, {
-          method: 'POST',
-          headers: authHeaders(authToken),
-          body: JSON.stringify({ content }),
-          signal: abort.signal,
-        })
-        if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
-
-        await readSse(
-          response.body,
-          (payload) => {
-            const p = payload as Record<string, any>
-            if (p?.type === 'token') {
-              set((s) => ({ streamingMessage: s.streamingMessage + p.delta }))
-            } else if (p?.type === 'payment_required') {
-              set({ paymentRequired: true })
-            } else if (p?.type === 'choices') {
-              set({ currentChoices: p.choices })
-            } else if (p?.type === 'done') {
-              sawDone = true
-              if (stillViewing(session.id)) {
-                applySession(p.session)
-                const evolution = evolved ? null : evolutionFor(before, stageForSession(p.session))
-                if (evolution) set({ evolution })
-                set({ streamingMessage: '', savedFlash: true })
-                setTimeout(() => set({ savedFlash: false }), 2000)
-              }
-            }
-
-            // The turn crossed into the masterplan: the council runs inside this stream.
-            // Only a council event starts the episode (every chat turn ends with `done`).
-            const first = toEpisodeEvent(payload)
-            const events = episode ? toEpisodeEvents(payload) : first && isCouncilEvent(first) ? [first] : []
-            if (events.length) {
-              if (!episode) {
-                episode = startEpisode('live')
-                // The council only runs once the idea reaches Final Form: evolve first,
-                // over the episode, which keeps pacing underneath
-                evolved = true
-                set({ streamingMessage: '', evolution: evolutionToFinal(before) })
-              }
-              events.forEach((e) => (episode as EpisodeController).push(e))
-            }
-          },
-          () => arm(BETWEEN_CHUNKS_MS),
-        )
-        if (timedOut) set({ streamError: 'timeout' })
-      } catch {
-        set({ streamError: timedOut ? 'timeout' : 'network' })
-      } finally {
-        if (timer) clearTimeout(timer)
-        if (episode && !sawDone) (episode as EpisodeController).push({ type: 'stream_error' })
-        set({ isSending: false, streamingMessage: '' })
-      }
-    },
+    startOpening: () => streamTurn(null),
 
     updateAssumptionStatus: async (index, status) => {
       const { session, authToken } = get()
