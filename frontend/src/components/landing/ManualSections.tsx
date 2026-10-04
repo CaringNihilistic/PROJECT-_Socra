@@ -1,9 +1,25 @@
 import { useState } from 'react'
-import { PixelButton } from '../../pixel/ui/PixelButton'
+import { STAGES } from '../../pixel/cast'
+import { Sprite } from '../../pixel/Sprite'
+import { Arrow, PixelButton } from '../../pixel/ui/PixelButton'
+
+/** The page's last word: back to the one idea box (there is no second input). */
+export function FinalCta({ onStart }: { onStart: () => void }) {
+  return (
+    <section aria-labelledby="cta-title" className="flex flex-col items-center gap-7 text-center">
+      <Sprite name={STAGES[0].sprite} size={64} bob />
+      <h2 id="cta-title" className="font-pixel text-[22px] leading-snug text-px-screen sm:text-[30px]">READY TO RISK YOUR IDEA?</h2>
+      <p className="max-w-xl text-px-soft">Free, no account needed. Every idea starts as an egg.</p>
+      <PixelButton size="lg" lift onClick={onStart}>
+        START INTERROGATION<Arrow />
+      </PixelButton>
+    </section>
+  )
+}
 
 type UpdatesState = 'idle' | 'sending' | 'done'
 
-/** Email sign-up for feature news (the backend's /waitlist list). */
+/** Email sign-up for feature news (the backend's /waitlist list). Small and quiet, above the footer. */
 export function GetUpdates({ apiUrl }: { apiUrl: string }) {
   const [email, setEmail] = useState('')
   const [state, setState] = useState<UpdatesState>('idle')
@@ -29,39 +45,44 @@ export function GetUpdates({ apiUrl }: { apiUrl: string }) {
   }
 
   return (
-    <section id="updates" aria-labelledby="updates-title" className="flex scroll-mt-24 flex-col items-center gap-4 text-center">
-      <h2 id="updates-title" className="font-pixel text-sm leading-relaxed text-px-xp">GET UPDATES</h2>
-      <p className="text-px-soft">Get an email when new features land.</p>
-      {state === 'done' ? (
-        <p role="status" className="border-[3px] border-px-plan px-4 py-3 text-px-plan">
-          You’re on the list. We’ll email you when something new lands.
-        </p>
-      ) : (
-        <form
-          className="flex w-full max-w-lg flex-wrap justify-center gap-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            submit()
-          }}
-        >
-          <label htmlFor="updates-email" className="sr-only">Email address</label>
-          <input
-            id="updates-email"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value)
-              setError('')
+    <section id="updates" aria-labelledby="updates-title" className="flex scroll-mt-20 flex-col gap-3 border-t-2 border-px-edge pt-8 md:flex-row md:items-center md:justify-between md:gap-10">
+      <div className="flex flex-col gap-1">
+        <h2 id="updates-title" className="font-pixel text-[11px] leading-relaxed text-px-muted">GET UPDATES</h2>
+        <p className="text-[20px] text-px-muted">An email when new features land. No spam.</p>
+      </div>
+      <div className="flex flex-col gap-2">
+        {state === 'done' ? (
+          <p role="status" className="text-[20px] text-px-plan">
+            ✓ You’re on the list. We’ll email you when something new lands.
+          </p>
+        ) : (
+          <form
+            className="flex flex-wrap gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              submit()
             }}
-            placeholder="your@email.com"
-            disabled={state === 'sending'}
-            className="min-w-[220px] flex-1 border-[3px] border-px-edge bg-px-night px-3 py-2 text-[22px] text-px-screen placeholder:text-px-muted focus:border-px-xp focus:outline-none disabled:opacity-50"
-          />
-          <PixelButton type="submit" disabled={state === 'sending'}>{state === 'sending' ? 'SENDING…' : 'NOTIFY ME ▶'}</PixelButton>
-        </form>
-      )}
-      {error && <p role="alert" className="text-px-glitch-text">{error}</p>}
-      <p className="text-[20px] text-px-muted">No spam: only new-feature news.</p>
+          >
+            <label htmlFor="updates-email" className="sr-only">Email address</label>
+            <input
+              id="updates-email"
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                setError('')
+              }}
+              placeholder="your@email.com"
+              disabled={state === 'sending'}
+              className="min-h-[44px] min-w-0 flex-1 border-2 border-px-edge bg-px-night px-3 text-[20px] text-px-screen placeholder:text-px-muted focus:border-px-muted focus:outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-px-plan disabled:opacity-50 md:w-72 md:flex-none"
+            />
+            <PixelButton type="submit" variant="secondary" size="sm" lift className="!min-h-[44px]" disabled={state === 'sending'}>
+              {state === 'sending' ? 'SENDING…' : 'NOTIFY ME'}
+            </PixelButton>
+          </form>
+        )}
+        {error && <p role="alert" className="text-[20px] text-px-glitch-text">{error}</p>}
+      </div>
     </section>
   )
 }

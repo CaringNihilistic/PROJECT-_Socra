@@ -7,7 +7,8 @@ import { EXAMPLES, TitleScreen } from '../TitleScreen'
 import { ContinueMenu } from '../ContinueMenu'
 import { JourneyDemo, JourneyStage } from '../JourneyDemo'
 import { CastRoster } from '../CastRoster'
-import { GetUpdates } from '../ManualSections'
+import { FinalCta, GetUpdates } from '../ManualSections'
+import { GlitchBand } from '../GlitchBand'
 import { HowItPlays } from '../HowItPlays'
 import { TitleScene } from '../TitleScene'
 
@@ -81,7 +82,7 @@ describe('ContinueMenu', () => {
 })
 
 describe('JourneyDemo', () => {
-  const stage = (t: number) => html(<JourneyStage frame={journeyFrame(t)} onStart={noop} />)
+  const stage = (t: number) => html(<JourneyStage frame={journeyFrame(t)} />)
 
   it('ask: the recorded question and choices', () => {
     const out = stage(0)
@@ -105,7 +106,10 @@ describe('JourneyDemo', () => {
 
   it('renders its controls', () => {
     const out = html(<JourneyDemo onStart={noop} />)
-    for (const label of ['WATCH A RUN', 'PAUSE', 'REPLAY', '1 ASK', '4 PLAN']) expect(out).toContain(label)
+    for (const label of ['WHAT HAPPENS NEXT', 'PAUSE', 'REPLAY', 'TEST YOUR IDEA']) expect(out).toContain(label)
+    // the step rail: four stages in order, the first one current
+    expect(out.replace(/<[^>]+>/g, ' ')).toMatch(/1\s+ASK.*2\s+EVOLVE.*3\s+COUNCIL.*4\s+PLAN/)
+    expect(out.match(/aria-current="step"/g)).toHaveLength(1)
   })
 })
 
@@ -122,10 +126,20 @@ describe('TitleScene', () => {
 describe('manual sections', () => {
   it('the cast comes from cast.ts', () => {
     const out = html(<CastRoster />)
+    expect(out).toContain('MEET THE COUNCIL')
     for (const c of [PROFESSOR, ...Object.values(COUNCIL)]) expect(out).toContain(c.name.toUpperCase())
-    expect(out).toContain(esc(TEAM_GLITCH.motto))
+    // the type pills are explained in words, not by colour alone
+    for (const what of ['the money', 'the market', 'your rivals', 'the build', 'the risk']) expect(out).toContain(`attacks ${what}`)
     // the trainers appear with the plan, not on the landing page's roster
     for (const t of Object.values(TRAINERS)) expect(out).not.toContain(`>${t.name.toUpperCase()}<`)
+  })
+
+  it('Team Glitch has its own band', () => {
+    const out = html(<GlitchBand />)
+    expect(out).toContain('TEAM GLITCH')
+    expect(out).toContain('Not every idea survives.')
+    expect(out).toContain(esc(TEAM_GLITCH.motto))
+    for (const m of TEAM_GLITCH.members) expect(out).toContain(m.name.toUpperCase())
   })
 
   it('how it plays has the three steps', () => {
@@ -135,6 +149,10 @@ describe('manual sections', () => {
 
   it('updates are honest: no early-access promise', () => {
     const out = html(<GetUpdates apiUrl="http://x" />)
+    // the final call to action sends people back to the hero's box: it has no input of its own
+    const cta = html(<FinalCta onStart={noop} />)
+    expect(cta).toContain('READY TO RISK YOUR IDEA?')
+    expect(cta).not.toMatch(/<input|<textarea/)
     expect(out).toContain('GET UPDATES')
     expect(out.toLowerCase()).not.toContain('early access')
   })

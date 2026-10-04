@@ -11,7 +11,8 @@ import { ContinueMenu } from './landing/ContinueMenu'
 import { JourneyDemo } from './landing/JourneyDemo'
 import { HowItPlays } from './landing/HowItPlays'
 import { CastRoster } from './landing/CastRoster'
-import { GetUpdates } from './landing/ManualSections'
+import { FinalCta, GetUpdates } from './landing/ManualSections'
+import { GlitchBand } from './landing/GlitchBand'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8000'
 const REPO_URL = 'https://github.com/CaringNihilistic/PROJECT-_Socra'
@@ -50,6 +51,8 @@ function SyncNudge() {
 }
 
 const ring = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-px-plan'
+
+const wrap = 'mx-auto w-full max-w-[1240px] px-5 sm:px-8'
 
 const NAV = [
   { href: '#cast', label: 'CAST' },
@@ -124,31 +127,52 @@ export function LandingPage() {
         </TitleScene>
       </div>
 
-      <main className="mx-auto flex max-w-[1240px] flex-col gap-24 px-5 pb-16 pt-10 sm:px-8 sm:pb-24">
-        {/* Only for returning visitors: renders nothing without saves */}
-        <ContinueMenu
-          sessions={sessionHistory}
-          compareId={compareId}
-          loading={isLoading}
-          onResume={resumeSession}
-          onCompare={compare}
-          nudge={CLERK_ENABLED ? <SyncNudge /> : undefined}
-        />
-        <div id="demo" className="scroll-mt-20">
+      {/* Full-bleed sections; `wrap` keeps their content on the page's 1240px column */}
+      <main className="flex flex-col gap-20 pb-16 pt-10 sm:gap-28 sm:pb-20">
+        {/* Only for returning visitors */}
+        {sessionHistory.length > 0 && (
+          <div className={wrap}>
+            <ContinueMenu
+              sessions={sessionHistory}
+              compareId={compareId}
+              loading={isLoading}
+              onResume={resumeSession}
+              onCompare={compare}
+              nudge={CLERK_ENABLED ? <SyncNudge /> : undefined}
+            />
+          </div>
+        )}
+        <div id="demo" className={`${wrap} scroll-mt-20`}>
           <JourneyDemo onStart={focusStart} />
         </div>
-        <CastRoster />
-        <HowItPlays />
-        <GetUpdates apiUrl={API_URL} />
+        <div className={wrap}>
+          <CastRoster />
+        </div>
+        <GlitchBand />
+        <div className={wrap}>
+          <HowItPlays />
+        </div>
+        <div className={wrap}>
+          <FinalCta onStart={focusStart} />
+        </div>
+        <div className={wrap}>
+          <GetUpdates apiUrl={API_URL} />
+        </div>
       </main>
 
-      {/* ── Footer ───────────────────────────────────────────────────────────── */}
       <GroundFooter>
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 pb-8 pt-6 text-[20px] text-px-soft sm:px-6">
-          <span><span className="font-pixel text-[10px] text-px-xp">SOCRA</span> · © 2026 · Built in India</span>
-          <a href={REPO_URL} className="text-px-screen hover:underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-px-plan">
-            GitHub ▶
-          </a>
+        <div className={`${wrap} flex flex-wrap items-center justify-between gap-x-10 gap-y-4 pb-8 pt-6 text-[20px] text-px-soft`}>
+          <p>
+            <span className="mr-3 font-pixel text-[12px] text-px-xp">SOCRA</span>
+            We kill bad ideas before they kill you.
+          </p>
+          <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2">
+            {[...NAV, { href: REPO_URL, label: 'GITHUB' }].map((n) => (
+              <a key={n.href} href={n.href} className={`font-pixel text-[11px] text-px-screen hover:text-px-xp ${ring}`}>
+                {n.label}
+              </a>
+            ))}
+          </nav>
         </div>
       </GroundFooter>
     </div>

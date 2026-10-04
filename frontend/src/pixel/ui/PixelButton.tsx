@@ -22,7 +22,7 @@ interface PixelButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 /** A → for button labels. The pixel face has no arrow, so it is set in the text face at a matching size. */
 export function Arrow() {
-  return <span aria-hidden="true" className="ml-2 inline-block font-term text-[1.7em] leading-[0]">→</span>
+  return <span aria-hidden="true" className="ml-2 inline-block font-term text-[max(20px,1.7em)] leading-[0]">→</span>
 }
 
 export function PixelButton({ variant = 'primary', size = 'md', lift = false, type = 'button', className = '', ...rest }: PixelButtonProps) {
