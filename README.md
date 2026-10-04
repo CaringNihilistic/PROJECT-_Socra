@@ -12,7 +12,7 @@ An AI startup evaluator that refuses to hand you a plan until it understands you
 
 [![CI](https://github.com/CaringNihilistic/PROJECT-_Socra/actions/workflows/ci.yml/badge.svg)](https://github.com/CaringNihilistic/PROJECT-_Socra/actions/workflows/ci.yml)
 
-<img src="docs/screenshots/landing.png" alt="Socra's title screen: NAME YOUR IDEA, PRESS START" width="820" />
+<img src="docs/screenshots/landing.png" alt="Socra's landing page: the headline, the idea box with START INTERROGATION, and Prof. Socra beside it" width="820" />
 
 </div>
 
@@ -23,6 +23,8 @@ An AI startup evaluator that refuses to hand you a plan until it understands you
 ChatGPT tells you how to build it. Socra tells you if you should. Most AI tools are built to agree with you; Socra is built to find the assumption that kills your idea in year one, with named competitors, real prices and actual regulations, before you quit your job for it.
 
 ## How it works
+
+<img src="docs/screenshots/demo.png" alt="The landing page's demo: a recorded run stepping through ASK, EVOLVE, COUNCIL and PLAN, here with the council reporting" width="820" />
 
 | 1. Interrogation | 2. The council | 3. The masterplan |
 |---|---|---|
@@ -35,7 +37,7 @@ ChatGPT tells you how to build it. Socra tells you if you should. Most AI tools 
 </tr>
 <tr>
 <td width="50%"><img src="docs/screenshots/masterplan.png" alt="Results: the trainer-presented masterplan with the verdict in bold" /></td>
-<td width="50%" align="center"><img src="docs/screenshots/card.png" alt="The shareable trading card: HP 87, GREENLIT" /></td>
+<td width="50%" align="center"><img src="docs/screenshots/card.png" alt="The shareable trading card: HP 100, GREENLIT" /></td>
 </tr>
 </table>
 
@@ -67,7 +69,7 @@ All original characters, drawn in code as 32×32 pixel sprites.
 - **Crisp by contract.** Prompts fix the output shape: replies under 60 words, reports of exactly four bullets that each lead with a bold verdict, and a masterplan filled into a 7-heading template, prefilled on Anthropic. Tests pin the headings the frontend splits the plan on. A full session costs about **$0.05**.
 - **One episode engine for live, replay and demo.** A pure reducer plus a pacer turns the SSE events into the council "episode". The live run, the saved-session replay and the landing page's demo (a real recorded run) all go through it, and a replayed episode matches the live one.
 - **Pixel art without image files.** Sprites are 16-row half-grids, mirrored, upscaled with Scale2x/EPX and rim-shaded, then rendered as crisp SVG paths at whole-pixel sizes only. The share card exports to PNG in the browser with the pixel fonts inlined.
-- **Accessible by default.** WCAG AA colour pairs, keyboard-only play (menus, dialogs with focus traps, Esc to skip), `prefers-reduced-motion` support, and no horizontal scroll at 375px.
+- **Accessible by default.** WCAG AA colour pairs, keyboard-only play (menus, dialogs with focus traps, Esc to skip), a visible focus ring on every control, `prefers-reduced-motion` support, and no horizontal scroll at 375px. Text is set in Atkinson Hyperlegible; the pixel face is kept for titles.
 
 ## Tech stack
 
@@ -78,7 +80,7 @@ All original characters, drawn in code as 32×32 pixel sprites.
 | **AI** | Anthropic Claude Haiku 4.5, Google Gemini, Groq; LangGraph; Tavily web search; Langfuse tracing |
 | **Services** | Clerk (optional auth), Razorpay (optional donations), Resend (follow-up email) |
 | **Hosting** | Render (Docker backend + static frontend, [render.yaml](render.yaml)) and Neon Postgres, all on free tiers |
-| **Quality** | 170 Vitest tests and a pytest suite, run with the production build on every push (GitHub Actions) |
+| **Quality** | 181 Vitest tests and a pytest suite, run with the production build on every push (GitHub Actions) |
 
 ## Run it locally
 
@@ -151,4 +153,4 @@ Architecture notes for contributors are in [CLAUDE.md](CLAUDE.md).
 
 [MIT](LICENSE)
 
-<img src="docs/screenshots/ground.png" alt="The bottom of the landing page: pixel hills, grass, and the Idea Egg" width="100%" />
+<img src="docs/screenshots/ground.png" alt="The bottom of the landing page: the footer on pixel hills and grass, with the Idea Egg" width="100%" />
