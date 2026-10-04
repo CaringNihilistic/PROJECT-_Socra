@@ -10,7 +10,8 @@ import { DialogBox } from './ui/DialogBox'
 import { XpBar } from './ui/XpBar'
 import { StatBar } from './ui/StatBar'
 import { TypeBadge } from './ui/TypeBadge'
-import { PixelButton } from './ui/PixelButton'
+import { Arrow, PixelButton } from './ui/PixelButton'
+import { SpeechBubble } from './ui/SpeechBubble'
 import { MenuChoice } from './ui/MenuChoice'
 
 const SIZES: SpriteSize[] = [64, 96, 128]
@@ -124,6 +125,15 @@ export function PixelPreview() {
             <PixelButton>ANSWER</PixelButton>
             <PixelButton variant="secondary">RUN</PixelButton>
             <PixelButton disabled>DISABLED</PixelButton>
+          </div>
+          {/* Landing-page variants: the large size, the hover lift, and a bubble for a character outside it */}
+          <div className="flex flex-wrap items-center gap-4">
+            <PixelButton size="lg" lift>LARGE + LIFT<Arrow /></PixelButton>
+            <PixelButton variant="secondary" size="sm" lift>SMALL + LIFT<Arrow /></PixelButton>
+          </div>
+          <div className="flex flex-wrap items-start gap-10 pb-6">
+            <SpeechBubble className="max-w-xs text-[24px] leading-snug">Tail below: the speaker stands under it.</SpeechBubble>
+            <SpeechBubble tail="left" className="ml-6 max-w-xs text-[24px] leading-snug">Tail left: the speaker stands beside it.</SpeechBubble>
           </div>
         </div>
       </div>

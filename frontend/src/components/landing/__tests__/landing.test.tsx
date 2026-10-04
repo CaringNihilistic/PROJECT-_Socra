@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { COUNCIL, PROFESSOR, TEAM_GLITCH, TRAINERS } from '../../../pixel/cast'
 import { JOURNEY, SCENE_START, journeyFrame } from '../../../landing/journey'
 import type { SessionSummary } from '../../../store/sessionStore'
-import { EXAMPLES, TitleHeading, TitleScreen } from '../TitleScreen'
+import { EXAMPLES, TitleScreen } from '../TitleScreen'
 import { ContinueMenu } from '../ContinueMenu'
 import { JourneyDemo, JourneyStage } from '../JourneyDemo'
 import { CastRoster } from '../CastRoster'
@@ -20,17 +20,31 @@ describe('TitleScreen', () => {
   const render = (props: Partial<Parameters<typeof TitleScreen>[0]> = {}) =>
     html(<TitleScreen idea="" onIdeaChange={noop} onStart={noop} onExample={noop} loading={false} error={null} {...props} />)
 
-  it('has the headline, NAME YOUR IDEA and PRESS START', () => {
+  it('has the headline, one labelled idea box and one bright primary button', () => {
     const out = render()
-    expect(html(<TitleHeading />)).toContain('bad ideas')
-    expect(out).toContain('NAME YOUR IDEA')
-    expect(out).toContain('PRESS START')
+    expect(out).toContain('bad ideas')
+    expect(out).toContain('ChatGPT tells you how to build it. Socra tells you if you should.')
+    expect(out).toMatch(/<label for="idea-box"[^>]*>WHAT’S YOUR IDEA\?<\/label>/)
+    expect(out.match(/<textarea/g)).toHaveLength(1)
+    expect(out.replace(/<[^>]+>/g, '')).toContain('START INTERROGATION→')
+    // the only primary button, and never greyed out for being empty
+    expect(out.match(/pixel-btn-primary/g)).toHaveLength(1)
+    expect(out).not.toMatch(/<button[^>]*disabled/)
+  })
+
+  it('Prof. Socra stands beside the box with his line', () => {
+    expect(render()).toContain('No masterplan until I understand you. Tell me your idea.')
   })
 
   it('keeps the three exact STUB_MODE example ideas', () => {
     const out = render()
-    expect(EXAMPLES).toHaveLength(3)
-    for (const ex of EXAMPLES) expect(out).toContain(ex)
+    expect(EXAMPLES).toEqual([
+      'A SaaS platform where developers can collaboratively review and annotate API documentation',
+      'A marketplace for freelance ML engineers to bid on short-term data labeling contracts',
+      'A mobile app that tracks grocery prices across local stores using receipt scanning',
+    ])
+    // the chips are cut short by CSS only: the full string is each button's text
+    for (const ex of EXAMPLES) expect(out).toContain(`>${ex}</button>`)
   })
 
   it('shows loading and errors', () => {

@@ -3,8 +3,8 @@ import { useCallback, useRef, useState } from 'react'
 import { useAuth, useClerk, UserButton } from '@clerk/clerk-react'
 import { useSessionStore } from '../store/sessionStore'
 import { CLERK_ENABLED } from '../lib/auth'
-import { PixelButton } from '../pixel/ui/PixelButton'
-import { TitleHeading, TitleScreen } from './landing/TitleScreen'
+import { Arrow, PixelButton } from '../pixel/ui/PixelButton'
+import { TitleScreen } from './landing/TitleScreen'
 import { TitleScene } from './landing/TitleScene'
 import { GroundFooter } from './landing/GroundFooter'
 import { ContinueMenu } from './landing/ContinueMenu'
@@ -49,6 +49,8 @@ function SyncNudge() {
   )
 }
 
+const ring = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-px-plan'
+
 const NAV = [
   { href: '#cast', label: 'CAST' },
   { href: '#how', label: 'HOW IT PLAYS' },
@@ -69,7 +71,8 @@ export function LandingPage() {
 
   /** Back to the idea box from anywhere on the page. */
   const focusStart = useCallback(() => {
-    document.getElementById('start')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    document.getElementById('start')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' })
     box.current?.focus({ preventScroll: true })
   }, [])
 
@@ -80,36 +83,33 @@ export function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-px-night font-term text-[22px] text-px-screen">
-      <a href="#start" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:bg-px-xp focus:px-3 focus:py-1 focus:text-px-ink">
+    <div className="min-h-screen bg-px-night font-term text-[24px] text-px-screen">
+      <a href="#idea-box" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:bg-px-xp focus:px-3 focus:py-1 focus:text-px-ink">
         Skip to the idea box
       </a>
 
-      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b-4 border-px-edge bg-px-night">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
-          <a href="#start" className="font-pixel text-[11px] text-px-xp focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-px-plan">SOCRA</a>
-          <nav aria-label="Sections" className="hidden flex-1 gap-5 md:flex">
+      {/* ── Nav: compact and quiet, so the hero's button is the brightest thing on screen ── */}
+      <header className="sticky top-0 z-50 border-b-2 border-px-edge bg-px-night">
+        <div className="mx-auto flex max-w-[1240px] items-center gap-4 px-5 py-2 sm:gap-6 sm:px-8">
+          <a href="#top" className={`font-pixel text-[13px] text-px-xp ${ring}`}>SOCRA</a>
+          <nav aria-label="Sections" className="ml-auto hidden items-center gap-6 md:flex">
             {NAV.map((n) => (
-              <a key={n.href} href={n.href} className="font-pixel text-[10px] text-px-muted hover:text-px-screen focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-px-plan">
+              <a key={n.href} href={n.href} className={`font-pixel text-[11px] text-px-muted transition-colors duration-150 hover:text-px-screen ${ring}`}>
                 {n.label}
               </a>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-3 md:ml-0">
             {CLERK_ENABLED && <AuthButton />}
-            <PixelButton size="sm" onClick={focusStart}>START ▶</PixelButton>
+            <PixelButton variant="secondary" size="sm" lift onClick={focusStart}>START<Arrow /></PixelButton>
           </div>
         </div>
       </header>
 
-      {/* ── Title screen: the idea box on the left, a recorded run playing on the right ── */}
-      <TitleScene>
-        <div className="flex flex-col gap-10">
-          <TitleHeading />
-          <div className="grid items-start gap-8 lg:grid-cols-2">
-            <div id="start" className="flex min-w-0 scroll-mt-24 flex-col gap-8">
-              <TitleScreen
+      {/* ── Hero ── */}
+      <div id="top" className="scroll-mt-16">
+        <TitleScene>
+          <TitleScreen
             ref={box}
             idea={idea}
             onIdeaChange={setIdea}
@@ -121,23 +121,22 @@ export function LandingPage() {
             loading={isLoading}
             error={sessionError}
           />
-          <ContinueMenu
-            sessions={sessionHistory}
-            compareId={compareId}
-            loading={isLoading}
-            onResume={resumeSession}
-            onCompare={compare}
-            nudge={CLERK_ENABLED ? <SyncNudge /> : undefined}
-          />
-            </div>
-            <div id="demo" className="min-w-0 scroll-mt-24">
-              <JourneyDemo onStart={focusStart} />
-            </div>
-          </div>
-        </div>
-      </TitleScene>
+        </TitleScene>
+      </div>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-12 px-4 pb-10 pt-6 sm:px-6 sm:pb-12">
+      <main className="mx-auto flex max-w-[1240px] flex-col gap-24 px-5 pb-16 pt-10 sm:px-8 sm:pb-24">
+        {/* Only for returning visitors: renders nothing without saves */}
+        <ContinueMenu
+          sessions={sessionHistory}
+          compareId={compareId}
+          loading={isLoading}
+          onResume={resumeSession}
+          onCompare={compare}
+          nudge={CLERK_ENABLED ? <SyncNudge /> : undefined}
+        />
+        <div id="demo" className="scroll-mt-20">
+          <JourneyDemo onStart={focusStart} />
+        </div>
         <CastRoster />
         <HowItPlays />
         <GetUpdates apiUrl={API_URL} />

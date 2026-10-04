@@ -73,6 +73,22 @@
     border-color: theme('colors.px.edge');
   }
 
+  /* Landing-page variants. Opt-in, so every other screen keeps the defaults above. */
+  .pixel-btn-lg { min-height: 60px; padding: 0 28px; font-size: 14px; }
+  /* Lift on hover, sink 3px on press */
+  .pixel-btn-lift { transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 120ms cubic-bezier(0.23, 1, 0.32, 1); }
+  @media (hover: hover) and (pointer: fine) {
+    .pixel-btn-lift:hover:not(:disabled) { transform: translate(-1px, -2px); }
+    .pixel-btn-lift.pixel-btn-primary:hover:not(:disabled) { box-shadow: 5px 6px 0 theme('colors.px.ink'); }
+    .pixel-btn-lift.pixel-btn-secondary:hover:not(:disabled) { border-color: theme('colors.px.muted'); }
+  }
+  .pixel-btn-lift:active:not(:disabled) { transform: translate(2px, 3px); }
+  .pixel-btn-lift.pixel-btn-primary:active:not(:disabled) { box-shadow: 2px 1px 0 theme('colors.px.ink'); }
+  @media (prefers-reduced-motion: reduce) {
+    .pixel-btn-lift { transition: none; }
+    .pixel-btn-lift:hover:not(:disabled), .pixel-btn-lift:active:not(:disabled) { transform: none; }
+  }
+
   /* Segmented XP fill: 14px gold, 2px dark gold gaps */
   .pixel-xp-fill {
     background: repeating-linear-gradient(90deg, theme('colors.px.xp') 0 14px, theme('colors.px.xp-dark') 14px 16px);
