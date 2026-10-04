@@ -61,6 +61,7 @@ Fallback model IDs live in constants at the top of the LLM helpers section of `l
 Key conventions in the LLM layer:
 - The `###JSON###` separator splits streamed text (Part 1, shown to user) from eval JSON (Part 2, parsed by backend).
 - Agent/synthesis calls use `_build_agent_msgs` — a single clean user message (idea + founder's answers + web research), **not** the raw Q&A history. Passing Q&A history makes LLMs generate more questions instead of analysis.
+- Both chat prompts include `_build_focus_rule(current_scores)`: it names the weakest stat as the thing to ask about, lists stats at 0.8+ as closed, and forbids repeating a question. Without it the questions followed only the total score, and a recorded run asked about user acquisition and CAC four times. The format example in the streaming prompt is marked "FORMAT only" because the model used to echo its topic.
 - All messages are sanitized to Anthropic's strict validation (no empty `messages[]`, no consecutive same-role, must start with `user`) before any provider call.
 
 ## LangGraph Pipeline (Admin + User Selectable)

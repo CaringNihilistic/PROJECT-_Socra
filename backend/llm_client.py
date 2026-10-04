@@ -460,6 +460,44 @@ async def _call_real_llm(system: str, messages: list[dict], max_tokens: int, jso
 SEPARATOR = "###JSON###"
 
 
+# What Socra asks about for each stat, at the business level (the masterplan handles the how)
+_DIMENSION_FOCUS = {
+    "problem_clarity": "who exactly has this problem and what they do about it today",
+    "scale_constraints": "the size of the bet: how many users or how much revenue, the budget, the team, the timeline",
+    "tech_context": "what must be built first, what it depends on (integrations, data, regulation), and the hardest part",
+    "success_definition": "the measurable result that would prove this works, and by when",
+    "risk_awareness": "what could kill this in year one, and what result would make the founder stop",
+}
+_COVERED_AT = 0.8
+
+
+def _build_focus_rule(current_scores: dict) -> str:
+    """
+    Point Socra at the weakest stat and away from what is already covered.
+
+    Without this the questions followed only the total score, so several turns in the same band
+    drew the same question: a recorded run asked how the founder would acquire users (and their
+    CAC) four times while tech context sat lowest, and two of its turns earned no score at all.
+    """
+    weakest = min(_DIMENSION_FOCUS, key=lambda dim: current_scores.get(dim, 0.0))
+    covered = [dim for dim in _DIMENSION_FOCUS if current_scores.get(dim, 0.0) >= _COVERED_AT and dim != weakest]
+    lines = [
+        "WHAT TO ASK NEXT:",
+        f"- The weakest stat is {weakest}. This turn, ask about {_DIMENSION_FOCUS[weakest]}.",
+    ]
+    if covered:
+        lines.append(f"- Already covered, so do not ask about these again: {', '.join(covered)}.")
+    lines += [
+        "",
+        "NEVER REPEAT YOURSELF:",
+        "- Before you ask, reread your own earlier questions in this conversation. Never ask the same thing twice, in the same words or in new ones.",
+        "- If the founder has already answered a topic with a number or a name (their acquisition channel, CAC, price, competitors, churn, team, budget), it is closed. Do not reopen it.",
+        "- If an answer was vague, challenge that one answer once. After that, move on even if it is still vague.",
+        "- Every turn must open a topic you have not asked about yet.",
+    ]
+    return "\n".join(lines)
+
+
 def _build_groq_conversation_prompt(current_scores: dict, turn_number: int = 0) -> str:
     # The weighted total the backend gates phases on, not a plain average
     total = compute_total_score(current_scores)
@@ -486,7 +524,7 @@ TOTAL: {total:.0%}
 RULES:
 1. Ask MAXIMUM 2 targeted questions per turn.
 2. ONLY ask about BUSINESS fundamentals: who specifically pays, why they switch from current solution, how much they pay today, what measurable outcome they need, what kills this in year 1.
-3. Do NOT ask about implementation details, technologies, or code architecture — those are for the masterplan.
+3. Do NOT ask about code architecture or which technologies to use — those are for the masterplan. Asking what must be built first, and what it depends on, is fine.
 4. Score 0-40%: Clarify the specific problem and who exactly has it.
 5. Score 40-70%: Propose a concrete approach, then argue against it.
 6. Score 70-80%: Challenge with a specific failure scenario using real numbers.
@@ -498,6 +536,8 @@ CHALLENGE VAGUE ANSWERS — this is critical:
 - If the user says "improve UX" or "be scalable" → push back: "Scalable to what? 100 users? 1 million? What breaks first and at what number?"
 - Generic aspirations like 'better', 'faster', 'cheaper' are NOT context — demand specifics.
 - A vague answer earns no score. Make the user earn every point.
+
+{_build_focus_rule(current_scores)}
 
 STYLE — crisp, never padded:
 - At most 60 words: one short reaction sentence, then your question(s).
@@ -549,6 +589,8 @@ RULES:
 4. If score is 0.7 or higher: Challenge with a specific failure scenario using real numbers or real competitors.
 5. Never announce that the analysis is ready, and never write the masterplan: the app starts the council by itself once the score reaches 80%. Until then, keep asking.
 
+{_build_focus_rule(current_scores)}
+
 STYLE — crisp, never padded:
 - Part 1 is at most 60 words: one short reaction sentence, then your question(s).
 - Each question is ONE sentence. No preamble, no numbered lists, no (a)/(b)/(c) options, no headings.
@@ -560,13 +602,13 @@ CHALLENGE VAGUE ANSWERS — this is your most important job:
 - "Better UX / faster / more scalable" → "Scalable to what number? What breaks first and when?"
 - Generic aspirations earn zero score. Extract specific, measurable, differentiated claims.
 
-OUTPUT FORMAT — write exactly two parts separated by {SEPARATOR}. Follow this example exactly:
+OUTPUT FORMAT — write exactly two parts separated by {SEPARATOR}. The example below shows the FORMAT only. Never borrow its topic or its wording: your questions come from WHAT TO ASK NEXT.
 
-Good market definition. Now: your acquisition path.
+Good, that market is specific. Now: the result you are aiming for.
 
-Who do you call on **day 1** (company, job title, city)? And what is your honest **CAC** for that first customer?
+What **number** would prove this works, and by what **date**?
 {SEPARATOR}
-{{"eval_delta": {{"problem_clarity": 0.15, "scale_constraints": 0.10, "tech_context": 0.0, "success_definition": 0.0, "risk_awareness": 0.0}}, "new_assumptions": ["Target: 10-100 employee SMEs", "Focus: marketing agencies first"], "phase": "intake", "choices": ["First call: ops manager at NYC marketing agency", "CAC ~$2K via outbound LinkedIn", "Free trial, convert at $299/mo after 2 weeks", "Founder sells first 10 manually, no paid marketing"]}}
+{{"eval_delta": {{"problem_clarity": 0.15, "scale_constraints": 0.10, "tech_context": 0.0, "success_definition": 0.0, "risk_awareness": 0.0}}, "new_assumptions": ["Target: 10-100 employee SMEs", "Focus: marketing agencies first"], "phase": "intake", "choices": ["200 paying teams by month 12", "Cut their reporting time from 6 hours to 1, within 90 days", "$10k MRR by June, or we stop", "50 pilot users retained for 3 months"]}}
 
 RULES for your output:
 - Part 1 (before {SEPARATOR}): your actual response and questions. MANDATORY. Never empty.
@@ -576,6 +618,7 @@ RULES for your output:
   BAD choices: "What is CAC?", "Identify verticals", "Research market size"
   GOOD choices: "CAC ~$500 via LinkedIn outbound", "Targeting NYC marketing agencies first", "No funding yet, bootstrapped"
 - HARD LIMIT: Part 1 is under 60 words, every turn, however late in the conversation. Proposals and counter-arguments included.
+- HARD RULE: no question may repeat one you already asked. Check the conversation before you write.
 - HARD RULE: every question in Part 1 bolds its key term with **double asterisks** (bold, not *italics*)."""
 
 

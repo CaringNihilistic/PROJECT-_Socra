@@ -88,3 +88,30 @@ def test_chat_prompt_shows_the_weighted_total_and_never_declares_readiness():
     streaming = L._build_streaming_system_prompt(scores)
     assert "Never announce that the analysis is ready" in streaming
     assert "confirming analysis is ready" not in streaming
+
+
+SCORES = {"problem_clarity": 1.0, "scale_constraints": 0.85, "tech_context": 0.3, "success_definition": 0.7, "risk_awareness": 0.65}
+
+
+def test_chat_prompts_aim_at_the_weakest_stat_and_forbid_repeats():
+    """Socra repeated the acquisition/CAC question four times in a recorded run while tech sat lowest."""
+    for prompt in (L._build_streaming_system_prompt(SCORES), L._build_groq_conversation_prompt(SCORES, 4)):
+        assert "The weakest stat is tech_context." in prompt
+        assert "do not ask about these again: problem_clarity, scale_constraints." in prompt
+        assert "Never ask the same thing twice" in prompt
+        assert "Every turn must open a topic you have not asked about yet." in prompt
+
+
+def test_focus_rule_names_nothing_as_covered_at_the_start():
+    rule = L._build_focus_rule({k: 0.0 for k in SCORES})
+    assert "The weakest stat is problem_clarity." in rule  # ties go to the first stat
+    assert "Already covered" not in rule
+
+
+def test_the_format_example_does_not_plant_a_topic():
+    # The old example asked about "day 1" and CAC, and the model echoed it in every session
+    prompt = L._build_streaming_system_prompt(SCORES)
+    example = prompt.split("OUTPUT FORMAT", 1)[1].split(L.SEPARATOR, 2)[1]
+    assert "CAC" not in example
+    assert "shows the FORMAT only" in prompt
+
