@@ -130,7 +130,7 @@ export function LandingPage() {
         </div>
       </TitleScene>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-20 px-4 pb-12 pt-6 sm:px-6 sm:pb-16">
+      <main className="mx-auto flex max-w-6xl flex-col gap-12 px-4 pb-10 pt-6 sm:px-6 sm:pb-12">
         <div id="demo" className="scroll-mt-24">
           <JourneyDemo onStart={focusStart} />
         </div>

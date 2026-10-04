@@ -31,11 +31,13 @@ export default {
         },
       },
       fontFamily: {
-        pixel: ['"Press Start 2P"', 'monospace'], // titles & names only, never below 10px
-        term: ['VT323', 'monospace'], // all text: never below 20px, 22px+ for reading
+        // Both are scaled in index.css (size-adjust) to fill the boxes the old pixel fonts did,
+        // so the size rules still hold: titles never below 10px, text never below 20px.
+        pixel: ['"Socra Title"', 'system-ui', 'sans-serif'], // Jersey 15: titles & names
+        term: ['"Socra Text"', 'system-ui', 'sans-serif'], // Atkinson Hyperlegible: all reading text
       },
       typography: ({ theme }) => ({
-        // `prose prose-pixel`: VT323 body at 22px (small x-height needs the size), pixel-face headings
+        // `prose prose-pixel`: body at 22px (scaled, see index.css), pixel-face headings
         pixel: {
           css: {
             '--tw-prose-body': theme('colors.px.soft'),
@@ -52,7 +54,7 @@ export default {
             '--tw-prose-td-borders': theme('colors.px.edge'),
             fontFamily: theme('fontFamily.term').join(', '),
             fontSize: '22px',
-            lineHeight: '1.4',
+            lineHeight: '1.3',
             'h1, h2': {
               fontFamily: theme('fontFamily.pixel').join(', '),
               fontWeight: '400',

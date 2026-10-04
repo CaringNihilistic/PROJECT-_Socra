@@ -29,6 +29,24 @@ describe('flavorText', () => {
     expect(flavorText(invoice.masterplan)).toMatch(/\S…$/)
   })
 
+  it('finds the verdict when it sits directly under its heading (template-style plans)', () => {
+    const plan = [
+      "## Chairman's Verdict",
+      '**Build it, but run the concierge test first.** The council agreed on risk.',
+      '',
+      '## Tech Stack',
+      '| Layer | Tool |',
+      '|---|---|',
+      '| DB | Postgres |',
+    ].join('\n')
+    expect(flavorText(plan)).toBe('Build it, but run the concierge test first.')
+  })
+
+  it('skips tables, lists and rules before the first prose', () => {
+    const plan = ['# Plan', '---', '- a bullet', '| a | b |', '', 'The real opening sentence. More.'].join('\n')
+    expect(flavorText(plan)).toBe('The real opening sentence.')
+  })
+
   it('is null without a plan or a paragraph', () => {
     expect(flavorText(null)).toBeNull()
     expect(flavorText('# Only a heading')).toBeNull()

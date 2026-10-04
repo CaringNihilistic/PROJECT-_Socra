@@ -31,7 +31,7 @@
 | Framework | React | 18.3.1 |
 | Build tool | Vite | 5.3.4 |
 | Styling | Tailwind CSS | 3.4.7 |
-| Fonts | Press Start 2P (titles and names) + VT323 (all text). Pixel UI throughout | Google Fonts |
+| Fonts | Jersey 15 (`font-pixel`: titles and names) + Atkinson Hyperlegible (`font-term`: all text). Pixel UI throughout | self-hosted in `frontend/public/fonts` |
 | State | Zustand | 5.0.0 |
 | Auth | @clerk/clerk-react | 5.0.0 |
 | HTTP | axios | 1.7.0 |
@@ -269,7 +269,7 @@ npm run preview      # preview the production build
 ### Frontend (TypeScript / React)
 - Functional components, named exports (`export function X`).
 - **All** state + API calls + SSE streaming live in the Zustand store (`sessionStore.ts`) — components are mostly presentational.
-- Tailwind utility classes with the pixel tokens (`px-*` colours, `font-pixel` / `font-term`) and the kit in `pixel/ui`; no inline rgba styling. VT323 text is never below 20px; Press Start 2P never below 10px. Sprites render only at 32/64/96/128px.
+- Tailwind utility classes with the pixel tokens (`px-*` colours, `font-pixel` / `font-term`) and the kit in `pixel/ui`; no inline rgba styling. The two fonts replaced VT323 and Press Start 2P (a designer found those hard to read) and are scaled with `size-adjust` in `index.css` to fill the same boxes, so the old size rules still hold: `font-term` text is never below 20px, `font-pixel` never below 10px. `share/pngExport.ts` repeats the same `size-adjust` values. Sprites render only at 32/64/96/128px.
 - No router library — routing is manual `window.location.pathname` matching in `App.tsx`.
 - File/code references in markdown use `[text](path)` links, not backticks.
 

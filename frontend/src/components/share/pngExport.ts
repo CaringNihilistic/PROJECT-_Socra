@@ -1,8 +1,11 @@
 import { toPng } from 'html-to-image'
 
-// Only the pixel fonts: the card uses nothing else
-const FONTS_CSS = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap'
-const KEEP_SUBSETS = new Set(['latin', 'latin-ext'])
+// The card's fonts, with the same size-adjust as the @font-face rules in index.css
+const FACES = [
+  { family: 'Socra Text', file: '/fonts/atkinson-400.woff2', weight: '400', adjust: '78%' },
+  { family: 'Socra Text', file: '/fonts/atkinson-700.woff2', weight: '700', adjust: '78%' },
+  { family: 'Socra Title', file: '/fonts/jersey15.woff2', weight: '400', adjust: '180%' },
+]
 
 let fontCss: Promise<string> | null = null
 
@@ -14,25 +17,21 @@ const toDataUrl = (blob: Blob) =>
     reader.readAsDataURL(blob)
   })
 
-/**
- * The pixel fonts as @font-face rules with the font files inlined. html-to-image can't
- * embed them itself: the Google Fonts stylesheet is cross-origin, so its cssRules are
- * unreadable from the page.
- */
+/** The fonts as @font-face rules with the files inlined, so the PNG never falls back to a system font. */
 function embeddedFonts(): Promise<string> {
-  fontCss ??= (async () => {
-    const css = await (await fetch(FONTS_CSS)).text()
-    // Google serves one block per unicode subset, each preceded by /* subset */
-    const blocks = css.split(/(?=\/\* [\w-]+ \*\/)/).filter((b) => KEEP_SUBSETS.has(b.match(/\/\* ([\w-]+) \*\//)?.[1] ?? ''))
-    let out = blocks.join('\n')
-    for (const url of new Set(out.match(/https:\/\/fonts\.gstatic\.com[^)\s]+/g) ?? [])) {
-      out = out.split(url).join(await toDataUrl(await (await fetch(url)).blob()))
-    }
-    return out
-  })().catch((err) => {
-    fontCss = null // let the next click try again
-    throw err
-  })
+  fontCss ??= Promise.all(
+    FACES.map(async (f) => {
+      const res = await fetch(f.file)
+      if (!res.ok) throw new Error(`Font ${f.file}: ${res.status}`)
+      const data = await toDataUrl(await res.blob())
+      return `@font-face{font-family:'${f.family}';src:url(${data}) format('woff2');font-weight:${f.weight};size-adjust:${f.adjust};}`
+    }),
+  )
+    .then((rules) => rules.join(' '))
+    .catch((err) => {
+      fontCss = null // let the next click try again
+      throw err
+    })
   return fontCss
 }
 

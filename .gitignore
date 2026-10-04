@@ -54,3 +54,4 @@ Compound V.md
 
 # Local AI-assistant tooling (commands, skills, permission lists)
 .claude/
+skills-lock.json

@@ -2,6 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fonts, self-hosted (public/fonts). The pixel theme was sized for VT323 and Press Start 2P,
+   so each replacement is scaled with size-adjust to sit in the same boxes: every existing
+   font-size keeps working. Keep these in step with share/pngExport.ts. */
+@font-face {
+  font-family: 'Socra Text';
+  src: url('/fonts/atkinson-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+  size-adjust: 78%;
+}
+@font-face {
+  font-family: 'Socra Text';
+  src: url('/fonts/atkinson-700.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+  size-adjust: 78%;
+}
+@font-face {
+  font-family: 'Socra Title';
+  src: url('/fonts/jersey15.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+  size-adjust: 180%;
+}
+
+/* The text face is drawn at 78% of its font-size, so the default 1.5 leading reads as double
+   spacing. 1.3 gives it about the same air a normal 1.65 would. */
+@layer base {
+  html { line-height: 1.3; }
+}
+
 /* ── Pixel kit (docs/superpowers/specs/2026-09-30-socra-pixel-foundation-design.md §3) ── */
 @layer components {
   .pixel-panel {

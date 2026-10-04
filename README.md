@@ -73,7 +73,7 @@ All original characters, drawn in code as 32×32 pixel sprites.
 
 | | |
 |---|---|
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Zustand, react-markdown, html-to-image; Press Start 2P + VT323 |
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Zustand, react-markdown, html-to-image; Jersey 15 + Atkinson Hyperlegible |
 | **Backend** | Python 3.11, FastAPI, SQLAlchemy (asyncio) + asyncpg, PostgreSQL |
 | **AI** | Anthropic Claude Haiku 4.5, Google Gemini, Groq; LangGraph; Tavily web search; Langfuse tracing |
 | **Services** | Clerk (optional auth), Razorpay (optional donations), Resend (follow-up email) |

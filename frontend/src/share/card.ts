@@ -31,12 +31,18 @@ export const FLAVOR_MAX = 140
 /** The first sentence of the verdict's first paragraph, as plain text. */
 export function flavorText(masterplan?: string | null): string | null {
   if (!masterplan) return null
-  const paragraph = masterplan
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .find((p) => p && !p.startsWith('#') && !/^([-*+>|]|\d+\.)\s/.test(p))
-  if (!paragraph) return null
-  const plain = paragraph
+  // The first run of prose lines. Headings, tables, lists and rules are skipped line by line:
+  // template-style plans put the verdict directly under its heading, with no blank line between.
+  const prose: string[] = []
+  for (const raw of masterplan.split(/\r?\n/)) {
+    const line = raw.trim()
+    const isProse = line !== '' && !/^(#|\||>|[-*+]\s|\d+\.\s|-{3,}$)/.test(line)
+    if (isProse) prose.push(line)
+    else if (prose.length) break
+  }
+  if (!prose.length) return null
+  const plain = prose
+    .join(' ')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/[*_`#>]/g, '')
     .replace(/\s+/g, ' ')

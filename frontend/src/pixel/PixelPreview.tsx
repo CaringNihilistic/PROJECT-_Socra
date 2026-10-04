@@ -131,7 +131,7 @@ export function PixelPreview() {
       <PixelPanel title="MARKDOWN · prose-pixel">
         <div className="prose prose-pixel max-w-none">
           <h1>Chairman’s Verdict</h1>
-          <p>Long-form text is VT323 at 22px. Headings get the pixel face; <strong>bold</strong> and <a href="#top">links</a> use the kit colours.</p>
+          <p>Long-form text is set at 22px. Headings get the pixel face; <strong>bold</strong> and <a href="#top">links</a> use the kit colours.</p>
           <h2>Risk Register</h2>
           <ul>
             <li>FERPA exposure on synced deadline data</li>
