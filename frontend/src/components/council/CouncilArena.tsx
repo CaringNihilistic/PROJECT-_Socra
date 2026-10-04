@@ -2,21 +2,23 @@ import { COUNCIL } from '../../pixel/cast'
 import { Sprite } from '../../pixel/Sprite'
 import { PixelPanel } from '../../pixel/ui/PixelPanel'
 import { TypeBadge } from '../../pixel/ui/TypeBadge'
+import { useWide } from '../../pixel/ui/compact'
 import type { AgentReport } from '../../episode/events'
 import type { Seat } from '../../episode/reducer'
 
 function SeatView({ seat }: { seat: Seat }) {
   const creature = COUNCIL[seat.key]
   const fainted = seat.status === 'fainted'
+  const wide = useWide()
   return (
     // Phones: sprite and name in a row, the signature full width below (in a column it wraps a word per line)
-    <li className={`flex flex-col gap-2 sm:items-center sm:text-center ${fainted ? 'opacity-60' : ''}`}>
-      <div className="flex items-center gap-4 sm:flex-col sm:gap-2">
-        <div className={`shrink-0 border-4 border-px-ink bg-px-screen p-1 sm:p-2 ${seat.status === 'done' ? 'pixel-attack' : ''} ${fainted ? 'grayscale' : ''}`}>
-          <Sprite name={creature.sprite} size={64} bob={seat.status === 'thinking'} className="sm:hidden" />
-          <Sprite name={creature.sprite} size={96} bob={seat.status === 'thinking'} className="hidden sm:block" />
+    <li className={`flex flex-col gap-2 ${wide('sm:items-center sm:text-center')} ${fainted ? 'opacity-60' : ''}`}>
+      <div className={`flex items-center gap-4 ${wide('sm:flex-col sm:gap-2')}`}>
+        <div className={`shrink-0 border-4 border-px-ink bg-px-screen p-1 ${wide('sm:p-2')} ${seat.status === 'done' ? 'pixel-attack' : ''} ${fainted ? 'grayscale' : ''}`}>
+          <Sprite name={creature.sprite} size={64} bob={seat.status === 'thinking'} className={wide('sm:hidden')} />
+          <Sprite name={creature.sprite} size={96} bob={seat.status === 'thinking'} className={`hidden ${wide('sm:block')}`} />
         </div>
-        <div className="flex flex-col items-start gap-2 sm:items-center">
+        <div className={`flex flex-col items-start gap-2 ${wide('sm:items-center')}`}>
           <span className="font-pixel text-[10px] leading-relaxed">{creature.name.toUpperCase()}</span>
           <TypeBadge type={creature.type} />
         </div>
@@ -45,9 +47,11 @@ function NeutralSeat({ report }: { report: AgentReport }) {
 }
 
 export function CouncilArena({ seats, extras }: { seats: Seat[]; extras: AgentReport[] }) {
+  const wide = useWide()
   return (
     <PixelPanel title="THE COUNCIL">
-      <ul className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-6 lg:grid-cols-5">
+      {/* In a compact column the seats keep their phone layout, two across once there is room */}
+      <ul className={`grid grid-cols-1 gap-5 ${wide('sm:grid-cols-3 sm:gap-6 lg:grid-cols-5') || 'sm:grid-cols-2'}`}>
         {seats.map((seat) => (
           <SeatView key={seat.key} seat={seat} />
         ))}

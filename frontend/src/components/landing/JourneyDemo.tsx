@@ -3,6 +3,7 @@ import { PROFESSOR } from '../../pixel/cast'
 import { Sprite } from '../../pixel/Sprite'
 import { PixelButton } from '../../pixel/ui/PixelButton'
 import { XpBar } from '../../pixel/ui/XpBar'
+import { CompactContext } from '../../pixel/ui/compact'
 import { CAPTION, CHAPTERS, JOURNEY, JOURNEY_EVOLUTION, JOURNEY_MS, SCENE_START, journeyFrame, type JourneyFrame } from '../../landing/journey'
 import { SocraDialog } from '../chat/SocraDialog'
 import { EvolutionStage } from '../chat/EvolutionStage'
@@ -173,6 +174,8 @@ export function JourneyDemo({ onStart }: { onStart: () => void }) {
         <p className="text-px-muted">A real recorded run: “{JOURNEY.idea}”</p>
       </div>
 
+      {/* The demo sits in half the title screen: its scenes keep their phone layouts */}
+      <CompactContext.Provider value>
       {/* Paused means paused: freeze the CSS animations (bob, blink, the evolution flicker) too */}
       <div className={`grid ${playing ? '' : '[&_*]:![animation-play-state:paused]'}`}>
         {sizers.map((f) => (
@@ -184,6 +187,7 @@ export function JourneyDemo({ onStart }: { onStart: () => void }) {
           <MemoStage frame={frame} onStart={onStart} />
         </div>
       </div>
+      </CompactContext.Provider>
     </section>
   )
 }

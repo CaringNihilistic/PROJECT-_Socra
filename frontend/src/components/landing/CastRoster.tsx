@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { COUNCIL, PROFESSOR, TEAM_GLITCH, TRAINERS, type Character } from '../../pixel/cast'
+import { COUNCIL, PROFESSOR, TEAM_GLITCH, type Character } from '../../pixel/cast'
 import { Sprite } from '../../pixel/Sprite'
 import { TypeBadge } from '../../pixel/ui/TypeBadge'
 
@@ -25,19 +25,12 @@ export function CastRoster() {
     <section id="cast" aria-labelledby="cast-title" className="flex scroll-mt-24 flex-col gap-6">
       <h2 id="cast-title" className="font-pixel text-sm leading-relaxed text-px-xp">MEET THE CAST</h2>
 
-      {/* Three across on wide screens: the professor and the council fill two rows, the trainers one */}
+      {/* Three across on wide screens: the professor and the council fill two rows */}
       <h3 className="font-pixel text-[11px] leading-relaxed text-px-screen">THE PROFESSOR AND THE COUNCIL</h3>
       <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <CharacterCard who={PROFESSOR} subtitle="The interrogator" />
         {Object.values(COUNCIL).map((c) => (
           <CharacterCard key={c.name} who={c} subtitle={`${c.advisor} · ${c.role}`} badge={<TypeBadge type={c.type} />} />
-        ))}
-      </ul>
-
-      <h3 className="font-pixel text-[11px] leading-relaxed text-px-screen">THE TRAINERS</h3>
-      <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {Object.values(TRAINERS).map((t) => (
-          <CharacterCard key={t.name} who={t} subtitle={t.role} />
         ))}
       </ul>
 

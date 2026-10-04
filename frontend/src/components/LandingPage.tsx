@@ -4,14 +4,14 @@ import { useAuth, useClerk, UserButton } from '@clerk/clerk-react'
 import { useSessionStore } from '../store/sessionStore'
 import { CLERK_ENABLED } from '../lib/auth'
 import { PixelButton } from '../pixel/ui/PixelButton'
-import { TitleScreen } from './landing/TitleScreen'
+import { TitleHeading, TitleScreen } from './landing/TitleScreen'
 import { TitleScene } from './landing/TitleScene'
 import { GroundFooter } from './landing/GroundFooter'
 import { ContinueMenu } from './landing/ContinueMenu'
 import { JourneyDemo } from './landing/JourneyDemo'
 import { HowItPlays } from './landing/HowItPlays'
 import { CastRoster } from './landing/CastRoster'
-import { FreeToPlay, GetUpdates, SaysNo } from './landing/ManualSections'
+import { GetUpdates } from './landing/ManualSections'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8000'
 const REPO_URL = 'https://github.com/CaringNihilistic/PROJECT-_Socra'
@@ -50,9 +50,8 @@ function SyncNudge() {
 }
 
 const NAV = [
-  { href: '#how', label: 'HOW IT PLAYS' },
   { href: '#cast', label: 'CAST' },
-  { href: '#free', label: 'FREE' },
+  { href: '#how', label: 'HOW IT PLAYS' },
 ]
 
 export function LandingPage() {
@@ -104,10 +103,13 @@ export function LandingPage() {
         </div>
       </header>
 
-      {/* ── Title screen: full width, so the scenery can fill the gutters ── */}
+      {/* ── Title screen: the idea box on the left, a recorded run playing on the right ── */}
       <TitleScene>
-        <div id="start" className="mx-auto flex w-full max-w-3xl scroll-mt-24 flex-col gap-10">
-          <TitleScreen
+        <div className="flex flex-col gap-10">
+          <TitleHeading />
+          <div className="grid items-start gap-8 lg:grid-cols-2">
+            <div id="start" className="flex min-w-0 scroll-mt-24 flex-col gap-8">
+              <TitleScreen
             ref={box}
             idea={idea}
             onIdeaChange={setIdea}
@@ -127,17 +129,17 @@ export function LandingPage() {
             onCompare={compare}
             nudge={CLERK_ENABLED ? <SyncNudge /> : undefined}
           />
+            </div>
+            <div id="demo" className="min-w-0 scroll-mt-24">
+              <JourneyDemo onStart={focusStart} />
+            </div>
+          </div>
         </div>
       </TitleScene>
 
       <main className="mx-auto flex max-w-6xl flex-col gap-12 px-4 pb-10 pt-6 sm:px-6 sm:pb-12">
-        <div id="demo" className="scroll-mt-24">
-          <JourneyDemo onStart={focusStart} />
-        </div>
-        <HowItPlays />
         <CastRoster />
-        <SaysNo />
-        <FreeToPlay onStart={focusStart} />
+        <HowItPlays />
         <GetUpdates apiUrl={API_URL} />
       </main>
 

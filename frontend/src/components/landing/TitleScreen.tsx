@@ -20,27 +20,32 @@ interface TitleScreenProps {
   error: string | null
 }
 
-/** The game's title screen: logo, headline, Prof. Socra, and NAME YOUR IDEA. */
+/** The logo and headline, centred above the two columns. */
+export function TitleHeading() {
+  return (
+    <div className="flex flex-col items-center gap-5 text-center">
+      <p
+        aria-hidden="true"
+        className="font-pixel text-[32px] leading-none text-px-xp [text-shadow:4px_4px_0_theme(colors.px.xp-dark)] sm:text-[48px]"
+      >
+        SOCRA
+      </p>
+      <h1 className="max-w-2xl text-[36px] leading-[1.05] text-px-screen sm:text-[48px]">
+        <span className="sr-only">Socra: </span>
+        We kill <span className="text-px-xp">bad ideas</span> before they kill you.
+      </h1>
+      <p className="max-w-xl text-px-soft">ChatGPT tells you how to build it. Socra tells you if you should.</p>
+    </div>
+  )
+}
+
+/** The left column of the title screen: Prof. Socra, NAME YOUR IDEA and the examples. */
 export const TitleScreen = forwardRef<HTMLTextAreaElement, TitleScreenProps>(function TitleScreen(
   { idea, onIdeaChange, onStart, onExample, loading, error },
   ref,
 ) {
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col items-center gap-5 text-center">
-        <p
-          aria-hidden="true"
-          className="font-pixel text-[32px] leading-none text-px-xp [text-shadow:4px_4px_0_theme(colors.px.xp-dark)] sm:text-[48px]"
-        >
-          SOCRA
-        </p>
-        <h1 className="max-w-2xl text-[36px] leading-[1.05] text-px-screen sm:text-[48px]">
-          <span className="sr-only">Socra: </span>
-          We kill <span className="text-px-xp">bad ideas</span> before they kill you.
-        </h1>
-        <p className="max-w-xl text-px-soft">ChatGPT tells you how to build it. Socra tells you if you should.</p>
-      </div>
-
+    <div className="flex flex-col gap-6">
       <DialogBox speaker={PROFESSOR.name.toUpperCase()} sprite={PROFESSOR.sprite}>
         {PROFESSOR.line} Tell me your idea.
       </DialogBox>

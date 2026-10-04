@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { COUNCIL, TEAM_GLITCH, TRAINERS } from '../../../pixel/cast'
+import { COUNCIL, PROFESSOR, TEAM_GLITCH, TRAINERS } from '../../../pixel/cast'
 import { JOURNEY, SCENE_START, journeyFrame } from '../../../landing/journey'
 import type { SessionSummary } from '../../../store/sessionStore'
-import { EXAMPLES, TitleScreen } from '../TitleScreen'
+import { EXAMPLES, TitleHeading, TitleScreen } from '../TitleScreen'
 import { ContinueMenu } from '../ContinueMenu'
 import { JourneyDemo, JourneyStage } from '../JourneyDemo'
 import { CastRoster } from '../CastRoster'
-import { FreeToPlay, GetUpdates, SaysNo } from '../ManualSections'
+import { GetUpdates } from '../ManualSections'
 import { HowItPlays } from '../HowItPlays'
 import { TitleScene } from '../TitleScene'
 
@@ -22,7 +22,7 @@ describe('TitleScreen', () => {
 
   it('has the headline, NAME YOUR IDEA and PRESS START', () => {
     const out = render()
-    expect(out).toContain('bad ideas')
+    expect(html(<TitleHeading />)).toContain('bad ideas')
     expect(out).toContain('NAME YOUR IDEA')
     expect(out).toContain('PRESS START')
   })
@@ -96,12 +96,11 @@ describe('JourneyDemo', () => {
 })
 
 describe('TitleScene', () => {
-  it('frames the title screen with the council, all decorative', () => {
+  it('frames the title screen with scenery, all decorative', () => {
     const out = html(<TitleScene><p>the idea box</p></TitleScene>)
     expect(out).toContain('the idea box')
-    for (const c of Object.values(COUNCIL)) expect(out).toContain(c.name.toUpperCase())
-    // the scenery and the waiting council are hidden from screen readers; the content is not
-    expect(out).toMatch(/<div aria-hidden="true" class="hidden flex-col items-end/)
+    // the scenery is hidden from screen readers; the content is not
+    expect(out).toContain('pixel-drift')
     expect(out).not.toMatch(/aria-hidden="true"[^>]*><p>the idea box/)
   })
 })
@@ -109,9 +108,10 @@ describe('TitleScene', () => {
 describe('manual sections', () => {
   it('the cast comes from cast.ts', () => {
     const out = html(<CastRoster />)
-    for (const c of Object.values(COUNCIL)) expect(out).toContain(c.name.toUpperCase())
-    for (const t of Object.values(TRAINERS)) expect(out).toContain(t.name.toUpperCase())
+    for (const c of [PROFESSOR, ...Object.values(COUNCIL)]) expect(out).toContain(c.name.toUpperCase())
     expect(out).toContain(esc(TEAM_GLITCH.motto))
+    // the trainers appear with the plan, not on the landing page's roster
+    for (const t of Object.values(TRAINERS)) expect(out).not.toContain(`>${t.name.toUpperCase()}<`)
   })
 
   it('how it plays has the three steps', () => {
@@ -120,7 +120,7 @@ describe('manual sections', () => {
   })
 
   it('updates are honest: no early-access promise', () => {
-    const out = html(<GetUpdates apiUrl="http://x" />) + html(<FreeToPlay onStart={noop} />) + html(<SaysNo />)
+    const out = html(<GetUpdates apiUrl="http://x" />)
     expect(out).toContain('GET UPDATES')
     expect(out.toLowerCase()).not.toContain('early access')
   })
