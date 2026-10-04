@@ -1,3 +1,4 @@
+import os
 import time
 import json
 from collections import defaultdict
@@ -125,9 +126,14 @@ async def global_exception_handler(request: Request, exc: Exception):
 # booting (~1 min cold start) while the visitor reads; an external cron can call it to
 # keep the service awake. It must not touch the DB, or it would keep Neon's compute on too.
 # ---------------------------------------------------------------------------
+# The commit Render built this instance from, so a deploy can be confirmed from outside.
+# Empty when run locally.
+_COMMIT = os.environ.get("RENDER_GIT_COMMIT", "")[:7]
+
+
 @app.get("/ping")
 async def ping():
-    return {"ok": True}
+    return {"ok": True, "commit": _COMMIT}
 
 
 # ---------------------------------------------------------------------------
@@ -157,4 +163,5 @@ async def health():
         "langfuse": "ok" if lf_ok else "disabled",
         "langgraph_checkpointer": "postgres" if cp_ok else "memory",
         "version": "0.2.3",
+        "commit": _COMMIT,
     }

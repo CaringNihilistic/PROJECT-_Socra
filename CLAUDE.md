@@ -155,7 +155,7 @@ Routing is **path-based** in `App.tsx` (no router library) — public share/card
 - `POST /sessions/{id}/pitch-deck` — generate pitch deck
 - `POST /billing/checkout` · `/billing/webhook` · `/billing/verify` — Razorpay
 - `POST /waitlist` · `POST /sessions/{id}/follow-up` · `POST /admin/send-follow-ups`
-- `GET /health` — checks real DB connection · `GET /ping` — no DB; the frontend calls it on every page load so a sleeping Render instance starts booting while the visitor reads
+- `GET /health` — checks real DB connection · `GET /ping` — no DB; both return `commit`, the short hash Render built from (`RENDER_GIT_COMMIT`), to confirm a deploy from outside; the frontend calls it on every page load so a sleeping Render instance starts booting while the visitor reads
 
 ---
 
