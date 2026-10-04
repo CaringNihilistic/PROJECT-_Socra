@@ -231,10 +231,10 @@ export function JourneyDemo({ onStart }: { onStart: () => void }) {
           <p className="text-px-soft">A real run, recorded and replayed: “{JOURNEY.idea}”</p>
         </div>
         <div className="flex gap-2">
-          <PixelButton variant="secondary" size="sm" lift onClick={() => setPlaying(!playing)}>
+          <PixelButton variant="secondary" size="sm" lift className="max-sm:!min-h-[44px]" onClick={() => setPlaying(!playing)}>
             {playing ? '❚❚ PAUSE' : '▶ PLAY'}
           </PixelButton>
-          <PixelButton variant="secondary" size="sm" lift onClick={() => { jump(0); setPlaying(true) }}>
+          <PixelButton variant="secondary" size="sm" lift className="max-sm:!min-h-[44px]" onClick={() => { jump(0); setPlaying(true) }}>
             ↺ REPLAY
           </PixelButton>
         </div>
@@ -294,7 +294,10 @@ export function JourneyDemo({ onStart }: { onStart: () => void }) {
           {/* A fixed stage: every scene fits inside it, so the box never changes height as it loops.
               Paused means paused: freeze the CSS animations (bob, blink, the evolution flicker) too */}
           <div id="demo-stage" className={`h-[400px] overflow-hidden sm:h-[380px] ${playing ? '' : '[&_*]:![animation-play-state:paused]'}`}>
-            <MemoStage frame={frame} />
+            {/* Each scene fades in, but only while playing: a paused animation would freeze it invisible */}
+            <div key={frame.scene} className={playing ? 'pixel-scene-in' : ''}>
+              <MemoStage frame={frame} />
+            </div>
           </div>
         </div>
       </div>

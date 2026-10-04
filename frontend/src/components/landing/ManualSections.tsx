@@ -57,7 +57,7 @@ export function GetUpdates({ apiUrl }: { apiUrl: string }) {
           </p>
         ) : (
           <form
-            className="flex flex-wrap gap-2"
+            className="flex gap-2"
             onSubmit={(e) => {
               e.preventDefault()
               submit()
@@ -74,7 +74,7 @@ export function GetUpdates({ apiUrl }: { apiUrl: string }) {
               }}
               placeholder="your@email.com"
               disabled={state === 'sending'}
-              className="min-h-[44px] min-w-0 flex-1 border-2 border-px-edge bg-px-night px-3 text-[20px] text-px-screen placeholder:text-px-muted focus:border-px-muted focus:outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-px-plan disabled:opacity-50 md:w-72 md:flex-none"
+              className="min-h-[44px] min-w-0 flex-1 border-2 border-px-edge bg-px-night px-3 text-[20px] text-px-screen placeholder:text-px-muted transition-colors duration-150 focus:border-px-muted focus:outline focus:outline-[3px] focus:outline-offset-2 focus:outline-px-plan disabled:opacity-50 md:w-72 md:flex-none"
             />
             <PixelButton type="submit" variant="secondary" size="sm" lift className="!min-h-[44px]" disabled={state === 'sending'}>
               {state === 'sending' ? 'SENDING…' : 'NOTIFY ME'}

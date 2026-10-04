@@ -52,6 +52,8 @@ function SyncNudge() {
 
 const ring = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4 focus-visible:outline-px-plan'
 
+// Links are at least 44px tall, so they are easy to hit with a thumb
+const tap = 'inline-flex min-h-[44px] items-center'
 const wrap = 'mx-auto w-full max-w-[1240px] px-5 sm:px-8'
 
 const NAV = [
@@ -87,24 +89,24 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-px-night font-term text-[24px] text-px-screen">
-      <a href="#idea-box" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:bg-px-xp focus:px-3 focus:py-1 focus:text-px-ink">
+      <a href="#idea-box" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:bg-px-xp focus:px-3 focus:py-1 focus:text-px-ink focus:outline focus:outline-[3px] focus:outline-offset-2 focus:outline-px-plan">
         Skip to the idea box
       </a>
 
       {/* ── Nav: compact and quiet, so the hero's button is the brightest thing on screen ── */}
       <header className="sticky top-0 z-50 border-b-2 border-px-edge bg-px-night">
-        <div className="mx-auto flex max-w-[1240px] items-center gap-4 px-5 py-2 sm:gap-6 sm:px-8">
-          <a href="#top" className={`font-pixel text-[13px] text-px-xp ${ring}`}>SOCRA</a>
+        <div className="mx-auto flex max-w-[1240px] items-center gap-4 px-5 py-1 sm:gap-6 sm:px-8">
+          <a href="#top" className={`${tap} font-pixel text-[13px] text-px-xp ${ring}`}>SOCRA</a>
           <nav aria-label="Sections" className="ml-auto hidden items-center gap-6 md:flex">
             {NAV.map((n) => (
-              <a key={n.href} href={n.href} className={`font-pixel text-[11px] text-px-muted transition-colors duration-150 hover:text-px-screen ${ring}`}>
+              <a key={n.href} href={n.href} className={`${tap} font-pixel text-[11px] text-px-muted transition-colors duration-150 hover:text-px-screen ${ring}`}>
                 {n.label}
               </a>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3 md:ml-0">
             {CLERK_ENABLED && <AuthButton />}
-            <PixelButton variant="secondary" size="sm" lift onClick={focusStart}>START<Arrow /></PixelButton>
+            <PixelButton variant="secondary" size="sm" lift className="max-sm:!min-h-[44px]" onClick={focusStart}>START<Arrow /></PixelButton>
           </div>
         </div>
       </header>
@@ -161,14 +163,14 @@ export function LandingPage() {
       </main>
 
       <GroundFooter>
-        <div className={`${wrap} flex flex-wrap items-center justify-between gap-x-10 gap-y-4 pb-8 pt-6 text-[20px] text-px-soft`}>
+        <div className={`${wrap} flex flex-wrap items-center justify-between gap-x-10 gap-y-2 pb-6 pt-4 text-[20px] text-px-soft`}>
           <p>
             <span className="mr-3 font-pixel text-[12px] text-px-xp">SOCRA</span>
             We kill bad ideas before they kill you.
           </p>
           <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2">
             {[...NAV, { href: REPO_URL, label: 'GITHUB' }].map((n) => (
-              <a key={n.href} href={n.href} className={`font-pixel text-[11px] text-px-screen hover:text-px-xp ${ring}`}>
+              <a key={n.href} href={n.href} className={`${tap} font-pixel text-[11px] text-px-screen transition-colors duration-150 hover:text-px-xp ${ring}`}>
                 {n.label}
               </a>
             ))}

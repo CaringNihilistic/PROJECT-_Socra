@@ -73,14 +73,8 @@ const WISP: Span[][] = [[[8, 14], [20, 24]], [[5, 17], [18, 27]], [[2, 31]], [[0
 
 // Lighter than the horizon glow behind them (#2a2652), or only the lit edge shows
 const NEAR: [string, string, string] = ['#7a73b8', '#565090', '#3d3872']
-const FAR: [string, string, string] = ['#57518f', '#433e78', '#363166']
-
-/**
- * Two cloud bands for parallax: varied clouds in front, dimmer ones behind. Wide tiles with
- * irregular spacing, so the repeat is hard to spot.
- */
+/** One band of clouds. A wide tile with irregular spacing, so the repeat is hard to spot. */
 export const NEAR_CLOUDS = svg(320, 16, cloud(12, 2, BILLOW, NEAR) + cloud(140, 9, WISP, NEAR) + cloud(232, 5, PUFF, NEAR))
-export const FAR_CLOUDS = svg(280, 12, cloud(40, 1, PUFF, FAR) + cloud(178, 5, WISP, FAR))
 
 // ── Land ─────────────────────────────────────────────────────────────────────
 

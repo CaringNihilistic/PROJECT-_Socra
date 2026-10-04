@@ -25,7 +25,7 @@ export function HowItPlays() {
   return (
     <section id="how" aria-labelledby="how-title" className="flex scroll-mt-20 flex-col gap-10">
       <h2 id="how-title" className="font-pixel text-[18px] leading-snug text-px-screen sm:text-[22px]">HOW IT PLAYS</h2>
-      <ol className="grid gap-x-12 gap-y-12 md:grid-cols-3">
+      <ol className="grid gap-x-12 gap-y-12 lg:grid-cols-3">
         {STEPS.map((step, i) => (
           <li key={step.title} className="flex flex-col gap-4">
             <div className="flex items-end justify-between gap-4 border-b-2 border-px-edge pb-3">
@@ -41,7 +41,7 @@ export function HowItPlays() {
               <span className="sr-only">Step {i + 1}: </span>
               {step.title}
             </h3>
-            <ul className="flex flex-col gap-2 text-px-soft">
+            <ul className="flex max-w-xl flex-col gap-2 text-px-soft">
               {step.lines.map((line) => (
                 <li key={line} className="leading-snug">{line}</li>
               ))}

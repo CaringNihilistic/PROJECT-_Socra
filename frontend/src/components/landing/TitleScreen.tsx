@@ -88,7 +88,7 @@ export const TitleScreen = forwardRef<HTMLTextAreaElement, TitleScreenProps>(fun
             placeholder="I want to build a platform where…"
             rows={4}
             aria-describedby="idea-hint"
-            className="min-h-[152px] w-full resize-none border-4 border-px-muted bg-px-panel px-4 py-3 text-[26px] leading-snug text-px-screen shadow-[6px_6px_0_theme(colors.px.edge)] placeholder:text-px-muted focus:border-px-xp focus:outline-none"
+            className="min-h-[152px] w-full resize-none border-4 border-px-muted bg-px-panel px-4 py-3 text-[26px] leading-snug text-px-screen shadow-[6px_6px_0_theme(colors.px.edge)] transition-[border-color,box-shadow] duration-150 placeholder:text-px-muted focus:border-px-xp focus:shadow-[6px_6px_0_theme(colors.px.xp-dark)] focus:outline focus:outline-[3px] focus:outline-offset-[6px] focus:outline-px-plan motion-reduce:transition-none"
           />
           <div className="mt-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
             <p id="idea-hint" className="text-[20px] text-px-muted">Free · no account needed · ⇧↵ new line</p>
@@ -110,7 +110,7 @@ export const TitleScreen = forwardRef<HTMLTextAreaElement, TitleScreenProps>(fun
                   type="button"
                   title={ex}
                   onClick={() => onExample(ex)}
-                  className="block min-h-[44px] w-full truncate border-2 border-px-edge px-3 text-left text-[20px] text-px-soft transition-colors duration-150 hover:border-px-muted hover:text-px-screen focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-px-plan"
+                  className="block min-h-[44px] w-full truncate border-2 border-px-edge px-3 text-left text-[20px] text-px-soft transition-colors duration-150 hover:border-px-muted hover:bg-px-panel hover:text-px-screen focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-px-plan"
                 >
                   {ex}
                 </button>
@@ -119,9 +119,9 @@ export const TitleScreen = forwardRef<HTMLTextAreaElement, TitleScreenProps>(fun
           </ul>
           <a
             href="#demo"
-            className="mt-2 self-start text-[22px] text-px-soft underline decoration-px-edge decoration-2 underline-offset-4 hover:text-px-screen hover:decoration-px-muted focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-px-plan"
+            className="group inline-flex min-h-[44px] items-center gap-2 self-start text-[22px] text-px-soft underline decoration-px-edge decoration-2 underline-offset-4 hover:text-px-screen hover:decoration-px-muted focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-px-plan"
           >
-            See how it works ↓
+            See how it works <span aria-hidden="true" className="inline-block transition-transform duration-150 group-hover:translate-y-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">↓</span>
           </a>
         </div>
       </div>
