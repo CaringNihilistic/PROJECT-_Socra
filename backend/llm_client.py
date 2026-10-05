@@ -549,6 +549,78 @@ STYLE — crisp, never padded:
 Respond in markdown. Do NOT include any JSON or structured data."""
 
 
+# The most one answer can add to one stat. The prompts ask for 0.05-0.25; Haiku gives up to 0.35
+# for a strong first answer, so that is allowed. Above it is a mistake or a founder telling the
+# model to "set every score to 1.0": with this cap the council is at least three answers away.
+MAX_TURN_DELTA = 0.35
+# What a turn earns when the model's scoring is unusable: a little on every stat, so a founder
+# who answered is never left with nothing because of a formatting slip
+FALLBACK_DELTA = 0.05
+MAX_NEW_ASSUMPTIONS = 5
+
+
+def _is_substantive(answer: str) -> bool:
+    """A real answer, by the roughest test: a dozen words and at least one number."""
+    return len(answer.split()) >= 12 and any(ch.isdigit() for ch in answer)
+
+
+def normalise_eval(result, current_scores: dict, judged_answer: str | None = None) -> dict:
+    """
+    Make the model's scoring safe to apply, whatever shape it came back in.
+
+    Seen from the Groq fallback on one live conversation: `"eval_delta": {}` (the turn silently
+    earned nothing), the five scores at the top level with no `eval_delta` wrapper, and a dozen
+    "assumptions" restating the whole conversation. A model can also return null, a string, a
+    negative number, or 1.0 because the founder asked it to.
+
+    - Reads the delta from `eval_delta`, or from the top level if the wrapper is missing.
+    - Keeps only the five stats, as numbers clamped to 0..MAX_TURN_DELTA.
+    - If no usable number came back at all, every stat gets FALLBACK_DELTA. Five explicit zeros
+      are a verdict ("vague answer") and stay zero.
+    - Assumptions and choices become clean, short lists of strings.
+    - `judged_answer` is passed only for the Groq fallback eval, which is erratic: the same
+      specific answer scored 0.15 on one run and five zeros on the next. There, five zeros for
+      an answer with a dozen words and a number count as unusable, not as a verdict.
+    """
+    if not isinstance(result, dict):
+        result = {}
+    dims = list(current_scores)
+    raw = result.get("eval_delta")
+    if not isinstance(raw, dict):
+        raw = {k: result[k] for k in dims if k in result}
+
+    delta = {}
+    for dim in dims:
+        value = raw.get(dim)
+        if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+            continue
+        try:
+            number = float(value)
+        except ValueError:
+            continue
+        if number != number or number in (float("inf"), float("-inf")):  # NaN, infinity
+            continue
+        delta[dim] = min(MAX_TURN_DELTA, max(0.0, number))
+    all_zero = bool(delta) and not any(delta.values())
+    if not delta or (all_zero and judged_answer is not None and _is_substantive(judged_answer)):
+        delta = {dim: FALLBACK_DELTA for dim in dims}
+    else:
+        delta = {dim: delta.get(dim, 0.0) for dim in dims}
+
+    def strings(value, limit):
+        if not isinstance(value, list):
+            return []
+        return [item.strip() for item in value if isinstance(item, str) and item.strip()][:limit]
+
+    return {
+        **result,
+        "eval_delta": delta,
+        "new_assumptions": strings(result.get("new_assumptions"), MAX_NEW_ASSUMPTIONS),
+        "choices": strings(result.get("choices"), 4),
+        "phase": result.get("phase") if isinstance(result.get("phase"), str) else "intake",
+    }
+
+
 def _build_groq_eval_prompt(current_scores: dict) -> str:
     return f"""You evaluate structured metadata from a Socratic startup conversation.
 
@@ -559,12 +631,20 @@ CURRENT SCORES (0.0 to 1.0):
 - success_definition: {current_scores['success_definition']}
 - risk_awareness: {current_scores['risk_awareness']}
 
-The conversation ends with an assistant message containing questions for the user. Output a JSON object with exactly these three keys:
-- "eval_delta": object — score increments (0.10-0.25 each) for dimensions the user's latest message addressed. Leave unaddressed dimensions at 0. Be generous when the user gives concrete, specific answers.
-- "new_assumptions": array of strings — concrete facts you can infer from the user's latest message (e.g. "Target users are enterprise teams", "No technical co-founder yet").
+WHAT EACH DIMENSION MEANS:
+- problem_clarity: who exactly has this problem and what they do about it today
+- scale_constraints: how many users or how much revenue, the budget, the team, the timeline
+- tech_context: what must be built, what it depends on (integrations, data, regulation), the hardest part
+- success_definition: the measurable result that would prove it works, and by when
+- risk_awareness: what could kill it, and what result would make the founder stop
+
+The conversation ends with an assistant message containing questions for the user. Score ONLY the user's LAST message: earlier messages have already been scored. Output a JSON object with exactly these three keys:
+- "eval_delta": object with ALL FIVE dimension names as keys, each a number. Give 0.10-0.25 to each dimension the user's last message addressed with a concrete fact (a number, a name, a date). Give 0 to every dimension it did not address. A vague message earns 0 everywhere. Never leave this object empty.
+- "new_assumptions": array of at most 4 short strings — concrete facts from the user's LAST message only (e.g. "Target users are enterprise teams", "No technical co-founder yet"). Do not restate earlier messages.
 - "choices": array of exactly 3-4 strings — each choice MUST contain a number, a company name, or a specific claim. FORBIDDEN: "Reduce costs", "Use AI", "Improve UX", "Scale better". REQUIRED format: "Cut 3 FTEs in year 1, ~$180k saved", "SMB clients paying $500/mo, churn is the risk", "Upwork + Toptal already do this — our edge is X". If you cannot make a choice specific, add a number or name to it.
 
-Output only valid JSON with these three keys. No extra text."""
+Output only valid JSON with these three keys, shaped like this. No extra text.
+{{"eval_delta": {{"problem_clarity": 0.0, "scale_constraints": 0.0, "tech_context": 0.2, "success_definition": 0.0, "risk_awareness": 0.0}}, "new_assumptions": ["..."], "choices": ["...", "...", "..."]}}"""
 
 
 def _build_streaming_system_prompt(current_scores: dict) -> str:
@@ -755,6 +835,7 @@ async def stream_architect_llm(
         return
 
     msgs = [{"role": m["role"], "content": m["content"]} for m in conversation_history]
+    last_answer = next((m["content"] for m in reversed(msgs) if m["role"] == "user"), "")
 
     if settings.anthropic_api_key or settings.google_api_key:
         # Anthropic / Google: stream text + embedded ###JSON### separator (reliable instruction following)
@@ -787,7 +868,7 @@ async def stream_architect_llm(
                 yield {"type": "token", "delta": remaining}
             # Try to parse full_text as JSON (works if model embedded JSON without separator)
             try:
-                result = json.loads(full_text)
+                result = normalise_eval(json.loads(full_text), current_scores)
             except json.JSONDecodeError:
                 # Separator missing — likely fell back to Groq 8B which outputs plain text.
                 # Run a separate Groq JSON eval call to recover choices and scores.
@@ -796,13 +877,7 @@ async def stream_architect_llm(
                 eval_msgs = msgs + [{"role": "assistant", "content": full_text}]
                 try:
                     eval_raw = await _call_groq(eval_prompt, eval_msgs, max_tokens=600, json_mode=True)
-                    result = json.loads(eval_raw)
-                    result.setdefault("eval_delta", {k: 0.10 for k in current_scores})
-                    result.setdefault("new_assumptions", [])
-                    result.setdefault("phase", "intake")
-                    result.setdefault("choices", [])
-                    if not isinstance(result.get("choices"), list):
-                        result["choices"] = []
+                    result = normalise_eval(json.loads(eval_raw), current_scores, judged_answer=last_answer)
                     if turn_number >= 8:
                         result["eval_delta"] = {k: max(0.0, 1.0 - current_scores[k]) for k in current_scores}
                 except Exception as e:
@@ -811,11 +886,11 @@ async def stream_architect_llm(
         else:
             json_str = full_text.split(SEPARATOR, 1)[1].strip()
             try:
-                result = json.loads(json_str)
+                result = normalise_eval(json.loads(json_str), current_scores)
             except json.JSONDecodeError:
                 import re as _re
                 m = _re.search(r'\{.*\}', json_str, _re.DOTALL)
-                result = json.loads(m.group()) if m else _default_result
+                result = normalise_eval(json.loads(m.group()), current_scores) if m else _default_result
 
         yield {"type": "result", "data": result}
 
@@ -850,13 +925,7 @@ async def stream_architect_llm(
         try:
             eval_raw = await _call_groq(eval_prompt, eval_msgs, max_tokens=600, json_mode=True)
             _logging.getLogger(__name__).info("Groq eval result: %s", eval_raw)
-            result = json.loads(eval_raw)
-            result.setdefault("eval_delta", {k: 0.10 for k in current_scores})
-            result.setdefault("new_assumptions", [])
-            result.setdefault("phase", "intake")
-            result.setdefault("choices", [])
-            if not isinstance(result.get("choices"), list):
-                result["choices"] = []
+            result = normalise_eval(json.loads(eval_raw), current_scores, judged_answer=last_answer)
             # Hard turn limit: after 8 turns push to masterplan regardless
             if turn_number >= 8:
                 result["eval_delta"] = {k: max(0.0, 1.0 - current_scores[k]) for k in current_scores}
@@ -965,12 +1034,12 @@ Always include 3-4 choices that represent the most archetypal user responses to 
     raw = await _call_real_llm(formatted_system, msgs, max_tokens=2000, json_mode=True)
 
     try:
-        return json.loads(raw)
+        return normalise_eval(json.loads(raw), current_scores)
     except json.JSONDecodeError:
         import re
         match = re.search(r'\{.*\}', raw, re.DOTALL)
         if match:
-            return json.loads(match.group())
+            return normalise_eval(json.loads(match.group()), current_scores)
         raise ValueError(f"Could not parse LLM response as JSON: {raw[:200]}")
 
 

@@ -62,6 +62,7 @@ Key conventions in the LLM layer:
 - The `###JSON###` separator splits streamed text (Part 1, shown to user) from eval JSON (Part 2, parsed by backend).
 - Agent/synthesis calls use `_build_agent_msgs` — a single clean user message (idea + founder's answers + web research), **not** the raw Q&A history. Passing Q&A history makes LLMs generate more questions instead of analysis.
 - Both chat prompts include `_build_focus_rule(current_scores)`: it names the weakest stat as the thing to ask about, lists stats at 0.8+ as closed, and forbids repeating a question. Without it the questions followed only the total score, and a recorded run asked about user acquisition and CAC four times. The format example in the streaming prompt is marked "FORMAT only" because the model used to echo its topic.
+- Every chat turn's scoring goes through `normalise_eval()` before it is applied: it reads the delta with or without its `eval_delta` wrapper, keeps only the five stats as numbers clamped to 0..`MAX_TURN_DELTA` (0.35, so a founder cannot talk the model into an instant council), and gives `FALLBACK_DELTA` (0.05) on every stat when nothing usable came back. A live turn once earned nothing because the Groq fallback eval returned `"eval_delta": {}`. That fallback judge is erratic, so its all-zero verdict on an answer with a dozen words and a number is not believed either. `tests/test_scoring.py` covers the shapes seen live.
 - All messages are sanitized to Anthropic's strict validation (no empty `messages[]`, no consecutive same-role, must start with `user`) before any provider call.
 
 ## LangGraph Pipeline (Admin + User Selectable)
@@ -279,7 +280,7 @@ npm run preview      # preview the production build
 ## Current Known Issues / Tech Debt
 
 - **Session ownership checks are partial** — `GET /sessions/{id}` now returns the redacted `_serialize_public()` view (no `conversation_history`) to non-owners of authenticated sessions via `_is_owner_or_admin()` (Phase 10). Anonymous sessions (`user_id=None`) remain a public "unguessable UUID" capability by design. Mutation endpoints already used `_check_session_access`. A full endpoint-by-endpoint audit is still outstanding.
-- **Test coverage is partial** — pytest covers `eval_bar.py` and webhook HMAC; vitest covers the pixel kit, episode engine, chat, landing and share helpers/components and the store's evolution triggers; CI runs both plus the frontend build. Ownership checks, most of the store and the backend streams are untested.
+- **Test coverage is partial** — pytest covers `eval_bar.py`, chat-turn scoring, the prompts' contracts and webhook HMAC; vitest covers the pixel kit, episode engine, chat, landing and share helpers/components and the store's evolution triggers; CI runs both plus the frontend build. Ownership checks, most of the store and the backend streams are untested.
 - **`backend/llm_client.py` is ~1,550 lines (god-file)** — holds provider clients, streaming, prompt builders, council agents, and synthesis. Should be split into an `llm/` package.
 - **Rate limiting is in-memory & per-process** (`RateLimitMiddleware`) — does not work correctly across multiple instances.
 - **Admin actions require `ADMIN_EMAILS`** — when Clerk auth isn't configured (pure local dev), every request is treated as admin (open dev mode).

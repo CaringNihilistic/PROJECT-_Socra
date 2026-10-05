@@ -33,12 +33,21 @@ def compute_total_score(scores: dict) -> float:
 def apply_delta(current_scores: dict, delta: dict) -> dict:
     """
     Apply an eval delta from LLM response.
-    Clamps each score to [0.0, 1.0].
+    Clamps each score to [0.0, 1.0]. Values that are not numbers are ignored.
     """
     updated = dict(current_scores)
+    if not isinstance(delta, dict):
+        return updated
     for dim, increment in delta.items():
-        if dim in updated:
-            updated[dim] = min(1.0, max(0.0, updated[dim] + float(increment)))
+        if dim not in updated:
+            continue
+        try:
+            step = float(increment)
+        except (TypeError, ValueError):
+            continue  # null or text from the model: skip it rather than fail the whole turn
+        if step != step:  # NaN
+            continue
+        updated[dim] = min(1.0, max(0.0, updated[dim] + step))
     return updated
 
 
